@@ -1,9 +1,9 @@
 name: sdcore-amf
  
 display-name: SD-CORE 5G AMF
-summary: A Charmed Operator for SDCORE's Access and Mobility Management Function (UPF).
+summary: A Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
 description: |
-  A Charmed Operator for SDCORE's Access and Mobility Management Function (UPF).
+  A Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
 
 containers:
   amf:
@@ -26,7 +26,6 @@ storage:
 provides:
   metrics-endpoint:
     interface: prometheus_scrape
-#Todo, N2 interface, a new charm relation interface should be defined and created first.
 
 requires:
   nrf:
@@ -35,5 +34,3 @@ requires:
     interface: mongodb_client
   amf-database:
     interface: mongodb_client
-  #certificates:
-  #  interface: tls-certificates

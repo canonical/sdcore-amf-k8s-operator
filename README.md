@@ -1,6 +1,6 @@
 # sdcore-amf-operator
 
-Charmed Operator for SDCORE's Access and Mobility Management Function (UPF).
+Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
 
 
 ## Pre-requisites

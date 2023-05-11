@@ -4,4 +4,3 @@ lightkube-models
 pydantic
 pytest-interface-tester
 validators
-#Todo
