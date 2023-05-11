@@ -1,0 +1,7 @@
+ops == 2.0.0
+lightkube
+lightkube-models
+pydantic
+pytest-interface-tester
+validators
+#Todo

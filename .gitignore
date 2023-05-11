@@ -1,0 +1,10 @@
+*.idea
+.vscode/
+.coverage
+
+# Python
+**/venv/**
+*.pyc
+
+# Charmcraft
+*.charm
