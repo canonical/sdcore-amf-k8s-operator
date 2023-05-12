@@ -1,6 +1,5 @@
-ops == 2.0.0
+ops
 lightkube
 lightkube-models
 pydantic
 pytest-interface-tester
-validators

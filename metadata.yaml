@@ -16,7 +16,7 @@ resources:
   amf-image:
     type: oci-image
     description: OCI image for 5G amf
-    upstream-source: http://omecproject/5gc-amf:master-40ec83b
+    upstream-source: omecproject/5gc-amf:master-a4759db
 
 storage:
   config:
@@ -29,7 +29,7 @@ provides:
 
 requires:
   nrf:
-    interface: nrf
+    interface: fiveg_nrf
   default-database:
     interface: mongodb_client
   amf-database:

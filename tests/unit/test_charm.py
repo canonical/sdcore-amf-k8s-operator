@@ -84,7 +84,7 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
-            WaitingStatus("Waiting for the default database to start"),
+            WaitingStatus("Waiting for the default database to be available"),
         )
 
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -100,7 +100,7 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
-            WaitingStatus("Waiting for the amf database to start"),
+            WaitingStatus("Waiting for the amf database to be available"),
         )
 
     @patch(

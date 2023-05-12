@@ -12,7 +12,7 @@ from typing import Union
 import ops
 from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
 from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
-from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]  # noqa: E501
+from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFAvailableEvent, NRFRequires
@@ -44,7 +44,6 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="nrf")
-        self.framework.observe(self._nrf_requires.on.nrf_available, self._on_amf_pebble_ready)
         self._amf_metrics_endpoint = MetricsEndpointProvider(self)
         self._service_patcher = KubernetesServicePatch(
             charm=self,
@@ -61,11 +60,13 @@ class AMFOperatorCharm(CharmBase):
         self._default_database = DatabaseRequires(
             self, relation_name="default-database", database_name=DEFAULT_DATABASE_NAME
         )
+
         self.framework.observe(
             self.on.default_database_relation_joined,
             self._on_amf_pebble_ready,
         )
         self.framework.observe(self.on.amf_pebble_ready, self._on_amf_pebble_ready)
+        self.framework.observe(self._nrf_requires.on.nrf_available, self._on_amf_pebble_ready)
 
     def _on_amf_pebble_ready(
         self,
@@ -74,7 +75,7 @@ class AMFOperatorCharm(CharmBase):
         """Handle pebble ready event for AMF container.
 
         Args:
-            event: PebbleReadyEvent
+            event (PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent): Juju event
         """
         if not self._amf_container.can_connect():
             self.unit.status = MaintenanceStatus("Waiting for service to start")
@@ -83,14 +84,13 @@ class AMFOperatorCharm(CharmBase):
         for relation in ["nrf", "amf-database", "default-database"]:
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
-                event.defer()
                 return
         if not self._default_database_is_available:
-            self.unit.status = WaitingStatus("Waiting for the default database to start")
+            self.unit.status = WaitingStatus("Waiting for the default database to be available")
             event.defer()
             return
         if not self._amf_database_is_available:
-            self.unit.status = WaitingStatus("Waiting for the amf database to start")
+            self.unit.status = WaitingStatus("Waiting for the amf database to be available")
             event.defer()
             return
         if not self._default_database_info:
@@ -113,8 +113,8 @@ class AMFOperatorCharm(CharmBase):
         """Writes the AMF config file and pushes it to the container.
 
         Args:
-            database_url: URL of the default (free5gc) database.
-            nrf_url: URL of the NRF.
+            database_url (str): URL of the default (free5gc) database.
+            nrf_url (str): URL of the NRF.
         """
         jinja2_environment = Environment(loader=FileSystemLoader(CONFIG_TEMPLATE_DIR_PATH))
         template = jinja2_environment.get_template(CONFIG_TEMPLATE_NAME)
@@ -126,13 +126,13 @@ class AMFOperatorCharm(CharmBase):
             database_url=database_url,
         )
         self._amf_container.push(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}", source=content)
-        logger.info(f"Pushed {CONFIG_FILE_NAME} config file")
+        logger.info("Pushed %s config file", CONFIG_FILE_NAME)
 
     def _relation_created(self, relation_name: str) -> bool:
         """Returns True if the relation is created, False otherwise.
 
         Args:
-            relation_name: Name of the relation.
+            relation_name (str): Name of the relation.
 
         Returns:
             bool: True if the relation is created, False otherwise.
@@ -140,7 +140,7 @@ class AMFOperatorCharm(CharmBase):
         return bool(self.model.get_relation(relation_name))
 
     @property
-    def _amf_pebble_layer(self) -> dict:
+    def _amf_pebble_layer(self) -> Layer:
         """Returns pebble layer for the amf container.
 
         Returns:
@@ -186,11 +186,15 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             bool: True if the database is available.
         """
-        return self._default_database.is_resource_created()
+        return self._amf_database.is_resource_created()
 
     @property
     def _amf_environment_variables(self) -> dict:
-        """Returns environment variables for the amf container."""
+        """Returns environment variables for the amf container.
+
+        Returns:
+            dict: Environment variables.
+        """
         return {
             "GOTRACEBACK": "crash",
             "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
@@ -204,7 +208,7 @@ class AMFOperatorCharm(CharmBase):
     @property
     def _pod_ip(
         self,
-    ):
+    ) -> str:
         """Returns the pod IP using juju client.
 
         Returns:
@@ -220,9 +224,9 @@ class AMFOperatorCharm(CharmBase):
             bool: Whether the config file is pushed.
         """
         if not self._amf_container.exists(f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"):
-            logger.info(f"Config file is not written: {CONFIG_FILE_NAME}")
+            logger.info("%s Config file is not pushed", CONFIG_FILE_NAME)
             return False
-        logger.info("Config file is written")
+        logger.info("Config file is pushed")
         return True
 
     @property

@@ -5,14 +5,14 @@ Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
 
 ## Pre-requisites
 
-Kubernetes Cluster.
+Juju model on a Kubernetes cluster.
 
 ## Usage
 
 ```bash
-juju deploy amf-operator --trust --channel=edge
+juju deploy sdcore-amf --trust --channel=edge
 ```
 
 ## Image
 
-**amf**: http://omecproject/5gc-amf:master-40ec83b
+**amf**: omecproject/5gc-amf:master-a4759db

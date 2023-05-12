@@ -16,6 +16,7 @@ APP_NAME = METADATA["name"]
 DB_CHARM_NAME = "mongodb-k8s"
 NRF_CHARM_NAME = "sdcore-nrf"
 
+
 @pytest.fixture(scope="module")
 @pytest.mark.abort_on_fail
 async def build_and_deploy(ops_test):
@@ -35,16 +36,12 @@ async def build_and_deploy(ops_test):
 
 
 @pytest.mark.abort_on_fail
-async def test_given_charm_is_built_when_deployed_then_status_is_active(
+async def test_relate_and_wait_for_active_status(
     ops_test,
     build_and_deploy,
 ):
-    await ops_test.model.add_relation(
-            relation1=APP_NAME, relation2=DB_CHARM_NAME
-    )
-    await ops_test.model.add_relation(
-            relation1=APP_NAME, relation2=NRF_CHARM_NAME
-    )
+    await ops_test.model.add_relation(relation1=APP_NAME, relation2=DB_CHARM_NAME)
+    await ops_test.model.add_relation(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
         status="active",
