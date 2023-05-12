@@ -7,22 +7,18 @@
 import logging
 from ipaddress import IPv4Address
 from subprocess import check_output
-from typing import Union
 
-from charms.data_platform_libs.v0.data_interfaces import (  # type: ignore[import]
-    DatabaseCreatedEvent,
-    DatabaseRequires,
-)
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
 from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ignore[import]
     KubernetesServicePatch,
 )
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
-from charms.sdcore_nrf.v0.fiveg_nrf import NRFAvailableEvent, NRFRequires  # type: ignore[import]
+from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
-from ops.charm import CharmBase, PebbleReadyEvent
+from ops.charm import CharmBase, EventBase
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.pebble import Layer
@@ -70,12 +66,20 @@ class AMFOperatorCharm(CharmBase):
             self.on.default_database_relation_joined,
             self._on_amf_pebble_ready,
         )
+        self.framework.observe(
+            self.on.amf_database_relation_joined,
+            self._on_amf_pebble_ready,
+        )
+        self.framework.observe(
+            self._default_database.on.database_created, self._on_amf_pebble_ready
+        )
+        self.framework.observe(self._amf_database.on.database_created, self._on_amf_pebble_ready)
         self.framework.observe(self.on.amf_pebble_ready, self._on_amf_pebble_ready)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._on_amf_pebble_ready)
 
     def _on_amf_pebble_ready(
         self,
-        event: Union[PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent],
+        event: EventBase,
     ) -> None:
         """Handle pebble ready event for AMF container.
 
