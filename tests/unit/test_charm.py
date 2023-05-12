@@ -164,6 +164,7 @@ class TestCharm(unittest.TestCase):
             patch_push.assert_called_with(
                 path="/free5gc/config/amfcfg.conf",
                 source=expected_content,
+                make_dirs=True,
             )
 
     @patch("ops.model.Container.push")

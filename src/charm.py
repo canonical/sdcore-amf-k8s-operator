@@ -137,7 +137,11 @@ class AMFOperatorCharm(CharmBase):
             amf_database_name=AMF_DATABASE_NAME,
             database_url=database_url,
         )
-        self._amf_container.push(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}", source=content)
+        self._amf_container.push(
+            path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",
+            source=content,
+            make_dirs=True,
+        )
         logger.info("Pushed %s config file", CONFIG_FILE_NAME)
 
     def _relation_created(self, relation_name: str) -> bool:
