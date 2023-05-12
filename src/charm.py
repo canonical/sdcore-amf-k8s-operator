@@ -9,16 +9,21 @@ from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import Union
 
-import ops
-from charms.data_platform_libs.v0.data_interfaces import DatabaseCreatedEvent, DatabaseRequires
-from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
+from charms.data_platform_libs.v0.data_interfaces import (  # type: ignore[import]
+    DatabaseCreatedEvent,
+    DatabaseRequires,
+)
+from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ignore[import]
+    KubernetesServicePatch,
+)
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
-from charms.sdcore_nrf.v0.fiveg_nrf import NRFAvailableEvent, NRFRequires
+from charms.sdcore_nrf.v0.fiveg_nrf import NRFAvailableEvent, NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
 from ops.charm import CharmBase, PebbleReadyEvent
+from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.pebble import Layer
 
@@ -119,6 +124,9 @@ class AMFOperatorCharm(CharmBase):
         jinja2_environment = Environment(loader=FileSystemLoader(CONFIG_TEMPLATE_DIR_PATH))
         template = jinja2_environment.get_template(CONFIG_TEMPLATE_NAME)
         content = template.render(
+            ngapp_port=NGAPP_PORT,
+            sctp_grpc_port=SCTP_GRPC_PORT,
+            sbi_port=SBI_PORT,
             nrf_url=nrf_url,
             amf_url=self._amf_hostname,
             default_database_name=DEFAULT_DATABASE_NAME,
@@ -251,4 +259,4 @@ class AMFOperatorCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    ops.main(AMFOperatorCharm)
+    main(AMFOperatorCharm)
