@@ -31,8 +31,8 @@ async def build_and_deploy(ops_test):
         application_name=APP_NAME,
         series="jammy",
     )
-    await ops_test.model.wait_for_idle(DB_CHARM_NAME, application_name=DB_CHARM_NAME)
-    await ops_test.model.wait_for_idle(NRF_CHARM_NAME, application_name=NRF_CHARM_NAME)
+    await ops_test.model.deploy(DB_CHARM_NAME, application_name=DB_CHARM_NAME)
+    await ops_test.model.deploy(NRF_CHARM_NAME, application_name=NRF_CHARM_NAME)
 
 
 @pytest.mark.abort_on_fail
