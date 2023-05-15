@@ -28,7 +28,7 @@ provides:
     interface: prometheus_scrape
 
 requires:
-  nrf:
+  fiveg_nrf:
     interface: fiveg_nrf
   default-database:
     interface: mongodb_client

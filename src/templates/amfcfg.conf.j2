@@ -7,8 +7,17 @@ configuration:
   mongodb:
     name: {{ default_database_name }}
     url: {{ database_url }}
+  networkFeatureSupport5GS:
+    emc: 0
+    emcN3: 0
+    emf: 0
+    enable: true
+    imsVoPS: 0
+    iwkN26: 0
+    mcsi: 0
+    mpsi: 0
   ngapIpList:
-  - 0.0.0.0
+    - 0.0.0.0
   ngappPort: {{ ngapp_port }}
   nrfUri: {{ nrf_url }}
   sbi:
@@ -17,6 +26,45 @@ configuration:
     registerIPv4: {{ amf_url }}
     scheme: http
   sctpGrpcPort: {{ sctp_grpc_port }}
+  serviceNameList:
+    - namf-comm
+    - namf-evts
+    - namf-mt
+    - namf-loc
+    - namf-oam
+  supportDnnList:
+    - internet
+  security:
+    integrityOrder:
+      - NIA1
+      - NIA2
+    cipheringOrder:
+      - NEA0
+  networkName:
+    full: Aether5G
+    short: Aether
+  t3502Value: 720
+  t3512Value: 3600
+  t3513:
+    enable: true
+    expireTime: 6s
+    maxRetryTimes: 4
+  t3522:
+    enable: true
+    expireTime: 6s
+    maxRetryTimes: 4
+  t3550:
+    enable: true
+    expireTime: 6s
+    maxRetryTimes: 4
+  t3560:
+    enable: true
+    expireTime: 6s
+    maxRetryTimes: 4
+  t3565:
+    enable: true
+    expireTime: 6s
+    maxRetryTimes: 4
 info:
   description: AMF initial configuration
   version: 1.0.0

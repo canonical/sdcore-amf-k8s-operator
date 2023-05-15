@@ -44,7 +44,7 @@ class AMFOperatorCharm(CharmBase):
         super().__init__(*args)
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
-        self._nrf_requires = NRFRequires(charm=self, relation_name="nrf")
+        self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
         self._amf_metrics_endpoint = MetricsEndpointProvider(self)
         self._service_patcher = KubernetesServicePatch(
             charm=self,
@@ -90,7 +90,7 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = MaintenanceStatus("Waiting for service to start")
             event.defer()
             return
-        for relation in ["nrf", "amf-database", "default-database"]:
+        for relation in ["fiveg_nrf", "amf-database", "default-database"]:
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
                 return
@@ -113,7 +113,7 @@ class AMFOperatorCharm(CharmBase):
         if not self._config_file_is_pushed:
             self._push_config_file(
                 database_url=self._default_database_info["uris"].split(",")[0],
-                nrf_url=self._nrf_requires.get_nrf_url(),
+                nrf_url=self._nrf_requires.nrf_url,
             )
         self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
         self.unit.status = ActiveStatus()
@@ -252,7 +252,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             bool: Whether the NRF data is available.
         """
-        if not self._nrf_requires.get_nrf_url():
+        if not self._nrf_requires.nrf_url:
             return False
         return True
 
