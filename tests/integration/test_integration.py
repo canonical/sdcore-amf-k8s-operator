@@ -34,6 +34,7 @@ async def build_and_deploy(ops_test):
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
+        channel="latest/stable",
         series="jammy",
     )
     await ops_test.model.deploy(

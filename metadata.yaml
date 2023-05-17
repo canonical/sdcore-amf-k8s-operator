@@ -23,6 +23,9 @@ storage:
     type: filesystem
     minimum-size: 1M
 
+assumes:
+  - k8s-api
+
 provides:
   metrics-endpoint:
     interface: prometheus_scrape

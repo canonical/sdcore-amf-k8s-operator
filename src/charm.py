@@ -112,29 +112,51 @@ class AMFOperatorCharm(CharmBase):
             return
         if not self._config_file_is_pushed:
             self._push_config_file(
-                database_url=self._default_database_info["uris"].split(",")[0],
+                ngapp_port=NGAPP_PORT,
+                sctp_grpc_port=SCTP_GRPC_PORT,
+                sbi_port=SBI_PORT,
                 nrf_url=self._nrf_requires.nrf_url,
+                amf_url=self._amf_hostname,
+                default_database_name=DEFAULT_DATABASE_NAME,
+                amf_database_name=AMF_DATABASE_NAME,
+                database_url=self._default_database_info["uris"].split(",")[0],
             )
         self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
         self.unit.status = ActiveStatus()
 
-    def _push_config_file(self, database_url: str, nrf_url: str) -> None:
+    def _push_config_file(
+        self,
+        default_database_name: str,
+        amf_database_name: str,
+        amf_url: str,
+        ngapp_port: int,
+        sctp_grpc_port: int,
+        sbi_port: int,
+        nrf_url: str,
+        database_url: str,
+    ) -> None:
         """Writes the AMF config file and pushes it to the container.
 
         Args:
+            default_database_name (str): Name of the default (free5gc) database.
+            amf_database_name (str): Name of the AMF database.
+            amf_url (str): URL of the AMF.
+            ngapp_port (int): AMF NGAP port.
+            sctp_grpc_port (int): AMF SCTP port.
+            sbi_port (int): AMF SBi port.
             database_url (str): URL of the default (free5gc) database.
             nrf_url (str): URL of the NRF.
         """
         jinja2_environment = Environment(loader=FileSystemLoader(CONFIG_TEMPLATE_DIR_PATH))
         template = jinja2_environment.get_template(CONFIG_TEMPLATE_NAME)
         content = template.render(
-            ngapp_port=NGAPP_PORT,
-            sctp_grpc_port=SCTP_GRPC_PORT,
-            sbi_port=SBI_PORT,
+            ngapp_port=ngapp_port,
+            sctp_grpc_port=sctp_grpc_port,
+            sbi_port=sbi_port,
             nrf_url=nrf_url,
-            amf_url=self._amf_hostname,
-            default_database_name=DEFAULT_DATABASE_NAME,
-            amf_database_name=AMF_DATABASE_NAME,
+            amf_url=amf_url,
+            default_database_name=default_database_name,
+            amf_database_name=amf_database_name,
             database_url=database_url,
         )
         self._amf_container.push(
