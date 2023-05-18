@@ -1,4 +1,4 @@
-# Copyright 2022 Canonical Ltd.
+# Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 """Library for the `fiveg_nrf` relation.
@@ -18,7 +18,6 @@ charmcraft fetch-lib charms.sdcore_nrf_operator.v0.fiveg_nrf
 
 Add the following libraries to the charm's `requirements.txt` file:
 - pydantic
-- pytest-interface-tester
 
 ### Requirer charm
 The requirer charm is the one requiring the NRF information.
@@ -51,7 +50,7 @@ if __name__ == "__main__":
 ```
 
 ### Provider charm
-The provider charm is the one requiring providing the information about the NRF.
+The provider charm is the one providing the information about the NRF.
 
 Example:
 ```python
@@ -74,10 +73,18 @@ class DummyFiveGNRFProviderCharm(CharmBase):
         )
 
     def _on_fiveg_nrf_relation_joined(self, event: RelationJoinedEvent):
-        if self.unit.is_leader():
-            self.nrf_provider.set_nrf_information(
-                url=self.NRF_URL,
-            )
+        relation_id = event.relation.id
+        self.nrf_provider.set_nrf_information(
+            url=self.NRF_URL,
+            relation_id=relation_id,
+        )
+
+    def _on_nrf_url_changed(
+        self,
+    ):
+        self.nrf_provider.set_nrf_information_in_all_relations(
+            url="https://different.nrf.com",
+        )
 
 
 if __name__ == "__main__":
@@ -87,9 +94,9 @@ if __name__ == "__main__":
 """
 
 import logging
-from typing import Dict, Optional, Union
+from typing import Optional
 
-from interface_tester.schema_base import DataBagSchema
+from interface_tester.schema_base import DataBagSchema  # type: ignore[import]
 from ops.charm import CharmBase, CharmEvents, RelationChangedEvent
 from ops.framework import EventBase, EventSource, Handle, Object
 from ops.model import Relation
@@ -103,10 +110,10 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 1
+LIBPATCH = 2
 
 PYDEPS = [
-    "pydantic" "pytest-interface-tester",
+    "pydantic",
 ]
 
 
@@ -140,20 +147,17 @@ class ProviderSchema(DataBagSchema):
     app: ProviderAppData
 
 
-def data_is_valid(data: Union[str, dict]) -> bool:
-    """Returns whether data is valid.
+def data_matches_provider_schema(data: dict) -> bool:
+    """Returns whether data matches provider schema.
 
     Args:
-        data (Union[str, dict]): Data to be validated.
+        data (dict): Data to be validated.
 
     Returns:
-        bool: True if data is valid, False otherwise.
+        bool: True if data matches provider schema, False otherwise.
     """
     try:
-        if isinstance(data, str):
-            ProviderSchema(app=ProviderAppData(url=data))  # type: ignore[arg-type]
-        else:
-            ProviderSchema(app=data)
+        ProviderSchema(app=data)
         return True
     except ValidationError as e:
         logger.error("Invalid data: %s", e)
@@ -218,16 +222,14 @@ class NRFRequires(Object):
             return remote_app_relation_data.get("url")
         return None
 
-    def _get_remote_app_relation_data(
-        self, relation: Optional[Relation] = None
-    ) -> Optional[Dict[str, str]]:
+    def _get_remote_app_relation_data(self, relation: Optional[Relation] = None) -> Optional[dict]:
         """Get relation data for the remote application.
 
         Args:
             Relation: Juju relation object (optional).
 
         Returns:
-            Dict: Relation data for the remote application
+            dict: Relation data for the remote application.
             or None if the relation data is invalid.
         """
         relation = relation or self.model.get_relation(self.relation_name)
@@ -238,7 +240,7 @@ class NRFRequires(Object):
             logger.warning("No remote application in relation: %s", self.relation_name)
             return None
         remote_app_relation_data = dict(relation.data[relation.app])
-        if not data_is_valid(remote_app_relation_data):
+        if not data_matches_provider_schema(remote_app_relation_data):
             logger.error("Invalid relation data: %s", remote_app_relation_data)
             return None
         return remote_app_relation_data
@@ -253,20 +255,50 @@ class NRFProvides(Object):
         self.relation_name = relation_name
         self.charm = charm
 
-    def set_nrf_information(self, url: str) -> None:
-        """Sets url in the application relation data.
+    def set_nrf_information(
+        self,
+        url: str,
+        relation_id: int,
+    ) -> None:
+        """Sets NRF url in the application(s) relation data.
 
         Args:
-            url (str): NRF url
+            url (str): NRF url.
+            relation_id (int): Relation ID.
+
         Returns:
             None
         """
         if not self.charm.unit.is_leader():
             raise RuntimeError("Unit must be leader to set application relation data.")
+        if not data_matches_provider_schema(data={"url": url}):
+            raise ValueError(f"Invalid url: {url}")
+
+        relation = self.model.get_relation(
+            relation_name=self.relation_name, relation_id=relation_id
+        )
+        if not relation:
+            raise RuntimeError(f"Relation {self.relation_name} not created yet.")
+        if relation not in self.model.relations[self.relation_name]:
+            raise RuntimeError(f"Relation {self.relation_name} not created yet.")
+        relation.data[self.charm.app].update({"url": url})
+
+    def set_nrf_information_in_all_relations(self, url: str) -> None:
+        """Sets NRF url in applications for all applications.
+
+        Args:
+            url (str): NRF url.
+
+        Returns:
+            None
+        """
+        if not self.charm.unit.is_leader():
+            raise RuntimeError("Unit must be leader to set application relation data.")
+        if not data_matches_provider_schema(data={"url": url}):
+            raise ValueError(f"Invalid url: {url}")
+
         relations = self.model.relations[self.relation_name]
         if not relations:
             raise RuntimeError(f"Relation {self.relation_name} not created yet.")
-        if not data_is_valid(url):
-            raise ValueError(f"Invalid url: {url}")
         for relation in relations:
             relation.data[self.charm.app].update({"url": url})

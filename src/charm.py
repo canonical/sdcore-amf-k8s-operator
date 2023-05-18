@@ -110,21 +110,26 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for NRF data to be available")
             event.defer()
             return
-        if not self._config_file_is_pushed:
+        content = self._render_config_file(
+            ngapp_port=NGAPP_PORT,
+            sctp_grpc_port=SCTP_GRPC_PORT,
+            sbi_port=SBI_PORT,
+            nrf_url=self._nrf_requires.nrf_url,
+            amf_url=self._amf_hostname,
+            default_database_name=DEFAULT_DATABASE_NAME,
+            amf_database_name=AMF_DATABASE_NAME,
+            database_url=self._default_database_info["uris"].split(",")[0],
+        )
+        if not self._config_file_is_pushed or not self._config_file_content_matches(
+            content=content
+        ):
             self._push_config_file(
-                ngapp_port=NGAPP_PORT,
-                sctp_grpc_port=SCTP_GRPC_PORT,
-                sbi_port=SBI_PORT,
-                nrf_url=self._nrf_requires.nrf_url,
-                amf_url=self._amf_hostname,
-                default_database_name=DEFAULT_DATABASE_NAME,
-                amf_database_name=AMF_DATABASE_NAME,
-                database_url=self._default_database_info["uris"].split(",")[0],
+                content=content,
             )
         self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
         self.unit.status = ActiveStatus()
 
-    def _push_config_file(
+    def _render_config_file(
         self,
         default_database_name: str,
         amf_database_name: str,
@@ -134,8 +139,8 @@ class AMFOperatorCharm(CharmBase):
         sbi_port: int,
         nrf_url: str,
         database_url: str,
-    ) -> None:
-        """Writes the AMF config file and pushes it to the container.
+    ):
+        """Renders the AMF config file.
 
         Args:
             default_database_name (str): Name of the default (free5gc) database.
@@ -159,6 +164,17 @@ class AMFOperatorCharm(CharmBase):
             amf_database_name=amf_database_name,
             database_url=database_url,
         )
+        return content
+
+    def _push_config_file(
+        self,
+        content: str,
+    ) -> None:
+        """Writes the AMF config file and pushes it to the container.
+
+        Args:
+            content (str): Content of the config file.
+        """
         self._amf_container.push(
             path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",
             source=content,
@@ -265,6 +281,17 @@ class AMFOperatorCharm(CharmBase):
             logger.info("%s Config file is not pushed", CONFIG_FILE_NAME)
             return False
         logger.info("Config file is pushed")
+        return True
+
+    def _config_file_content_matches(self, content: str) -> bool:
+        """Returns whether the amfcfg config file content matches the provided content.
+
+        Returns:
+            bool: Whether the amfcfg config file content matches
+        """
+        existing_content = self._amf_container.pull(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}")
+        if existing_content.read() != content:
+            return False
         return True
 
     @property

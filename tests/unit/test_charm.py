@@ -3,6 +3,7 @@
 
 
 import unittest
+from io import StringIO
 from unittest.mock import PropertyMock, patch
 
 from ops import testing
@@ -159,13 +160,75 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
         self._default_database_is_available()
         self.harness.container_pebble_ready("amf")
-        with open("tests/unit/expected_config/config.conf") as expected_bundle_file:
-            expected_content = expected_bundle_file.read()
+        with open("tests/unit/expected_config/config.conf") as expected_config_file:
+            expected_content = expected_config_file.read()
             patch_push.assert_called_with(
                 path="/free5gc/config/amfcfg.conf",
                 source=expected_content,
                 make_dirs=True,
             )
+
+    @patch("ops.model.Container.push")
+    @patch("charm.check_output")
+    @patch("ops.model.Container.exists")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    @patch("ops.model.Container.pull")
+    def test_config_pushed_but_content_changed_when_pebble_ready_then_new_config_content_is_pushed(  # noqa: E501
+        self,
+        patch_pull,
+        patched_is_resource_created,
+        patched_nrf_url,
+        patch_exists,
+        patch_check_output,
+        patch_push,
+    ):
+        patch_check_output.return_value = "1.1.1.1".encode()
+        patch_pull.return_value = StringIO("Dummy content")
+        patch_exists.return_value = False
+        patched_is_resource_created.return_value = True
+        patched_nrf_url.return_value = "http://nrf:8081"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
+        self._default_database_is_available()
+        self.harness.container_pebble_ready("amf")
+        with open("tests/unit/expected_config/config.conf") as expected_config_file:
+            expected_content = expected_config_file.read()
+            patch_push.assert_called_with(
+                path="/free5gc/config/amfcfg.conf",
+                source=expected_content,
+                make_dirs=True,
+            )
+
+    @patch("ops.model.Container.push")
+    @patch("charm.check_output")
+    @patch("ops.model.Container.exists")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    @patch("ops.model.Container.pull")
+    def test_config_pushed_and_content_not_changed_when_pebble_ready_then_new_config_content_is_not_pushed(  # noqa: E501
+        self,
+        patch_pull,
+        patched_is_resource_created,
+        patched_nrf_url,
+        patch_exists,
+        patch_check_output,
+        patch_push,
+    ):
+        with open("tests/unit/expected_config/config.conf", "r") as expected_config_file:
+            expected_content = expected_config_file.read()
+            patch_pull.side_effect = [StringIO(expected_content), StringIO(expected_content)]
+            patch_check_output.return_value = "1.1.1.1".encode()
+            patch_exists.side_effect = [True, True]
+            patched_is_resource_created.return_value = True
+            patched_nrf_url.return_value = "http://nrf:8081"
+            self.harness.set_can_connect(container="amf", val=True)
+            self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+            self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
+            self._default_database_is_available()
+            self.harness.container_pebble_ready("amf")
+            patch_push.assert_not_called()
 
     @patch("ops.model.Container.push")
     @patch("charm.check_output")

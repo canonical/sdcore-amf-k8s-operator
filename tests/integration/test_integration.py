@@ -29,19 +29,19 @@ async def build_and_deploy(ops_test):
         charm,
         resources=resources,
         application_name=APP_NAME,
-        series="jammy",
+        trust=True,
     )
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
         channel="latest/stable",
-        series="jammy",
+        trust=True,
     )
     await ops_test.model.deploy(
         NRF_CHARM_NAME,
         application_name=NRF_CHARM_NAME,
         channel="edge",
-        series="jammy",
+        trust=True,
     )
 
 
