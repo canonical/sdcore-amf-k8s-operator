@@ -15,10 +15,11 @@ from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ign
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
+from lib.charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
-from ops.charm import CharmBase, EventBase
+from ops.charm import CharmBase, EventBase, RelationJoinedEvent
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.pebble import Layer
@@ -45,6 +46,7 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
+        self.n2_provider = N2Provides(self, "fiveg-n2")
         self._amf_metrics_endpoint = MetricsEndpointProvider(self)
         self._service_patcher = KubernetesServicePatch(
             charm=self,
@@ -76,6 +78,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._amf_database.on.database_created, self._on_amf_pebble_ready)
         self.framework.observe(self.on.amf_pebble_ready, self._on_amf_pebble_ready)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._on_amf_pebble_ready)
+        self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_fiveg_n2_relation_joined)
 
     def _on_amf_pebble_ready(
         self,
@@ -117,6 +120,13 @@ class AMFOperatorCharm(CharmBase):
             )
         self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
         self.unit.status = ActiveStatus()
+
+    def _on_fiveg_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
+        if self.unit.is_leader():
+            self.n2_provider.set_n2_information(
+                amf_hostname=self._amf_hostname,
+                ngapp_port=NGAPP_PORT,
+            )
 
     def _push_config_file(self, database_url: str, nrf_url: str) -> None:
         """Writes the AMF config file and pushes it to the container.

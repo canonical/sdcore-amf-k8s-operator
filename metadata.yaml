@@ -26,6 +26,8 @@ storage:
 provides:
   metrics-endpoint:
     interface: prometheus_scrape
+  fiveg-n2:
+    interface: fiveg_n2
 
 requires:
   fiveg_nrf:

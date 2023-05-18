@@ -237,3 +237,18 @@ class TestCharm(unittest.TestCase):
             self.harness.model.unit.status,
             ActiveStatus(),
         )
+
+    def test_given_n2_information_when_fiveg_n2_relation_joined_then_n2_information_is_in_relation_databag(  # noqa: E501
+        self
+    ):
+        relation_id = self.harness.add_relation(
+            relation_name="fiveg-n2", remote_app="n2-requirer"
+        )
+        self.harness.add_relation_unit(
+            relation_id=relation_id, remote_unit_name="n2-requirer/0"
+        )
+        relation_data = self.harness.get_relation_data(
+            relation_id=relation_id, app_or_unit=self.harness.charm.app.name
+        )
+        self.assertEqual(relation_data["amf_hostname"], "amf")
+        self.assertEqual(relation_data["ngapp_port"], "38412")

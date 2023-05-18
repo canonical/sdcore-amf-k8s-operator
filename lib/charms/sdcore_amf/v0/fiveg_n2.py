@@ -1,14 +1,6 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-#TODO, once the charm is merged it should be registered and the lib should be updated
-#TODO, update the names based on the spec
-#TODO, the desing of this lib largely depends on the desired behavior. questions:
-#TODO, 1. should the charm be able to provide the N2 port? the ngapp port is actually needed, now it is hardcoded in the gnbsim conf
-#TODO, should we for now support only the hostname+port and not care about the ip list?
-#TODO, 2. should the charm be able to provide the ngapp ip list?
-#TODO should the name of the interface itself be changed from n2 to amf or something else?
-
 """Library for the `fiveg_n2` relation.
 
 This library contains the Requires and Provides classes for handling the `fiveg_n2`
