@@ -121,7 +121,11 @@ Examples:
         unit: <empty>
         app: {
             "amf_hostname": "amf",
+<<<<<<< HEAD
             "ngapp_port": "38412"
+=======
+            "ngapp_port": 38412
+>>>>>>> dev-implements-n2-interface
         }
     RequirerSchema:
         unit: <empty>
