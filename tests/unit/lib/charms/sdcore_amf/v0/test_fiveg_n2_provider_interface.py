@@ -31,10 +31,7 @@ class DummyFivegN2ProviderCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.n2_provider = N2Provides(self, "fiveg-n2")
-        self.framework.observe(
-            self.n2_provider.on.fiveg_n2_relation_joined,
-            self._on_fiveg_n2_relation_joined,
-        )
+        self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_fiveg_n2_relation_joined)
 
     def _on_fiveg_n2_relation_joined(self, event: RelationJoinedEvent):
         if self.unit.is_leader():

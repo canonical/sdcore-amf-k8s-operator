@@ -15,7 +15,6 @@ from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ign
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
-from lib.charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
@@ -23,6 +22,8 @@ from ops.charm import CharmBase, EventBase, RelationJoinedEvent
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
 from ops.pebble import Layer
+
+from lib.charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
