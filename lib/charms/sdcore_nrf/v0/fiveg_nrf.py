@@ -232,7 +232,7 @@ class NRFRequires(Object):
         """
         relation = relation or self.model.get_relation(self.relation_name)
         if not relation:
-            logger.warning(f"No relation: {self.relation_name}")
+            logger.error("No relation: %s", self.relation_name)
             return None
         if not relation.app:
             logger.warning("No remote application in relation: %s", self.relation_name)
