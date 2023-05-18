@@ -248,4 +248,4 @@ class TestCharm(unittest.TestCase):
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
-        self.assertEqual(relation_data["ngapp_port"], "38412")
+        self.assertEqual(relation_data["amf_port"], "38412")

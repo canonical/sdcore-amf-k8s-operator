@@ -36,7 +36,7 @@ class DummyFivegN2Requires(CharmBase):
 
     def _on_n2_information_available(self, event: N2InformationAvailableEvent):
         logger.error("N2 data, amf_hostname: %s", self.n2_requirer.amf_hostname)
-        logger.error("N2 data, ngapp_port: %s", self.n2_requirer.ngapp_port)
+        logger.error("N2 data, amf_port: %s", self.n2_requirer.amf_port)
 
 
 class TestFiveGNRFRequirer(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "38412",
+            "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
@@ -98,7 +98,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "invalid_port123",
+            "amf_port": "invalid_port123",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
@@ -113,7 +113,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "38412",
+            "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
@@ -122,21 +122,21 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         amf_hostname = self.harness.charm.n2_requirer.amf_hostname
         self.assertEqual(amf_hostname, "amf")
 
-    def test_given_n2_information_in_relation_data_when_get_ngapp_port_is_called_then_port_is_returned(  # noqa: E501
+    def test_given_n2_information_in_relation_data_when_get_amf_port_is_called_then_port_is_returned(  # noqa: E501
         self,
     ):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "38412",
+            "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
         )
 
-        ngapp_port = self.harness.charm.n2_requirer.ngapp_port
-        self.assertEqual(ngapp_port, 38412)
+        amf_port = self.harness.charm.n2_requirer.amf_port
+        self.assertEqual(amf_port, 38412)
 
     def test_given_n2_information_is_changed_when_get_amf_hostname_is_called_then_new_host_is_returned(  # noqa: E501
         self,
@@ -145,7 +145,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "38412",
+            "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
@@ -153,7 +153,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         relation_data = {
             "amf_hostname": "amf2",
-            "ngapp_port": "38412",
+            "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
@@ -162,13 +162,13 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         amf_hostname = self.harness.charm.n2_requirer.amf_hostname
         self.assertEqual(amf_hostname, "amf2")
 
-    def test_given_n2_information_is_changed_when_get_ngapp_port_is_called_then_new_port_is_returned(  # noqa: E501
+    def test_given_n2_information_is_changed_when_get_amf_port_is_called_then_new_port_is_returned(  # noqa: E501
         self,
     ):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "38412",
+            "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
@@ -176,11 +176,11 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         relation_data = {
             "amf_hostname": "amf",
-            "ngapp_port": "38413",
+            "amf_port": "38413",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
         )
 
-        ngapp_port = self.harness.charm.n2_requirer.ngapp_port
-        self.assertEqual(ngapp_port, 38413)
+        amf_port = self.harness.charm.n2_requirer.amf_port
+        self.assertEqual(amf_port, 38413)

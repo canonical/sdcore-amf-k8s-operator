@@ -126,7 +126,7 @@ class AMFOperatorCharm(CharmBase):
         if self.unit.is_leader():
             self.n2_provider.set_n2_information(
                 amf_hostname=self._amf_hostname,
-                ngapp_port=NGAPP_PORT,
+                amf_port=NGAPP_PORT,
             )
 
     def _push_config_file(self, database_url: str, nrf_url: str) -> None:
