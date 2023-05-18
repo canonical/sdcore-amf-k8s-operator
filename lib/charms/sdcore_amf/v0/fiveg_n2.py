@@ -44,7 +44,7 @@ class DummyFivegN2Requires(CharmBase):
 
     def _on_n2_information_available(self, event: N2InformationAvailableEvent):
         amf_hostname = event.amf_hostname
-        ngapp_port = event.ngapp_port
+        amf_port = event.amf_port
         <do something with the amf hostname and port>
 
 
@@ -67,7 +67,7 @@ from charms.sdcore_n2.v0.fiveg_n2 import N2Provides
 class DummyFivegN2ProviderCharm(CharmBase):
 
     AMF_HOST = "amf"
-    NGAPP_PORT = 38412
+    PORT = 38412
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -80,7 +80,7 @@ class DummyFivegN2ProviderCharm(CharmBase):
         if self.unit.is_leader():
             self.n2_provider.set_n2_information(
                 amf_hostname=self.AMF_HOST,
-                ngapp_port=self.NGAPP_PORT,
+                amf_port=self.PORT,
             )
 
 
@@ -122,7 +122,7 @@ Examples:
         unit: <empty>
         app: {
             "amf_hostname": "amf",
-            "ngapp_port": 38412
+            "amf_port": 38412
         }
     RequirerSchema:
         unit: <empty>
@@ -131,7 +131,7 @@ Examples:
 class ProviderAppData(BaseModel):
     """Provider app data for fiveg_n2."""
     amf_hostname: str
-    ngapp_port: int
+    amf_port: int
 
 class ProviderSchema(DataBagSchema):
     """Provider schema for fiveg_n2."""
@@ -156,23 +156,23 @@ def data_is_valid(data: dict) -> bool:
 class N2InformationAvailableEvent(EventBase):
     """Charm event emitted when N2 information is available. It carries the AMF hostname."""
 
-    def __init__(self, handle: Handle, amf_hostname: str, ngapp_port: int):
+    def __init__(self, handle: Handle, amf_hostname: str, amf_port: int):
         """Init."""
         super().__init__(handle)
         self.amf_hostname = amf_hostname
-        self.ngapp_port = ngapp_port
+        self.amf_port = amf_port
 
     def snapshot(self) -> dict:
         """Returns snapshot."""
         return {
             "amf_hostname": self.amf_hostname,
-            "ngapp_port": self.ngapp_port
+            "amf_port": self.amf_port
         }
 
     def restore(self, snapshot: dict) -> None:
         """Restores snapshot."""
         self.amf_hostname = snapshot["amf_hostname"]
-        self.ngapp_port = snapshot["ngapp_port"]
+        self.amf_port = snapshot["amf_port"]
 
 class N2RequirerCharmEvents(CharmEvents):
     """List of events that the N2 requirer charm can leverage."""
@@ -202,7 +202,7 @@ class N2Requires(Object):
         if remote_app_relation_data := self._get_remote_app_relation_data(event.relation):
             self.on.n2_information_available.emit(
                 amf_hostname=remote_app_relation_data["amf_hostname"],
-                ngapp_port=remote_app_relation_data["ngapp_port"],
+                amf_port=remote_app_relation_data["amf_port"],
             )
 
     @property
@@ -217,14 +217,14 @@ class N2Requires(Object):
         return None
 
     @property
-    def ngapp_port(self) -> Optional[int]:
-        """Returns AMF's NGAPP port.
+    def amf_port(self) -> Optional[int]:
+        """Returns the port used to connect to the AMF host.
 
         Returns:
-            int: AMF NGAPP port.
+            int: AMF port.
         """
         if remote_app_relation_data := self._get_remote_app_relation_data():
-            return int(remote_app_relation_data.get("ngapp_port"))  # type: ignore[arg-type]
+            return int(remote_app_relation_data.get("amf_port"))  # type: ignore[arg-type]
         return None
 
     def _get_remote_app_relation_data(
@@ -261,12 +261,12 @@ class N2Provides(Object):
         self.relation_name = relation_name
         self.charm = charm
 
-    def set_n2_information(self, amf_hostname: str, ngapp_port: int) -> None:
+    def set_n2_information(self, amf_hostname: str, amf_port: int) -> None:
         """Sets the hostname and the ngapp port in the application relation data.
 
         Args:
             amf_hostname (str): AMF hostname.
-            ngapp_port (int): AMF NGAPP port.
+            amf_port (int): AMF NGAPP port.
         Returns:
             None
         """
@@ -278,7 +278,7 @@ class N2Provides(Object):
         if not data_is_valid(
                 {
                     "amf_hostname": amf_hostname,
-                    "ngapp_port": ngapp_port
+                    "amf_port": amf_port
                 }
             ):
             raise ValueError(f"Invalid relation data")
@@ -286,6 +286,6 @@ class N2Provides(Object):
             relation.data[self.charm.app].update(
                 {
                     "amf_hostname": amf_hostname,
-                    "ngapp_port": str(ngapp_port)
+                    "amf_port": str(amf_port)
                 }
             )

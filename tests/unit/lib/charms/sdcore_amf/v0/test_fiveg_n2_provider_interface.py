@@ -26,7 +26,7 @@ class DummyFivegN2ProviderCharm(CharmBase):
     """Dummy charm implementing the provider side of the fiveg_n2 interface."""
 
     AMF_HOST = "amf"
-    NGAPP_PORT = 38412
+    PORT = 38412
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -37,7 +37,7 @@ class DummyFivegN2ProviderCharm(CharmBase):
         if self.unit.is_leader():
             self.n2_provider.set_n2_information(
                 amf_hostname=self.AMF_HOST,
-                ngapp_port=self.NGAPP_PORT,
+                amf_port=self.PORT,
             )
 
 
@@ -73,7 +73,7 @@ class TestFiveGN2Provider(unittest.TestCase):
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_hostname"], expected_host)
-        self.assertEqual(relation_data["ngapp_port"], str(expected_port))
+        self.assertEqual(relation_data["amf_port"], str(expected_port))
 
     def test_given_unit_is_not_leader_when_fiveg_n2_relation_joined_then_data_is_not_in_application_databag(  # noqa: E501
         self,
@@ -92,8 +92,8 @@ class TestFiveGN2Provider(unittest.TestCase):
     ):
         self.harness.set_leader(is_leader=True)
         with patch.object(
-            DummyFivegN2ProviderCharm, "NGAPP_PORT", new_callable=PropertyMock
-        ) as patched_ngapp_port:
-            patched_ngapp_port.return_value = "invalid_port123"
+            DummyFivegN2ProviderCharm, "PORT", new_callable=PropertyMock
+        ) as patched_port:
+            patched_port.return_value = "invalid_port123"
             with pytest.raises(ValueError):
                 self._create_relation(remote_app_name=self.remote_app_name)
