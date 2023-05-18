@@ -34,7 +34,7 @@ async def build_and_deploy(ops_test):
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
-        channel="latest/stable",
+        channel="latest/edge",
         trust=True,
     )
     await ops_test.model.deploy(
@@ -50,7 +50,12 @@ async def test_relate_and_wait_for_active_status(
     ops_test,
     build_and_deploy,
 ):
-    await ops_test.model.add_relation(relation1=APP_NAME, relation2=DB_CHARM_NAME)
+    await ops_test.model.add_relation(
+        relation1=f"{APP_NAME}:default-database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.add_relation(
+        relation1=f"{APP_NAME}:amf-database", relation2=f"{DB_CHARM_NAME}"
+    )
     await ops_test.model.add_relation(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
