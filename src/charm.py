@@ -35,6 +35,8 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
+CORE_NETWORK_FULL_NAME = "SDCORE5G"
+CORE_NETWORK_SHORT_NAME = "SDCORE"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -121,6 +123,8 @@ class AMFOperatorCharm(CharmBase):
             default_database_name=DEFAULT_DATABASE_NAME,
             amf_database_name=AMF_DATABASE_NAME,
             database_url=self._default_database_info["uris"].split(",")[0],
+            full_network_name=CORE_NETWORK_FULL_NAME,
+            short_network_name=CORE_NETWORK_SHORT_NAME,
         )
         self._push_config_file(
             content=content,
@@ -138,6 +142,8 @@ class AMFOperatorCharm(CharmBase):
         sbi_port: int,
         nrf_url: str,
         database_url: str,
+        full_network_name: str,
+        short_network_name: str,
     ) -> str:
         """Renders the AMF config file.
 
@@ -165,6 +171,8 @@ class AMFOperatorCharm(CharmBase):
             default_database_name=default_database_name,
             amf_database_name=amf_database_name,
             database_url=database_url,
+            full_network_name=full_network_name,
+            short_network_name=short_network_name,
         )
         return content
 
