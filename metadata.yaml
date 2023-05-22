@@ -1,6 +1,6 @@
 name: sdcore-amf
  
-display-name: SD-CORE 5G AMF
+display-name: SDCORE AMF
 summary: A Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
 description: |
   A Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
@@ -15,7 +15,7 @@ containers:
 resources:
   amf-image:
     type: oci-image
-    description: OCI image for 5G amf
+    description: OCI image for SDCORE amf
     upstream-source: omecproject/5gc-amf:master-a4759db
 
 storage:

@@ -38,7 +38,7 @@ CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
 
 
 class AMFOperatorCharm(CharmBase):
-    """Main class to describe juju event handling for the 5G AMF operator."""
+    """Main class to describe juju event handling for the SDCORE AMF operator."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -110,6 +110,10 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for NRF data to be available")
             event.defer()
             return
+        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
+            self.unit.status = WaitingStatus("Waiting for storage to be attached")
+            event.defer()
+            return
         content = self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
@@ -120,12 +124,9 @@ class AMFOperatorCharm(CharmBase):
             amf_database_name=AMF_DATABASE_NAME,
             database_url=self._default_database_info["uris"].split(",")[0],
         )
-        if not self._config_file_is_pushed or not self._config_file_content_matches(
-            content=content
-        ):
-            self._push_config_file(
-                content=content,
-            )
+        self._push_config_file(
+            content=content,
+        )
         self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
         self.unit.status = ActiveStatus()
 
@@ -178,7 +179,6 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container.push(
             path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",
             source=content,
-            make_dirs=True,
         )
         logger.info("Pushed %s config file", CONFIG_FILE_NAME)
 
@@ -269,30 +269,6 @@ class AMFOperatorCharm(CharmBase):
             str: The pod IP.
         """
         return str(IPv4Address(check_output(["unit-get", "private-address"]).decode().strip()))
-
-    @property
-    def _config_file_is_pushed(self) -> bool:
-        """Returns whether the config file is pushed to the container.
-
-        Returns:
-            bool: Whether the config file is pushed.
-        """
-        if not self._amf_container.exists(f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"):
-            logger.info("%s Config file is not pushed", CONFIG_FILE_NAME)
-            return False
-        logger.info("Config file is pushed")
-        return True
-
-    def _config_file_content_matches(self, content: str) -> bool:
-        """Returns whether the amfcfg config file content matches the provided content.
-
-        Returns:
-            bool: Whether the amfcfg config file content matches
-        """
-        existing_content = self._amf_container.pull(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}")
-        if existing_content.read() != content:
-            return False
-        return True
 
     @property
     def _nrf_data_is_available(self) -> bool:
