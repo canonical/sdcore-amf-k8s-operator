@@ -64,20 +64,18 @@ class AMFOperatorCharm(CharmBase):
 
         self.framework.observe(
             self.on.default_database_relation_joined,
-            self._on_amf_pebble_ready,
+            self._configure_amf,
         )
         self.framework.observe(
             self.on.amf_database_relation_joined,
-            self._on_amf_pebble_ready,
+            self._configure_amf,
         )
-        self.framework.observe(
-            self._default_database.on.database_created, self._on_amf_pebble_ready
-        )
-        self.framework.observe(self._amf_database.on.database_created, self._on_amf_pebble_ready)
-        self.framework.observe(self.on.amf_pebble_ready, self._on_amf_pebble_ready)
-        self.framework.observe(self._nrf_requires.on.nrf_available, self._on_amf_pebble_ready)
+        self.framework.observe(self._default_database.on.database_created, self._configure_amf)
+        self.framework.observe(self._amf_database.on.database_created, self._configure_amf)
+        self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
+        self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
 
-    def _on_amf_pebble_ready(
+    def _configure_amf(
         self,
         event: EventBase,
     ) -> None:
@@ -127,11 +125,11 @@ class AMFOperatorCharm(CharmBase):
         self._push_config_file(
             content=content,
         )
-        self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
+        self._configure_amf_workload()
         self.unit.status = ActiveStatus()
 
+    @staticmethod
     def _render_config_file(
-        self,
         default_database_name: str,
         amf_database_name: str,
         amf_url: str,
@@ -140,7 +138,7 @@ class AMFOperatorCharm(CharmBase):
         sbi_port: int,
         nrf_url: str,
         database_url: str,
-    ):
+    ) -> str:
         """Renders the AMF config file.
 
         Args:
@@ -152,6 +150,9 @@ class AMFOperatorCharm(CharmBase):
             sbi_port (int): AMF SBi port.
             database_url (str): URL of the default (free5gc) database.
             nrf_url (str): URL of the NRF.
+
+        Returns:
+            str: Content of the rendered config file.
         """
         jinja2_environment = Environment(loader=FileSystemLoader(CONFIG_TEMPLATE_DIR_PATH))
         template = jinja2_environment.get_template(CONFIG_TEMPLATE_NAME)
@@ -193,6 +194,14 @@ class AMFOperatorCharm(CharmBase):
         """
         return bool(self.model.get_relation(relation_name))
 
+    def _configure_amf_workload(self) -> None:
+        """Configures pebble layer for the amf container."""
+        plan = self._amf_container.get_plan()
+        layer = self._amf_pebble_layer
+        if plan.services != layer.services:
+            self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
+            self._amf_container.restart(self._amf_service_name)
+
     @property
     def _amf_pebble_layer(self) -> Layer:
         """Returns pebble layer for the amf container.
@@ -221,7 +230,7 @@ class AMFOperatorCharm(CharmBase):
             Dict: The database data.
         """
         if not self._default_database_is_available:
-            None
+            return {}
         return self._default_database.fetch_relation_data()[self._default_database.relations[0].id]
 
     @property
