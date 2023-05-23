@@ -34,7 +34,7 @@ async def build_and_deploy(ops_test):
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
-        channel="latest/edge",
+        channel="5/edge",
         trust=True,
     )
     await ops_test.model.deploy(
@@ -42,6 +42,18 @@ async def build_and_deploy(ops_test):
         application_name=NRF_CHARM_NAME,
         channel="edge",
         trust=True,
+    )
+
+
+@pytest.mark.abort_on_fail
+async def test_deploy_charm_and_wait_for_blocked_status(
+    ops_test,
+    build_and_deploy,
+):
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME],
+        status="blocked",
+        timeout=1000,
     )
 
 
