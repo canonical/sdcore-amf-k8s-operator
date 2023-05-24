@@ -94,19 +94,19 @@ class AMFOperatorCharm(CharmBase):
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
                 return
-        if not self._default_database_is_available:
+        if not self._default_database_is_available():
             self.unit.status = WaitingStatus("Waiting for the default database to be available")
             event.defer()
             return
-        if not self._amf_database_is_available:
+        if not self._amf_database_is_available():
             self.unit.status = WaitingStatus("Waiting for the amf database to be available")
             event.defer()
             return
-        if not self._default_database_info:
+        if not self._get_default_database_info():
             self.unit.status = WaitingStatus("Waiting for default database info to be available")
             event.defer()
             return
-        if not self._nrf_data_is_available:
+        if not self._nrf_requires.nrf_url:
             self.unit.status = WaitingStatus("Waiting for NRF data to be available")
             event.defer()
             return
@@ -122,18 +122,20 @@ class AMFOperatorCharm(CharmBase):
             amf_url=self._amf_hostname,
             default_database_name=DEFAULT_DATABASE_NAME,
             amf_database_name=AMF_DATABASE_NAME,
-            database_url=self._default_database_info["uris"].split(",")[0],
+            database_url=self._get_default_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
         )
-        self._push_config_file(
-            content=content,
-        )
+        if not self._config_file_content_matches(content=content):
+            self._push_config_file(
+                content=content,
+            )
         self._configure_amf_workload()
         self.unit.status = ActiveStatus()
 
     @staticmethod
     def _render_config_file(
+        *,
         default_database_name: str,
         amf_database_name: str,
         amf_url: str,
@@ -176,10 +178,7 @@ class AMFOperatorCharm(CharmBase):
         )
         return content
 
-    def _push_config_file(
-        self,
-        content: str,
-    ) -> None:
+    def _push_config_file(self, content: str) -> None:
         """Writes the AMF config file and pushes it to the container.
 
         Args:
@@ -207,8 +206,21 @@ class AMFOperatorCharm(CharmBase):
         plan = self._amf_container.get_plan()
         layer = self._amf_pebble_layer
         if plan.services != layer.services:
-            self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
+            self._amf_container.add_layer("amf", layer, combine=True)
             self._amf_container.restart(self._amf_service_name)
+
+    def _config_file_content_matches(self, content: str) -> bool:
+        """Returns whether the amfcfg config file content matches the provided content.
+
+        Returns:
+            bool: Whether the amfcfg config file content matches
+        """
+        if not self._amf_container.exists(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"):
+            return False
+        existing_content = self._amf_container.pull(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}")
+        if existing_content.read() != content:
+            return False
+        return True
 
     @property
     def _amf_pebble_layer(self) -> Layer:
@@ -230,18 +242,16 @@ class AMFOperatorCharm(CharmBase):
             }
         )
 
-    @property
-    def _default_database_info(self) -> dict:
+    def _get_default_database_info(self) -> dict:
         """Returns the database data.
 
         Returns:
             Dict: The database data.
         """
-        if not self._default_database_is_available:
+        if not self._default_database_is_available():
             return {}
         return self._default_database.fetch_relation_data()[self._default_database.relations[0].id]
 
-    @property
     def _default_database_is_available(self) -> bool:
         """Returns True if the database is available.
 
@@ -250,7 +260,6 @@ class AMFOperatorCharm(CharmBase):
         """
         return self._default_database.is_resource_created()
 
-    @property
     def _amf_database_is_available(self) -> bool:
         """Returns True if the database is available.
 
@@ -272,12 +281,11 @@ class AMFOperatorCharm(CharmBase):
             "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
             "GRPC_TRACE": "all",
             "GRPC_VERBOSITY": "DEBUG",
-            "POD_IP": self._pod_ip,
+            "POD_IP": self._get_pod_ip(),
             "MANAGED_BY_CONFIG_POD": "true",
         }
 
-    @property
-    def _pod_ip(
+    def _get_pod_ip(
         self,
     ) -> str:
         """Returns the pod IP using juju client.
@@ -286,17 +294,6 @@ class AMFOperatorCharm(CharmBase):
             str: The pod IP.
         """
         return str(IPv4Address(check_output(["unit-get", "private-address"]).decode().strip()))
-
-    @property
-    def _nrf_data_is_available(self) -> bool:
-        """Returns whether the NRF data is available.
-
-        Returns:
-            bool: Whether the NRF data is available.
-        """
-        if not self._nrf_requires.nrf_url:
-            return False
-        return True
 
     @property
     def _amf_hostname(self) -> str:
