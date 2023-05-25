@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed operator for the SDCORE AMF service."""
+"""Charmed operator for the SD-Core AMF service."""
 
 import logging
 from ipaddress import IPv4Address
@@ -130,7 +130,9 @@ class AMFOperatorCharm(CharmBase):
             self._push_config_file(
                 content=content,
             )
-        self._configure_amf_workload()
+            self._configure_amf_workload(restart=True)
+        else:
+            self._configure_amf_workload()
         self.unit.status = ActiveStatus()
 
     @staticmethod
@@ -201,11 +203,15 @@ class AMFOperatorCharm(CharmBase):
         """
         return bool(self.model.get_relation(relation_name))
 
-    def _configure_amf_workload(self) -> None:
-        """Configures pebble layer for the amf container."""
+    def _configure_amf_workload(self, restart: bool = False) -> None:
+        """Configures pebble layer for the amf container.
+
+        Args:
+            restart (bool): Whether to restart the amf container.
+        """
         plan = self._amf_container.get_plan()
         layer = self._amf_pebble_layer
-        if plan.services != layer.services:
+        if plan.services != layer.services or restart:
             self._amf_container.add_layer("amf", layer, combine=True)
             self._amf_container.restart(self._amf_service_name)
 

@@ -2,12 +2,12 @@ README.md<div align="center">
   <img src="./icon.svg" alt="ONF Icon" width="200" height="200">
 </div>
 <div align="center">
-  <h1>SD-CORE AMF Operator</h1>
+  <h1>SD-Core AMF Operator</h1>
 </div>
 
 # sdcore-amf-operator
 
-Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
+Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
 
 
 ## Pre-requisites
