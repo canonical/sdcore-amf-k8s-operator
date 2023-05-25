@@ -20,9 +20,9 @@ Juju model on a Kubernetes cluster.
 juju deploy sdcore-amf --trust --channel=edge
 juju deploy mongodb-k8s --trust --channel=edge
 juju deploy sdcore-nrf --trust --channel=edge
-juju relate sdcore-amf:default-database mongodb-k8s
-juju relate sdcore-amf:amf-database mongodb-k8s
-juju relate sdcore-amf:fiveg-nrf sdcore-nrf:fiveg-nrf
+juju integrate sdcore-amf:default-database mongodb-k8s
+juju integrate sdcore-amf:amf-database mongodb-k8s
+juju integrate sdcore-amf:fiveg-nrf sdcore-nrf:fiveg-nrf
 ```
 
 ## Image
