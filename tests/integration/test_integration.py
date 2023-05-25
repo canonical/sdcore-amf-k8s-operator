@@ -63,6 +63,9 @@ async def test_relate_and_wait_for_active_status(
     build_and_deploy,
 ):
     await ops_test.model.add_relation(
+        relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.add_relation(
         relation1=f"{APP_NAME}:default-database", relation2=f"{DB_CHARM_NAME}"
     )
     await ops_test.model.add_relation(

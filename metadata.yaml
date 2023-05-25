@@ -10,7 +10,7 @@ containers:
     resource: amf-image
     mounts:
       - storage: config
-        location: /free5gc/conf/
+        location: /free5gc/config
 
 resources:
   amf-image:

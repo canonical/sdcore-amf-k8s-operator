@@ -1,4 +1,4 @@
-README.md<div align="center">
+<div align="center">
   <img src="./icon.svg" alt="ONF Icon" width="200" height="200">
 </div>
 <div align="center">
