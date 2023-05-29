@@ -40,7 +40,7 @@ CORE_NETWORK_SHORT_NAME = "SDCORE"
 
 
 class AMFOperatorCharm(CharmBase):
-    """Main class to describe juju event handling for the SDCORE AMF operator."""
+    """Main class to describe juju event handling for the SD-Core AMF operator."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -114,6 +114,20 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for storage to be attached")
             event.defer()
             return
+        self._generate_config_file()
+        self._configure_amf_workload()
+        self.unit.status = ActiveStatus()
+
+    def _generate_config_file(
+        self,
+    ) -> None:
+        """Handles creation of the AMF config file.
+
+        Generates AMF config file based on a given template.
+        Pushes AMF config file to the workload.
+        Calls `_configure_amf_workload` function to forcibly restart the AMF service in order
+        to fetch new config.
+        """
         content = self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
@@ -131,9 +145,6 @@ class AMFOperatorCharm(CharmBase):
                 content=content,
             )
             self._configure_amf_workload(restart=True)
-        else:
-            self._configure_amf_workload()
-        self.unit.status = ActiveStatus()
 
     @staticmethod
     def _render_config_file(
@@ -158,8 +169,10 @@ class AMFOperatorCharm(CharmBase):
             ngapp_port (int): AMF NGAP port.
             sctp_grpc_port (int): AMF SCTP port.
             sbi_port (int): AMF SBi port.
-            database_url (str): URL of the default (free5gc) database.
             nrf_url (str): URL of the NRF.
+            database_url (str): URL of the default (free5gc) database.
+            full_network_name (str): Full name of the network.
+            short_network_name (str): Short name of the network.
 
         Returns:
             str: Content of the rendered config file.
@@ -255,7 +268,7 @@ class AMFOperatorCharm(CharmBase):
             Dict: The database data.
         """
         if not self._default_database_is_available():
-            return {}
+            raise RuntimeError(f"Database `{DEFAULT_DATABASE_NAME}` is not available")
         return self._default_database.fetch_relation_data()[self._default_database.relations[0].id]
 
     def _default_database_is_available(self) -> bool:
@@ -291,9 +304,7 @@ class AMFOperatorCharm(CharmBase):
             "MANAGED_BY_CONFIG_POD": "true",
         }
 
-    def _get_pod_ip(
-        self,
-    ) -> str:
+    def _get_pod_ip(self) -> str:
         """Returns the pod IP using juju client.
 
         Returns:
