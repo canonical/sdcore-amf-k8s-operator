@@ -25,8 +25,9 @@ provides:
 class DummyFivegN2ProviderCharm(CharmBase):
     """Dummy charm implementing the provider side of the fiveg_n2 interface."""
 
-    AMF_HOST = "amf"
+    HOST = "amf"
     PORT = 38412
+    IP_ADDRESS = "192.168.70.132"
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -36,7 +37,8 @@ class DummyFivegN2ProviderCharm(CharmBase):
     def _on_fiveg_n2_relation_joined(self, event: RelationJoinedEvent):
         if self.unit.is_leader():
             self.n2_provider.set_n2_information(
-                amf_hostname=self.AMF_HOST,
+                amf_ip_address=self.IP_ADDRESS,
+                amf_hostname=self.HOST,
                 amf_port=self.PORT,
             )
 
@@ -66,12 +68,14 @@ class TestFiveGN2Provider(unittest.TestCase):
         self.harness.set_leader(is_leader=True)
         expected_host = "amf"
         expected_port = 38412
+        expected_ip_address = "192.168.70.132"
 
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = self.harness.get_relation_data(
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
+        self.assertEqual(relation_data["amf_ip_address"], expected_ip_address)
         self.assertEqual(relation_data["amf_hostname"], expected_host)
         self.assertEqual(relation_data["amf_port"], str(expected_port))
 
@@ -87,7 +91,7 @@ class TestFiveGN2Provider(unittest.TestCase):
         )
         self.assertEqual(relation_data, {})
 
-    def test_given_unit_is_leader_but_data_invalid_when_fiveg_n2_relation_joined_then_value_error_is_raised(  # noqa: E501
+    def test_given_unit_is_leader_but_port_is_invalid_when_fiveg_n2_relation_joined_then_value_error_is_raised(  # noqa: E501
         self,
     ):
         self.harness.set_leader(is_leader=True)
@@ -95,5 +99,16 @@ class TestFiveGN2Provider(unittest.TestCase):
             DummyFivegN2ProviderCharm, "PORT", new_callable=PropertyMock
         ) as patched_port:
             patched_port.return_value = "invalid_port123"
+            with pytest.raises(ValueError):
+                self._create_relation(remote_app_name=self.remote_app_name)
+
+    def test_given_unit_is_leader_but_ip_is_invalid_when_fiveg_n2_relation_joined_then_value_error_is_raised(  # noqa: E501
+        self,
+    ):
+        self.harness.set_leader(is_leader=True)
+        with patch.object(
+            DummyFivegN2ProviderCharm, "IP_ADDRESS", new_callable=PropertyMock
+        ) as patched_ip_address:
+            patched_ip_address.return_value = "invalid.ip.format.123"
             with pytest.raises(ValueError):
                 self._create_relation(remote_app_name=self.remote_app_name)

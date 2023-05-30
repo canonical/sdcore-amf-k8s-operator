@@ -13,7 +13,7 @@ NRF information and another charm requiring this information.
 From a charm directory, fetch the library using `charmcraft`:
 
 ```shell
-charmcraft fetch-lib charms.sdcore_nrf_operator.v0.fiveg_nrf
+charmcraft fetch-lib charms.sdcore_nrf.v0.fiveg_nrf
 ```
 
 Add the following libraries to the charm's `requirements.txt` file:
@@ -110,7 +110,7 @@ LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 3
+LIBPATCH = 4
 
 PYDEPS = ["pydantic", "pytest-interface-tester"]
 
@@ -232,7 +232,7 @@ class NRFRequires(Object):
         """
         relation = relation or self.model.get_relation(self.relation_name)
         if not relation:
-            logger.error("No relation: %s", self.relation_name)
+            logger.warning(f"No relation: {self.relation_name}")
             return None
         if not relation.app:
             logger.warning("No remote application in relation: %s", self.relation_name)
