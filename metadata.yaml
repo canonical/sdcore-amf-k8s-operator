@@ -1,27 +1,30 @@
 name: sdcore-amf
  
-display-name: SD-CORE 5G AMF
-summary: A Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
+display-name: SD-Core AMF
+summary: A Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
 description: |
-  A Charmed Operator for SDCORE's Access and Mobility Management Function (AMF).
+  A Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
 
 containers:
   amf:
     resource: amf-image
     mounts:
       - storage: config
-        location: /free5gc/conf/
+        location: /free5gc/config
 
 resources:
   amf-image:
     type: oci-image
-    description: OCI image for 5G amf
+    description: OCI image for SD-Core amf
     upstream-source: omecproject/5gc-amf:master-a4759db
 
 storage:
   config:
     type: filesystem
     minimum-size: 1M
+
+assumes:
+  - k8s-api
 
 provides:
   metrics-endpoint:

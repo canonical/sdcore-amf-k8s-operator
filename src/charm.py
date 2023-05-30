@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed operator for the SDCORE AMF service."""
+"""Charmed operator for the SD-Core AMF service."""
 
 import logging
 from ipaddress import IPv4Address
@@ -35,10 +35,12 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
+CORE_NETWORK_FULL_NAME = "SDCORE5G"
+CORE_NETWORK_SHORT_NAME = "SDCORE"
 
 
 class AMFOperatorCharm(CharmBase):
-    """Main class to describe juju event handling for the 5G AMF operator."""
+    """Main class to describe juju event handling for the SD-Core AMF operator."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -64,20 +66,18 @@ class AMFOperatorCharm(CharmBase):
 
         self.framework.observe(
             self.on.default_database_relation_joined,
-            self._on_amf_pebble_ready,
+            self._configure_amf,
         )
         self.framework.observe(
             self.on.amf_database_relation_joined,
-            self._on_amf_pebble_ready,
+            self._configure_amf,
         )
-        self.framework.observe(
-            self._default_database.on.database_created, self._on_amf_pebble_ready
-        )
-        self.framework.observe(self._amf_database.on.database_created, self._on_amf_pebble_ready)
-        self.framework.observe(self.on.amf_pebble_ready, self._on_amf_pebble_ready)
-        self.framework.observe(self._nrf_requires.on.nrf_available, self._on_amf_pebble_ready)
+        self.framework.observe(self._default_database.on.database_created, self._configure_amf)
+        self.framework.observe(self._amf_database.on.database_created, self._configure_amf)
+        self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
+        self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
 
-    def _on_amf_pebble_ready(
+    def _configure_amf(
         self,
         event: EventBase,
     ) -> None:
@@ -94,53 +94,114 @@ class AMFOperatorCharm(CharmBase):
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
                 return
-        if not self._default_database_is_available:
+        if not self._default_database_is_available():
             self.unit.status = WaitingStatus("Waiting for the default database to be available")
             event.defer()
             return
-        if not self._amf_database_is_available:
+        if not self._amf_database_is_available():
             self.unit.status = WaitingStatus("Waiting for the amf database to be available")
             event.defer()
             return
-        if not self._default_database_info:
+        if not self._get_default_database_info():
             self.unit.status = WaitingStatus("Waiting for default database info to be available")
             event.defer()
             return
-        if not self._nrf_data_is_available:
+        if not self._nrf_requires.nrf_url:
             self.unit.status = WaitingStatus("Waiting for NRF data to be available")
             event.defer()
             return
-        if not self._config_file_is_pushed:
-            self._push_config_file(
-                database_url=self._default_database_info["uris"].split(",")[0],
-                nrf_url=self._nrf_requires.nrf_url,
-            )
-        self._amf_container.add_layer("amf", self._amf_pebble_layer, combine=True)
+        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
+            self.unit.status = WaitingStatus("Waiting for storage to be attached")
+            event.defer()
+            return
+        self._generate_config_file()
+        self._configure_amf_workload()
         self.unit.status = ActiveStatus()
 
-    def _push_config_file(self, database_url: str, nrf_url: str) -> None:
-        """Writes the AMF config file and pushes it to the container.
+    def _generate_config_file(
+        self,
+    ) -> None:
+        """Handles creation of the AMF config file.
+
+        Generates AMF config file based on a given template.
+        Pushes AMF config file to the workload.
+        Calls `_configure_amf_workload` function to forcibly restart the AMF service in order
+        to fetch new config.
+        """
+        content = self._render_config_file(
+            ngapp_port=NGAPP_PORT,
+            sctp_grpc_port=SCTP_GRPC_PORT,
+            sbi_port=SBI_PORT,
+            nrf_url=self._nrf_requires.nrf_url,
+            amf_url=self._amf_hostname,
+            default_database_name=DEFAULT_DATABASE_NAME,
+            amf_database_name=AMF_DATABASE_NAME,
+            database_url=self._get_default_database_info()["uris"].split(",")[0],
+            full_network_name=CORE_NETWORK_FULL_NAME,
+            short_network_name=CORE_NETWORK_SHORT_NAME,
+        )
+        if not self._config_file_content_matches(content=content):
+            self._push_config_file(
+                content=content,
+            )
+            self._configure_amf_workload(restart=True)
+
+    @staticmethod
+    def _render_config_file(
+        *,
+        default_database_name: str,
+        amf_database_name: str,
+        amf_url: str,
+        ngapp_port: int,
+        sctp_grpc_port: int,
+        sbi_port: int,
+        nrf_url: str,
+        database_url: str,
+        full_network_name: str,
+        short_network_name: str,
+    ) -> str:
+        """Renders the AMF config file.
 
         Args:
-            database_url (str): URL of the default (free5gc) database.
+            default_database_name (str): Name of the default (free5gc) database.
+            amf_database_name (str): Name of the AMF database.
+            amf_url (str): URL of the AMF.
+            ngapp_port (int): AMF NGAP port.
+            sctp_grpc_port (int): AMF SCTP port.
+            sbi_port (int): AMF SBi port.
             nrf_url (str): URL of the NRF.
+            database_url (str): URL of the default (free5gc) database.
+            full_network_name (str): Full name of the network.
+            short_network_name (str): Short name of the network.
+
+        Returns:
+            str: Content of the rendered config file.
         """
         jinja2_environment = Environment(loader=FileSystemLoader(CONFIG_TEMPLATE_DIR_PATH))
         template = jinja2_environment.get_template(CONFIG_TEMPLATE_NAME)
         content = template.render(
-            ngapp_port=NGAPP_PORT,
-            sctp_grpc_port=SCTP_GRPC_PORT,
-            sbi_port=SBI_PORT,
+            ngapp_port=ngapp_port,
+            sctp_grpc_port=sctp_grpc_port,
+            sbi_port=sbi_port,
             nrf_url=nrf_url,
-            amf_url=self._amf_hostname,
-            default_database_name=DEFAULT_DATABASE_NAME,
-            amf_database_name=AMF_DATABASE_NAME,
+            amf_url=amf_url,
+            default_database_name=default_database_name,
+            amf_database_name=amf_database_name,
             database_url=database_url,
+            full_network_name=full_network_name,
+            short_network_name=short_network_name,
         )
+        return content
+
+    def _push_config_file(self, content: str) -> None:
+        """Writes the AMF config file and pushes it to the container.
+
+        Args:
+            content (str): Content of the config file.
+        """
         self._amf_container.push(
             path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",
             source=content,
-            make_dirs=True,
         )
         logger.info("Pushed %s config file", CONFIG_FILE_NAME)
 
@@ -154,6 +215,31 @@ class AMFOperatorCharm(CharmBase):
             bool: True if the relation is created, False otherwise.
         """
         return bool(self.model.get_relation(relation_name))
+
+    def _configure_amf_workload(self, restart: bool = False) -> None:
+        """Configures pebble layer for the amf container.
+
+        Args:
+            restart (bool): Whether to restart the amf container.
+        """
+        plan = self._amf_container.get_plan()
+        layer = self._amf_pebble_layer
+        if plan.services != layer.services or restart:
+            self._amf_container.add_layer("amf", layer, combine=True)
+            self._amf_container.restart(self._amf_service_name)
+
+    def _config_file_content_matches(self, content: str) -> bool:
+        """Returns whether the amfcfg config file content matches the provided content.
+
+        Returns:
+            bool: Whether the amfcfg config file content matches
+        """
+        if not self._amf_container.exists(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"):
+            return False
+        existing_content = self._amf_container.pull(path=f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}")
+        if existing_content.read() != content:
+            return False
+        return True
 
     @property
     def _amf_pebble_layer(self) -> Layer:
@@ -175,18 +261,16 @@ class AMFOperatorCharm(CharmBase):
             }
         )
 
-    @property
-    def _default_database_info(self) -> dict:
+    def _get_default_database_info(self) -> dict:
         """Returns the database data.
 
         Returns:
             Dict: The database data.
         """
-        if not self._default_database_is_available:
-            None
+        if not self._default_database_is_available():
+            raise RuntimeError(f"Database `{DEFAULT_DATABASE_NAME}` is not available")
         return self._default_database.fetch_relation_data()[self._default_database.relations[0].id]
 
-    @property
     def _default_database_is_available(self) -> bool:
         """Returns True if the database is available.
 
@@ -195,7 +279,6 @@ class AMFOperatorCharm(CharmBase):
         """
         return self._default_database.is_resource_created()
 
-    @property
     def _amf_database_is_available(self) -> bool:
         """Returns True if the database is available.
 
@@ -217,44 +300,17 @@ class AMFOperatorCharm(CharmBase):
             "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
             "GRPC_TRACE": "all",
             "GRPC_VERBOSITY": "DEBUG",
-            "POD_IP": self._pod_ip,
+            "POD_IP": self._get_pod_ip(),
             "MANAGED_BY_CONFIG_POD": "true",
         }
 
-    @property
-    def _pod_ip(
-        self,
-    ) -> str:
+    def _get_pod_ip(self) -> str:
         """Returns the pod IP using juju client.
 
         Returns:
             str: The pod IP.
         """
         return str(IPv4Address(check_output(["unit-get", "private-address"]).decode().strip()))
-
-    @property
-    def _config_file_is_pushed(self) -> bool:
-        """Returns whether the config file is pushed to the container.
-
-        Returns:
-            bool: Whether the config file is pushed.
-        """
-        if not self._amf_container.exists(f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"):
-            logger.info("%s Config file is not pushed", CONFIG_FILE_NAME)
-            return False
-        logger.info("Config file is pushed")
-        return True
-
-    @property
-    def _nrf_data_is_available(self) -> bool:
-        """Returns whether the NRF data is available.
-
-        Returns:
-            bool: Whether the NRF data is available.
-        """
-        if not self._nrf_requires.nrf_url:
-            return False
-        return True
 
     @property
     def _amf_hostname(self) -> str:
