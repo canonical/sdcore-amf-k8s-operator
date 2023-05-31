@@ -118,9 +118,7 @@ class AMFOperatorCharm(CharmBase):
         self._configure_amf_workload()
         self.unit.status = ActiveStatus()
 
-    def _generate_config_file(
-        self,
-    ) -> None:
+    def _generate_config_file(self) -> None:
         """Handles creation of the AMF config file.
 
         Generates AMF config file based on a given template.
@@ -133,7 +131,7 @@ class AMFOperatorCharm(CharmBase):
             sctp_grpc_port=SCTP_GRPC_PORT,
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
-            amf_url=self._amf_hostname,
+            amf_ip=_get_pod_ip(),
             default_database_name=DEFAULT_DATABASE_NAME,
             amf_database_name=AMF_DATABASE_NAME,
             database_url=self._get_default_database_info()["uris"].split(",")[0],
@@ -151,7 +149,7 @@ class AMFOperatorCharm(CharmBase):
         *,
         default_database_name: str,
         amf_database_name: str,
-        amf_url: str,
+        amf_ip: str,
         ngapp_port: int,
         sctp_grpc_port: int,
         sbi_port: int,
@@ -165,7 +163,7 @@ class AMFOperatorCharm(CharmBase):
         Args:
             default_database_name (str): Name of the default (free5gc) database.
             amf_database_name (str): Name of the AMF database.
-            amf_url (str): URL of the AMF.
+            amf_ip (str): IP address of the AMF.
             ngapp_port (int): AMF NGAP port.
             sctp_grpc_port (int): AMF SCTP port.
             sbi_port (int): AMF SBi port.
@@ -184,7 +182,7 @@ class AMFOperatorCharm(CharmBase):
             sctp_grpc_port=sctp_grpc_port,
             sbi_port=sbi_port,
             nrf_url=nrf_url,
-            amf_url=amf_url,
+            amf_ip=amf_ip,
             default_database_name=default_database_name,
             amf_database_name=amf_database_name,
             database_url=database_url,
@@ -300,27 +298,19 @@ class AMFOperatorCharm(CharmBase):
             "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
             "GRPC_TRACE": "all",
             "GRPC_VERBOSITY": "DEBUG",
-            "POD_IP": self._get_pod_ip(),
+            "POD_IP": _get_pod_ip(),
             "MANAGED_BY_CONFIG_POD": "true",
         }
 
-    def _get_pod_ip(self) -> str:
-        """Returns the pod IP using juju client.
 
-        Returns:
-            str: The pod IP.
-        """
-        return str(IPv4Address(check_output(["unit-get", "private-address"]).decode().strip()))
+def _get_pod_ip() -> str:
+    """Returns the pod IP using juju client.
 
-    @property
-    def _amf_hostname(self) -> str:
-        """Builds and returns the AMF hostname in the cluster.
-
-        Returns:
-            str: The AMF hostname.
-        """
-        return f"{self.model.app.name}.{self.model.name}.svc.cluster.local"
+    Returns:
+        str: The pod IP.
+    """
+    return str(IPv4Address(check_output(["unit-get", "private-address"]).decode().strip()))
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main(AMFOperatorCharm)
