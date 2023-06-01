@@ -118,7 +118,7 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
             amf_ip=_get_pod_ip(),
-            amf_database_name=AMF_DATABASE_NAME,
+            database_name=AMF_DATABASE_NAME,
             database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
@@ -132,7 +132,7 @@ class AMFOperatorCharm(CharmBase):
     @staticmethod
     def _render_config_file(
         *,
-        amf_database_name: str,
+        database_name: str,
         amf_ip: str,
         ngapp_port: int,
         sctp_grpc_port: int,
@@ -145,7 +145,7 @@ class AMFOperatorCharm(CharmBase):
         """Renders the AMF config file.
 
         Args:
-            amf_database_name (str): Name of the AMF database.
+            database_name (str): Name of the AMF database.
             amf_ip (str): IP address of the AMF.
             ngapp_port (int): AMF NGAP port.
             sctp_grpc_port (int): AMF SCTP port.
@@ -166,7 +166,7 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=sbi_port,
             nrf_url=nrf_url,
             amf_ip=amf_ip,
-            amf_database_name=amf_database_name,
+            database_name=database_name,
             database_url=database_url,
             full_network_name=full_network_name,
             short_network_name=short_network_name,
