@@ -29,7 +29,7 @@ PROMETHEUS_PORT = 9089
 SBI_PORT = 29518
 NGAPP_PORT = 38412
 SCTP_GRPC_PORT = 9000
-AMF_DATABASE_NAME = "sdcore_amf"
+DATABASE_NAME = "sdcore_amf"
 CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
@@ -57,12 +57,9 @@ class AMFOperatorCharm(CharmBase):
             ],
         )
         self._database = DatabaseRequires(
-            self, relation_name="database", database_name=AMF_DATABASE_NAME
+            self, relation_name="database", database_name=DATABASE_NAME
         )
-        self.framework.observe(
-            self.on.database_relation_joined,
-            self._configure_amf,
-        )
+        self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
@@ -118,7 +115,7 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
             amf_ip=_get_pod_ip(),
-            database_name=AMF_DATABASE_NAME,
+            database_name=DATABASE_NAME,
             database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
@@ -248,7 +245,7 @@ class AMFOperatorCharm(CharmBase):
             Dict: The database data.
         """
         if not self._database_is_available():
-            raise RuntimeError(f"Database `{AMF_DATABASE_NAME}` is not available")
+            raise RuntimeError(f"Database `{DATABASE_NAME}` is not available")
         return self._database.fetch_relation_data()[self._database.relations[0].id]
 
     def _database_is_available(self) -> bool:
