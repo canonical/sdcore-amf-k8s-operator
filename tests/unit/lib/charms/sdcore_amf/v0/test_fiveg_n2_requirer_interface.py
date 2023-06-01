@@ -3,7 +3,7 @@
 
 import logging
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from ops import testing
 from ops.charm import CharmBase
@@ -23,6 +23,8 @@ requires:
 
 logger = logging.getLogger(__name__)
 
+CHARM_LIB_PATH = "lib.charms.sdcore_amf.v0.fiveg_n2"
+
 
 class DummyFivegN2Requires(CharmBase):
     """Dummy charm implementing the requirer side of the fiveg_n2 interface."""
@@ -35,8 +37,9 @@ class DummyFivegN2Requires(CharmBase):
         )
 
     def _on_n2_information_available(self, event: N2InformationAvailableEvent):
-        logger.error("N2 data, amf_hostname: %s", self.n2_requirer.amf_hostname)
-        logger.error("N2 data, amf_port: %s", self.n2_requirer.amf_port)
+        logger.info("N2 data, amf_ip_address: %s", event.amf_ip_address)
+        logger.info("N2 data, amf_hostname: %s", event.amf_hostname)
+        logger.info("N2 data, amf_port: %s", event.amf_port)
 
 
 class TestFiveGNRFRequirer(unittest.TestCase):
@@ -58,24 +61,35 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         return relation_id
 
-    @patch.object(DummyFivegN2Requires, "_on_n2_information_available")
+    @patch(
+        f"{CHARM_LIB_PATH}.N2RequirerCharmEvents.n2_information_available",
+    )
     def test_given_n2_information_in_relation_data_when_relation_changed_then_n2_information_available_event_emitted(  # noqa: E501
         self,
-        patch_on_n2_information_available,
+        patch_n2_information_available,
     ):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "38412",
         }
         self.harness.update_relation_data(
             relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
         )
+        calls = [
+            call.emit(
+                amf_ip_address="192.168.70.132",
+                amf_hostname="amf",
+                amf_port="38412",
+            ),
+        ]
+        patch_n2_information_available.assert_has_calls(calls, any_order=True)
 
-        patch_on_n2_information_available.assert_called()
-
-    @patch.object(DummyFivegN2Requires, "_on_n2_information_available")
+    @patch(
+        f"{CHARM_LIB_PATH}.N2RequirerCharmEvents.n2_information_available",
+    )
     def test_given_n2_information_not_in_relation_data_when_relation_changed_then_n2_information_available_event_is_not_emitted(  # noqa: E501
         self,
         patch_on_n2_information_available,
@@ -89,7 +103,9 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         patch_on_n2_information_available.assert_not_called()
 
-    @patch.object(DummyFivegN2Requires, "_on_n2_information_available")
+    @patch(
+        f"{CHARM_LIB_PATH}.N2RequirerCharmEvents.n2_information_available",
+    )
     def test_given_invalid_n2_information_in_relation_data_when_relation_changed_then_n2_information_available_event_is_not_emitted(  # noqa: E501
         self,
         patch_on_n2_information_available,
@@ -97,6 +113,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "invalid_port123",
         }
@@ -106,12 +123,30 @@ class TestFiveGNRFRequirer(unittest.TestCase):
 
         patch_on_n2_information_available.assert_not_called()
 
+    def test_given_n2_information_in_relation_data_when_get_amf_ip_address_is_called_then_ip_is_returned(  # noqa: E501
+        self,
+    ):
+        relation_id = self._create_relation(remote_app_name=self.remote_app_name)
+
+        relation_data = {
+            "amf_ip_address": "192.168.70.132",
+            "amf_hostname": "amf",
+            "amf_port": "38412",
+        }
+        self.harness.update_relation_data(
+            relation_id=relation_id, app_or_unit=self.remote_app_name, key_values=relation_data
+        )
+
+        amf_ip_address = self.harness.charm.n2_requirer.amf_ip_address
+        self.assertEqual(amf_ip_address, "192.168.70.132")
+
     def test_given_n2_information_in_relation_data_when_get_amf_hostname_is_called_then_host_is_returned(  # noqa: E501
         self,
     ):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "38412",
         }
@@ -128,6 +163,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "38412",
         }
@@ -144,6 +180,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "38412",
         }
@@ -152,6 +189,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         )
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf2",
             "amf_port": "38412",
         }
@@ -167,6 +205,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
     ):
         relation_id = self._create_relation(remote_app_name=self.remote_app_name)
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "38412",
         }
@@ -175,6 +214,7 @@ class TestFiveGNRFRequirer(unittest.TestCase):
         )
 
         relation_data = {
+            "amf_ip_address": "192.168.70.132",
             "amf_hostname": "amf",
             "amf_port": "38413",
         }

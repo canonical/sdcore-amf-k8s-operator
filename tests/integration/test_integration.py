@@ -29,18 +29,31 @@ async def build_and_deploy(ops_test):
         charm,
         resources=resources,
         application_name=APP_NAME,
-        series="jammy",
+        trust=True,
     )
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
-        series="jammy",
+        channel="5/edge",
+        trust=True,
     )
     await ops_test.model.deploy(
         NRF_CHARM_NAME,
         application_name=NRF_CHARM_NAME,
         channel="edge",
-        series="jammy",
+        trust=True,
+    )
+
+
+@pytest.mark.abort_on_fail
+async def test_deploy_charm_and_wait_for_blocked_status(
+    ops_test,
+    build_and_deploy,
+):
+    await ops_test.model.wait_for_idle(
+        apps=[APP_NAME],
+        status="blocked",
+        timeout=1000,
     )
 
 
@@ -49,7 +62,15 @@ async def test_relate_and_wait_for_active_status(
     ops_test,
     build_and_deploy,
 ):
-    await ops_test.model.add_relation(relation1=APP_NAME, relation2=DB_CHARM_NAME)
+    await ops_test.model.add_relation(
+        relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.add_relation(
+        relation1=f"{APP_NAME}:default-database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.add_relation(
+        relation1=f"{APP_NAME}:amf-database", relation2=f"{DB_CHARM_NAME}"
+    )
     await ops_test.model.add_relation(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],

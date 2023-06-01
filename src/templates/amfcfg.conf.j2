@@ -23,7 +23,7 @@ configuration:
   sbi:
     bindingIPv4: 0.0.0.0
     port: {{ sbi_port }}
-    registerIPv4: {{ amf_url }}
+    registerIPv4: {{ amf_ip }}
     scheme: http
   sctpGrpcPort: {{ sctp_grpc_port }}
   serviceNameList:
@@ -32,8 +32,6 @@ configuration:
     - namf-mt
     - namf-loc
     - namf-oam
-  supportDnnList:
-    - internet
   security:
     integrityOrder:
       - NIA1
@@ -41,8 +39,8 @@ configuration:
     cipheringOrder:
       - NEA0
   networkName:
-    full: Aether5G
-    short: Aether
+    full: {{ full_network_name }}
+    short: {{ short_network_name }}
   t3502Value: 720
   t3512Value: 3600
   t3513:
