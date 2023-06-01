@@ -30,7 +30,6 @@ SBI_PORT = 29518
 NGAPP_PORT = 38412
 SCTP_GRPC_PORT = 9000
 AMF_DATABASE_NAME = "sdcore_amf"
-DEFAULT_DATABASE_NAME = "free5gc"
 CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
@@ -57,23 +56,14 @@ class AMFOperatorCharm(CharmBase):
                 ServicePort(name="sctp-grpc", port=SCTP_GRPC_PORT),
             ],
         )
-        self._amf_database = DatabaseRequires(
-            self, relation_name="amf-database", database_name=AMF_DATABASE_NAME
-        )
-        self._default_database = DatabaseRequires(
-            self, relation_name="default-database", database_name=DEFAULT_DATABASE_NAME
-        )
-
-        self.framework.observe(
-            self.on.default_database_relation_joined,
-            self._configure_amf,
+        self._database = DatabaseRequires(
+            self, relation_name="database", database_name=AMF_DATABASE_NAME
         )
         self.framework.observe(
-            self.on.amf_database_relation_joined,
+            self.on.database_relation_joined,
             self._configure_amf,
         )
-        self.framework.observe(self._default_database.on.database_created, self._configure_amf)
-        self.framework.observe(self._amf_database.on.database_created, self._configure_amf)
+        self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
 
@@ -90,20 +80,16 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = MaintenanceStatus("Waiting for service to start")
             event.defer()
             return
-        for relation in ["fiveg_nrf", "amf-database", "default-database"]:
+        for relation in ["fiveg_nrf", "database"]:
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
                 return
-        if not self._default_database_is_available():
-            self.unit.status = WaitingStatus("Waiting for the default database to be available")
-            event.defer()
-            return
-        if not self._amf_database_is_available():
+        if not self._database_is_available():
             self.unit.status = WaitingStatus("Waiting for the amf database to be available")
             event.defer()
             return
-        if not self._get_default_database_info():
-            self.unit.status = WaitingStatus("Waiting for default database info to be available")
+        if not self._get_database_info():
+            self.unit.status = WaitingStatus("Waiting for AMF database info to be available")
             event.defer()
             return
         if not self._nrf_requires.nrf_url:
@@ -132,9 +118,8 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
             amf_ip=_get_pod_ip(),
-            default_database_name=DEFAULT_DATABASE_NAME,
             amf_database_name=AMF_DATABASE_NAME,
-            database_url=self._get_default_database_info()["uris"].split(",")[0],
+            database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
         )
@@ -147,7 +132,6 @@ class AMFOperatorCharm(CharmBase):
     @staticmethod
     def _render_config_file(
         *,
-        default_database_name: str,
         amf_database_name: str,
         amf_ip: str,
         ngapp_port: int,
@@ -161,14 +145,13 @@ class AMFOperatorCharm(CharmBase):
         """Renders the AMF config file.
 
         Args:
-            default_database_name (str): Name of the default (free5gc) database.
             amf_database_name (str): Name of the AMF database.
             amf_ip (str): IP address of the AMF.
             ngapp_port (int): AMF NGAP port.
             sctp_grpc_port (int): AMF SCTP port.
             sbi_port (int): AMF SBi port.
             nrf_url (str): URL of the NRF.
-            database_url (str): URL of the default (free5gc) database.
+            database_url (str): URL of the AMF database.
             full_network_name (str): Full name of the network.
             short_network_name (str): Short name of the network.
 
@@ -183,7 +166,6 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=sbi_port,
             nrf_url=nrf_url,
             amf_ip=amf_ip,
-            default_database_name=default_database_name,
             amf_database_name=amf_database_name,
             database_url=database_url,
             full_network_name=full_network_name,
@@ -259,31 +241,23 @@ class AMFOperatorCharm(CharmBase):
             }
         )
 
-    def _get_default_database_info(self) -> dict:
+    def _get_database_info(self) -> dict:
         """Returns the database data.
 
         Returns:
             Dict: The database data.
         """
-        if not self._default_database_is_available():
-            raise RuntimeError(f"Database `{DEFAULT_DATABASE_NAME}` is not available")
-        return self._default_database.fetch_relation_data()[self._default_database.relations[0].id]
+        if not self._database_is_available():
+            raise RuntimeError(f"Database `{AMF_DATABASE_NAME}` is not available")
+        return self._database.fetch_relation_data()[self._database.relations[0].id]
 
-    def _default_database_is_available(self) -> bool:
+    def _database_is_available(self) -> bool:
         """Returns True if the database is available.
 
         Returns:
             bool: True if the database is available.
         """
-        return self._default_database.is_resource_created()
-
-    def _amf_database_is_available(self) -> bool:
-        """Returns True if the database is available.
-
-        Returns:
-            bool: True if the database is available.
-        """
-        return self._amf_database.is_resource_created()
+        return self._database.is_resource_created()
 
     @property
     def _amf_environment_variables(self) -> dict:
