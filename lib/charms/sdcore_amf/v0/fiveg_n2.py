@@ -7,7 +7,7 @@
 This library contains the Requires and Provides classes for handling the `fiveg_n2`
 interface.
 
-The purpose of this library is to relate a charm claiming 
+The purpose of this library is to relate a charm claiming
 to be able to provide or consume information on connectivity to the N2 plane.
 
 ## Getting Started
@@ -40,7 +40,9 @@ class DummyFivegN2Requires(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.n2_requirer = N2Requires(self, "fiveg-n2")
-        self.framework.observe(self.n2_requirer.on.n2_information_available, self._on_n2_information_available)
+        self.framework.observe(
+            self.n2_requirer.on.n2_information_available, self._on_n2_information_available
+        )
 
     def _on_n2_information_available(self, event: N2InformationAvailableEvent):
         amf_ip_address = event.amf_ip_address
@@ -93,6 +95,15 @@ if __name__ == "__main__":
 
 """
 
+import logging
+from typing import Dict, Optional
+
+from interface_tester.schema_base import DataBagSchema  # type: ignore[import]
+from ops.charm import CharmBase, CharmEvents, RelationChangedEvent
+from ops.framework import EventBase, EventSource, Handle, Object
+from ops.model import Relation
+from pydantic import BaseModel, Field, IPvAnyAddress, ValidationError
+
 # The unique Charmhub library identifier, never change it
 LIBID = "3bb439930da24fd09631af74f70ea394"
 
@@ -102,17 +113,6 @@ LIBAPI = 0
 # Increment this PATCH version before using `charmcraft push-lib` or reset
 # to 0 if you are raising the major API version
 LIBPATCH = 1
-
-from typing import Dict
-import logging
-from typing import Optional
-
-from interface_tester.schema_base import DataBagSchema  # type: ignore[import]
-from ops.charm import CharmBase, CharmEvents, RelationChangedEvent
-from pydantic import BaseModel, ValidationError
-from ops.model import Relation
-from ops.framework import EventBase, EventSource, Handle, Object
-from pydantic import BaseModel, Field, ValidationError, IPvAnyAddress
 
 logger = logging.getLogger(__name__)
 """Schemas definition for the provider and requirer sides of the `fiveg_n2` interface.
@@ -131,24 +131,25 @@ Examples:
         unit: <empty>
         app:  <empty>
 """
+
+
 class ProviderAppData(BaseModel):
     """Provider app data for fiveg_n2."""
+
     amf_ip_address: IPvAnyAddress = Field(
-        description="IP Address to reach the AMF's N2 interface.",
-        examples=["192.168.70.132"]
+        description="IP Address to reach the AMF's N2 interface.", examples=["192.168.70.132"]
     )
     amf_hostname: str = Field(
-        description="Hostname to reach the AMF's N2 interface.",
-        examples=["amf"]
+        description="Hostname to reach the AMF's N2 interface.", examples=["amf"]
     )
-    amf_port: int = Field(
-        description="Port to reach the AMF's N2 interface.",
-        examples=[38412]
-    )
+    amf_port: int = Field(description="Port to reach the AMF's N2 interface.", examples=[38412])
+
 
 class ProviderSchema(DataBagSchema):
     """Provider schema for fiveg_n2."""
+
     app: ProviderAppData
+
 
 def data_is_valid(data: dict) -> bool:
     """Returns whether data is valid.
@@ -166,12 +167,11 @@ def data_is_valid(data: dict) -> bool:
         logger.error("Invalid data: %s", e)
         return False
 
+
 class N2InformationAvailableEvent(EventBase):
     """Charm event emitted when N2 information is available. It carries the AMF hostname."""
 
-    def __init__(
-            self, handle: Handle, amf_ip_address: str ,amf_hostname: str, amf_port: int
-        ):
+    def __init__(self, handle: Handle, amf_ip_address: str, amf_hostname: str, amf_port: int):
         """Init."""
         super().__init__(handle)
         self.amf_ip_address = amf_ip_address
@@ -183,7 +183,7 @@ class N2InformationAvailableEvent(EventBase):
         return {
             "amf_ip_address": self.amf_ip_address,
             "amf_hostname": self.amf_hostname,
-            "amf_port": self.amf_port
+            "amf_port": self.amf_port,
         }
 
     def restore(self, snapshot: dict) -> None:
@@ -192,9 +192,12 @@ class N2InformationAvailableEvent(EventBase):
         self.amf_hostname = snapshot["amf_hostname"]
         self.amf_port = snapshot["amf_port"]
 
+
 class N2RequirerCharmEvents(CharmEvents):
     """List of events that the N2 requirer charm can leverage."""
+
     n2_information_available = EventSource(N2InformationAvailableEvent)
+
 
 class N2Requires(Object):
     """Class to be instantiated by the N2 requirer charm."""
@@ -282,6 +285,7 @@ class N2Requires(Object):
             return None
         return remote_app_relation_data
 
+
 class N2Provides(Object):
     """Class to be instantiated by the charm providing the N2 data."""
 
@@ -291,15 +295,14 @@ class N2Provides(Object):
         self.relation_name = relation_name
         self.charm = charm
 
-    def set_n2_information(
-        self, amf_ip_address: str, amf_hostname: str, amf_port: int
-    ) -> None:
+    def set_n2_information(self, amf_ip_address: str, amf_hostname: str, amf_port: int) -> None:
         """Sets the hostname and the ngapp port in the application relation data.
 
         Args:
             amf_ip_address (str): AMF IP address.
             amf_hostname (str): AMF hostname.
             amf_port (int): AMF NGAPP port.
+
         Returns:
             None
         """
@@ -309,18 +312,14 @@ class N2Provides(Object):
         if not relations:
             raise RuntimeError(f"Relation {self.relation_name} not created yet.")
         if not data_is_valid(
-                {
-                    "amf_ip_address": amf_ip_address,
-                    "amf_hostname": amf_hostname,
-                    "amf_port": amf_port
-                }
-            ):
-            raise ValueError(f"Invalid relation data")
+            {"amf_ip_address": amf_ip_address, "amf_hostname": amf_hostname, "amf_port": amf_port}
+        ):
+            raise ValueError("Invalid relation data")
         for relation in relations:
             relation.data[self.charm.app].update(
                 {
                     "amf_ip_address": amf_ip_address,
                     "amf_hostname": amf_hostname,
-                    "amf_port": str(amf_port)
+                    "amf_port": str(amf_port),
                 }
             )
