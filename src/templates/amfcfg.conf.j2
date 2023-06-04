@@ -1,11 +1,10 @@
 configuration:
-  amfDBName: {{ amf_database_name }}
+  amfDBName: {{ database_name }}
   amfName: AMF
   debugProfilePort: 5001
   enableDBStore: false
   enableSctpLb: false
   mongodb:
-    name: {{ default_database_name }}
     url: {{ database_url }}
   networkFeatureSupport5GS:
     emc: 0
