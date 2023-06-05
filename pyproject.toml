@@ -23,10 +23,18 @@ profile = "black"
 max-line-length = 99
 max-doc-length = 99
 max-complexity = 10
-exclude = [".git", "__pycache__", ".tox", "build", "dist", "*.egg_info", "venv"]
+exclude = [".git", "__pycache__", ".tox", "build", "dist", "*.egg_info", "venv", "lib/charms/data_platform_libs", "lib/charms/observability_libs", "lib/charms/prometheus_k8s", "lib/charms/sdcore_nrf"]
 select = ["E", "W", "F", "C", "N", "R", "D", "H"]
 # Ignore D107 Missing docstring in __init__
 ignore = ["D107"]
 # D100, D101, D102, D103: Ignore missing docstrings in tests
 per-file-ignores = ["tests/*:D100,D101,D102,D103,D104"]
 docstring-convention = "google"
+
+[[tool.mypy.overrides]]
+module = ["ops.*", "kubernetes.*", "flatten_json.*", "git.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["charms.*"]
+follow_imports = "silent"
