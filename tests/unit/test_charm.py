@@ -351,10 +351,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
- 
+
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
@@ -379,7 +378,6 @@ class TestCharm(unittest.TestCase):
         patch_exists,
         patch_pull,
     ):
-
         self.harness.set_leader(is_leader=True)
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
@@ -398,14 +396,12 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
- 
+
         relation_data = self.harness.get_relation_data(
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
         self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
         self.assertEqual(relation_data["amf_port"], "38412")
-

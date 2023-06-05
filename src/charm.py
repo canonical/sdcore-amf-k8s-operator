@@ -15,17 +15,14 @@ from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ign
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
+from charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
 from ops.charm import CharmBase, EventBase, RelationJoinedEvent
 from ops.main import main
-from ops.model import (
-    ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus, ModelError
-)
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer
-
-from lib.charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +66,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
-        self.framework.observe(self.on.fiveg_n2_relation_joined, self._set_n2_information)
+        self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
 
     def _configure_amf(
         self,
@@ -106,10 +103,19 @@ class AMFOperatorCharm(CharmBase):
             return
         self._generate_config_file()
         self._configure_amf_workload()
-        self._set_n2_information(event=event)
+        self._set_n2_information()
         self.unit.status = ActiveStatus()
 
-    def _set_n2_information(self, event: RelationJoinedEvent):
+    def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
+        """Handles N2 relation joined event.
+
+        Args:
+            event (RelationJoinedEvent): Juju event
+        """
+        self._set_n2_information()
+
+    def _set_n2_information(self) -> None:
+        """Sets N2 information for the N2 relation."""
         if not self._relation_created(N2_RELATION_NAME):
             return
         if not self.unit.is_leader():
@@ -296,6 +302,7 @@ class AMFOperatorCharm(CharmBase):
 
     def _amf_hostname(self) -> str:
         """Builds and returns the AMF hostname in the cluster.
+
         Returns:
             str: The AMF hostname.
         """
