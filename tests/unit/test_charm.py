@@ -3,7 +3,7 @@
 
 import unittest
 from io import StringIO
-from unittest.mock import PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 from ops import testing
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
@@ -23,13 +23,13 @@ class TestCharm(unittest.TestCase):
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
 
-    def _default_database_is_available(self):
-        default_database_relation_id = self.harness.add_relation("default-database", "mongodb")
+    def _database_is_available(self):
+        database_relation_id = self.harness.add_relation("database", "mongodb")
         self.harness.add_relation_unit(
-            relation_id=default_database_relation_id, remote_unit_name="mongodb/0"
+            relation_id=database_relation_id, remote_unit_name="mongodb/0"
         )
         self.harness.update_relation_data(
-            relation_id=default_database_relation_id,
+            relation_id=database_relation_id,
             app_or_unit="mongodb",
             key_values={
                 "username": "dummy",
@@ -56,70 +56,37 @@ class TestCharm(unittest.TestCase):
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self.harness.add_relation(relation_name="default-database", remote_app="mongodb")
+        self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
             BlockedStatus("Waiting for fiveg_nrf relation"),
         )
 
-    def test_given_amf_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
+    def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(relation_name="default-database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Waiting for amf-database relation"),
+            BlockedStatus("Waiting for database relation"),
         )
 
-    def test_given_default_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self,
-    ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self.harness.container_pebble_ready("amf")
-        self.assertEqual(
-            self.harness.model.unit.status,
-            BlockedStatus("Waiting for default-database relation"),
-        )
-
-    def test_given_relations_created_and_default_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
+    def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self.harness.add_relation(relation_name="default-database", remote_app="mongodb")
-        self.harness.container_pebble_ready("amf")
-        self.assertEqual(
-            self.harness.model.unit.status,
-            WaitingStatus("Waiting for the default database to be available"),
-        )
-
-    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    def test_given_relations_created_and_amf_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
-        self,
-        patch_is_resource_created,
-    ):
-        patch_is_resource_created.side_effect = [True, False]
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self.harness.add_relation(relation_name="default-database", remote_app="mongodb")
+        self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for the amf database to be available"),
         )
 
-    @patch(
-        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created"
-    )  # noqa: E501
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_give_database_info_not_available_when_pebble_ready_then_status_is_waiting(
         self,
         patch_is_resource_created,
@@ -127,12 +94,11 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self.harness.add_relation(relation_name="default-database", remote_app="mongodb")
+        self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
-            WaitingStatus("Waiting for default database info to be available"),
+            WaitingStatus("Waiting for AMF database info to be available"),
         )
 
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -143,8 +109,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -162,8 +127,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -189,8 +153,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
@@ -221,8 +184,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
@@ -256,14 +218,13 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         patch_push.assert_not_called()
 
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
+    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -272,7 +233,6 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
         patch_exists,
         patch_pull,
     ):
@@ -285,8 +245,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         expected_plan = {
             "services": {
@@ -311,7 +270,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
+    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -320,7 +279,6 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
         patch_exists,
         patch_pull,
     ):
@@ -334,8 +292,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="amf-database", remote_app="mongodb")
-        self._default_database_is_available()
+        self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,

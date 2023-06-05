@@ -35,7 +35,5 @@ provides:
 requires:
   fiveg_nrf:
     interface: fiveg_nrf
-  default-database:
-    interface: mongodb_client
-  amf-database:
+  database:
     interface: mongodb_client
