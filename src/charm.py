@@ -15,12 +15,13 @@ from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ign
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
+from charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
-from ops.charm import CharmBase, EventBase
+from ops.charm import CharmBase, EventBase, RelationJoinedEvent
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, WaitingStatus
+from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,7 @@ CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
 CORE_NETWORK_FULL_NAME = "SDCORE5G"
 CORE_NETWORK_SHORT_NAME = "SDCORE"
+N2_RELATION_NAME = "fiveg-n2"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -46,6 +48,7 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
+        self.n2_provider = N2Provides(self, N2_RELATION_NAME)
         self._amf_metrics_endpoint = MetricsEndpointProvider(self)
         self._service_patcher = KubernetesServicePatch(
             charm=self,
@@ -63,6 +66,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
+        self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
 
     def _configure_amf(
         self,
@@ -99,7 +103,30 @@ class AMFOperatorCharm(CharmBase):
             return
         self._generate_config_file()
         self._configure_amf_workload()
+        self._set_n2_information()
         self.unit.status = ActiveStatus()
+
+    def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
+        """Handles N2 relation joined event.
+
+        Args:
+            event (RelationJoinedEvent): Juju event
+        """
+        self._set_n2_information()
+
+    def _set_n2_information(self) -> None:
+        """Sets N2 information for the N2 relation."""
+        if not self._relation_created(N2_RELATION_NAME):
+            return
+        if not self.unit.is_leader():
+            return
+        if not self._amf_service_is_running():
+            return
+        self.n2_provider.set_n2_information(
+            amf_ip_address=_get_pod_ip(),
+            amf_hostname=self._amf_hostname(),
+            amf_port=NGAPP_PORT,
+        )
 
     def _generate_config_file(self) -> None:
         """Handles creation of the AMF config file.
@@ -191,7 +218,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             bool: True if the relation is created, False otherwise.
         """
-        return bool(self.model.get_relation(relation_name))
+        return bool(self.model.relations.get(relation_name))
 
     def _configure_amf_workload(self, restart: bool = False) -> None:
         """Configures pebble layer for the amf container.
@@ -272,6 +299,28 @@ class AMFOperatorCharm(CharmBase):
             "POD_IP": _get_pod_ip(),
             "MANAGED_BY_CONFIG_POD": "true",
         }
+
+    def _amf_hostname(self) -> str:
+        """Builds and returns the AMF hostname in the cluster.
+
+        Returns:
+            str: The AMF hostname.
+        """
+        return f"{self.model.app.name}.{self.model.name}.svc.cluster.local"
+
+    def _amf_service_is_running(self) -> bool:
+        """Returns whether the AMF service is running.
+
+        Returns:
+            bool: Whether the AMF service is running.
+        """
+        if not self._amf_container.can_connect():
+            return False
+        try:
+            service = self._amf_container.get_service(self._amf_service_name)
+        except ModelError:
+            return False
+        return service.is_running()
 
 
 def _get_pod_ip() -> str:
