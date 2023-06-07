@@ -218,7 +218,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             bool: True if the relation is created, False otherwise.
         """
-        return bool(self.model.get_relation(relation_name))
+        return bool(self.model.relations.get(relation_name))
 
     def _configure_amf_workload(self, restart: bool = False) -> None:
         """Configures pebble layer for the amf container.

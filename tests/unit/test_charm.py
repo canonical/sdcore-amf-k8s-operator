@@ -369,7 +369,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    def test_given_service_starts__running_after_n2_relation_joined_when_pebble_ready_then_n2_information_is_in_relation_databag(  # noqa: E501
+    def test_given_service_starts_running_after_n2_relation_joined_when_pebble_ready_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
         patch_is_resource_created,
         patch_nrf_url,
@@ -401,6 +401,51 @@ class TestCharm(unittest.TestCase):
 
         relation_data = self.harness.get_relation_data(
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
+        )
+        self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
+        self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
+        self.assertEqual(relation_data["amf_port"], "38412")
+
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push")
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_more_than_one_n2_requirers_join_n2_relation_when_service_starts_then_n2_information_is_in_relation_databag(  # noqa: E501
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_push,
+        patch_exists,
+        patch_pull,
+    ):
+        self.harness.set_leader(is_leader=True)
+        patch_exists.return_value = True
+        patch_check_output.return_value = b"1.1.1.1"
+        patch_exists.return_value = True
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self._database_is_available()
+        self.harness.container_pebble_ready("amf")
+
+        relation_1_id = self.harness.add_relation(
+            relation_name="fiveg-n2", remote_app="n2-requirer-1"
+        )
+        self.harness.add_relation_unit(
+            relation_id=relation_1_id, remote_unit_name="n2-requirer-1/0"
+        )
+        relation_2_id = self.harness.add_relation(
+            relation_name="fiveg-n2", remote_app="n2-requirer-2"
+        )
+        self.harness.add_relation_unit(
+            relation_id=relation_2_id, remote_unit_name="n2-requirer-2/0"
+        )
+        relation_data = self.harness.get_relation_data(
+            relation_id=relation_2_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
         self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
