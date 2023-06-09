@@ -1,0 +1,5 @@
+options:
+  dnn:
+    type: string
+    default: internet
+    description: Data Network Name (DNN)

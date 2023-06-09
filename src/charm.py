@@ -7,6 +7,7 @@
 import logging
 from ipaddress import IPv4Address
 from subprocess import check_output
+from typing import Optional
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
 from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ignore[import]
@@ -62,6 +63,7 @@ class AMFOperatorCharm(CharmBase):
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
@@ -80,6 +82,11 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_container.can_connect():
             self.unit.status = MaintenanceStatus("Waiting for service to start")
             event.defer()
+            return
+        if invalid_configs := self._get_invalid_configs():
+            self.unit.status = BlockedStatus(
+                f"The following configurations are not valid: {invalid_configs}"
+            )
             return
         for relation in ["fiveg_nrf", "database"]:
             if not self._relation_created(relation):
@@ -105,6 +112,20 @@ class AMFOperatorCharm(CharmBase):
         self._configure_amf_workload()
         self._set_n2_information()
         self.unit.status = ActiveStatus()
+
+    def _get_invalid_configs(self) -> list[str]:
+        """Returns list of invalid configurations.
+
+        Returns:
+            list: List of strings matching config keys.
+        """
+        invalid_configs = []
+        if not self._get_dnn_config():
+            invalid_configs.append("dnn")
+        return invalid_configs
+
+    def _get_dnn_config(self) -> Optional[str]:
+        return self.model.config.get("dnn")
 
     def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
         """Handles N2 relation joined event.
@@ -136,6 +157,8 @@ class AMFOperatorCharm(CharmBase):
         Calls `_configure_amf_workload` function to forcibly restart the AMF service in order
         to fetch new config.
         """
+        if not (dnn := self._get_dnn_config()):
+            raise ValueError("DNN configuration value is empty")
         content = self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
@@ -146,6 +169,7 @@ class AMFOperatorCharm(CharmBase):
             database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
+            dnn=dnn,
         )
         if not self._config_file_content_matches(content=content):
             self._push_config_file(
@@ -165,6 +189,7 @@ class AMFOperatorCharm(CharmBase):
         database_url: str,
         full_network_name: str,
         short_network_name: str,
+        dnn: str,
     ) -> str:
         """Renders the AMF config file.
 
@@ -178,6 +203,7 @@ class AMFOperatorCharm(CharmBase):
             database_url (str): URL of the AMF database.
             full_network_name (str): Full name of the network.
             short_network_name (str): Short name of the network.
+            dnn (str): Data Network name.
 
         Returns:
             str: Content of the rendered config file.
@@ -194,6 +220,7 @@ class AMFOperatorCharm(CharmBase):
             database_url=database_url,
             full_network_name=full_network_name,
             short_network_name=short_network_name,
+            dnn=dnn,
         )
         return content
 
