@@ -68,6 +68,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
+        self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
 
     def _configure_amf(
@@ -106,6 +107,10 @@ class AMFOperatorCharm(CharmBase):
             return
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
             self.unit.status = WaitingStatus("Waiting for storage to be attached")
+            event.defer()
+            return
+        if not _get_pod_ip():
+            self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
             event.defer()
             return
         self._generate_config_file()
@@ -164,7 +169,7 @@ class AMFOperatorCharm(CharmBase):
             sctp_grpc_port=SCTP_GRPC_PORT,
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
-            amf_ip=_get_pod_ip(),
+            amf_ip=_get_pod_ip(),  # type: ignore[arg-type]
             database_name=DATABASE_NAME,
             database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
@@ -350,13 +355,14 @@ class AMFOperatorCharm(CharmBase):
         return service.is_running()
 
 
-def _get_pod_ip() -> str:
+def _get_pod_ip() -> Optional[str]:
     """Returns the pod IP using juju client.
 
     Returns:
         str: The pod IP.
     """
-    return str(IPv4Address(check_output(["unit-get", "private-address"]).decode().strip()))
+    ip_address = check_output(["unit-get", "private-address"])
+    return str(IPv4Address(ip_address.decode().strip())) if ip_address else None
 
 
 if __name__ == "__main__":  # pragma: no cover

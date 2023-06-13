@@ -299,6 +299,30 @@ class TestCharm(unittest.TestCase):
             ActiveStatus(),
         )
 
+    @patch("ops.model.Container.push", new=Mock)
+    @patch("charm.check_output")
+    @patch("ops.model.Container.exec", new=Mock)
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("ops.model.Container.exists")
+    def test_given_empty_ip_address_when_pebble_ready_then_status_is_waiting(
+        self,
+        patch_dir_exists,
+        patch_nrf_url,
+        patch_check_output,
+    ):
+        patch_check_output.return_value = b""
+        patch_nrf_url.return_value = "http://nrf:8081"
+        patch_dir_exists.return_value = True
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self._database_is_available()
+
+        self.harness.container_pebble_ready(container_name="amf")
+
+        self.assertEqual(
+            self.harness.charm.unit.status,
+            WaitingStatus("Waiting for pod IP address to be available"),
+        )
+
     @patch("charm.check_output")
     def test_given_unit_not_leader_when__fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
         self, patch_check_output
