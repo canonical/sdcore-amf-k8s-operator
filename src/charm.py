@@ -50,7 +50,14 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
-        self._amf_metrics_endpoint = MetricsEndpointProvider(self)
+        self._amf_metrics_endpoint = MetricsEndpointProvider(
+            self,
+            jobs=[
+                {
+                    "static_configs": [{"targets": [f"*:{PROMETHEUS_PORT}"]}],
+                }
+            ],
+        )
         self._service_patcher = KubernetesServicePatch(
             charm=self,
             ports=[
