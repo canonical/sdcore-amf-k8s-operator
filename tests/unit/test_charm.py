@@ -252,7 +252,7 @@ class TestCharm(unittest.TestCase):
                 "amf": {
                     "startup": "enabled",
                     "override": "replace",
-                    "command": "/free5gc/amf/amf --amfcfg /free5gc/config/amfcfg.conf",
+                    "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
                     "environment": {
                         "GOTRACEBACK": "crash",
                         "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",

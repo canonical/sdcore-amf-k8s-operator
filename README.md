@@ -27,4 +27,4 @@ juju integrate sdcore-amf:fiveg-nrf sdcore-nrf:fiveg-nrf
 
 ## Image
 
-**amf**: omecproject/5gc-amf:master-a4759db
+**amf**: ghcr.io/canonical/sdcore-amf:1.3
