@@ -16,7 +16,7 @@ resources:
   amf-image:
     type: oci-image
     description: OCI image for SD-Core amf
-    upstream-source: omecproject/5gc-amf:master-a4759db
+    upstream-source: ghcr.io/canonical/sdcore-amf:1.3
 
 storage:
   config:

@@ -297,7 +297,7 @@ class AMFOperatorCharm(CharmBase):
                     self._amf_service_name: {
                         "override": "replace",
                         "startup": "enabled",
-                        "command": f"/free5gc/amf/amf --amfcfg {CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",  # noqa: E501
+                        "command": f"/bin/amf --amfcfg {CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",  # noqa: E501
                         "environment": self._amf_environment_variables,
                     },
                 },
