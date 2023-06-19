@@ -469,13 +469,6 @@ class AMFOperatorCharm(CharmBase):
                         "environment": self._amf_environment_variables,
                     },
                 },
-                "checks": {
-                    "online": {
-                        "override": "replace",
-                        "level": "ready",
-                        "tcp": {"port": SBI_PORT},
-                    }
-                },
             }
         )
 
