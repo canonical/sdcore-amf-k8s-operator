@@ -25,6 +25,13 @@ juju integrate sdcore-amf:amf-database mongodb-k8s
 juju integrate sdcore-amf:fiveg-nrf sdcore-nrf:fiveg-nrf
 ```
 
+### Optional
+
+```bash
+juju deploy self-signed-certificates --channel=edge
+juju integrate sdcore-amf:certificates self-signed-certificates:certificates
+```
+
 ## Image
 
 **amf**: ghcr.io/canonical/sdcore-amf:1.3

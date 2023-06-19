@@ -12,7 +12,7 @@ containers:
       - storage: config
         location: /free5gc/config
       - storage: certs
-        location: /free5gc/support/TLS
+        location: support/TLS
 
 resources:
   amf-image:

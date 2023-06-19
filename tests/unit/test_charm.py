@@ -488,9 +488,7 @@ class TestCharm(unittest.TestCase):
 
         self.harness.charm._on_certificates_relation_created(event=Mock)
 
-        patch_push.assert_called_with(
-            path="/free5gc/support/TLS/amf.key", source=private_key.decode()
-        )
+        patch_push.assert_called_with(path="/support/TLS/amf.key", source=private_key.decode())
 
     @patch("ops.model.Container.remove_path")
     @patch("ops.model.Container.exists")
@@ -503,9 +501,9 @@ class TestCharm(unittest.TestCase):
 
         self.harness.charm._on_certificates_relation_broken(event=Mock)
 
-        patch_remove_path.assert_any_call(path="/free5gc/support/TLS/amf.pem")
-        patch_remove_path.assert_any_call(path="/free5gc/support/TLS/amf.key")
-        patch_remove_path.assert_any_call(path="/free5gc/support/TLS/amf.csr")
+        patch_remove_path.assert_any_call(path="/support/TLS/amf.pem")
+        patch_remove_path.assert_any_call(path="/support/TLS/amf.key")
+        patch_remove_path.assert_any_call(path="/support/TLS/amf.csr")
 
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
@@ -520,14 +518,14 @@ class TestCharm(unittest.TestCase):
     ):
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
-        patch_pull.return_value = "private key content"
+        patch_pull.return_value = StringIO("private key content")
         patch_exists.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificates_relation_joined(event=Mock)
 
-        patch_push.assert_called_with(path="/free5gc/support/TLS/amf.csr", source=csr.decode())
+        patch_push.assert_called_with(path="/support/TLS/amf.csr", source=csr.decode())
 
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
@@ -545,7 +543,7 @@ class TestCharm(unittest.TestCase):
     ):
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
-        patch_pull.return_value = "private key content"
+        patch_pull.return_value = StringIO("private key content")
         patch_exists.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.set_leader(is_leader=True)
@@ -564,7 +562,7 @@ class TestCharm(unittest.TestCase):
         patch_pull,
     ):
         csr = "Whatever CSR content"
-        patch_pull.return_value = csr
+        patch_pull.return_value = StringIO(csr)
         patch_exists.return_value = True
         certificate = "Whatever certificate content"
         event = Mock()
@@ -575,7 +573,7 @@ class TestCharm(unittest.TestCase):
 
         self.harness.charm._on_certificate_available(event=event)
 
-        patch_push.assert_called_with(path="/free5gc/support/TLS/amf.pem", source=certificate)
+        patch_push.assert_called_with(path="/support/TLS/amf.pem", source=certificate)
 
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
@@ -586,7 +584,7 @@ class TestCharm(unittest.TestCase):
         patch_exists,
         patch_pull,
     ):
-        patch_pull.return_value = "Stored CSR content"
+        patch_pull.return_value = StringIO("Stored CSR content")
         patch_exists.return_value = True
         certificate = "Whatever certificate content"
         event = Mock()
@@ -609,7 +607,7 @@ class TestCharm(unittest.TestCase):
         self, patch_pull, patch_generate_csr, patch_request_certificate_creation
     ):
         event = Mock()
-        patch_pull.return_value = "Stored certificate content"
+        patch_pull.return_value = StringIO("Stored certificate content")
         event.certificate = "Relation certificate content (different from stored)"
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
@@ -632,7 +630,7 @@ class TestCharm(unittest.TestCase):
         certificate = "whatever certificate content"
         event = Mock()
         event.certificate = certificate
-        patch_pull.return_value = certificate
+        patch_pull.return_value = StringIO(certificate)
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
         self.harness.set_can_connect(container="amf", val=True)

@@ -43,7 +43,7 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
-CERTS_DIR_PATH = "/free5gc/support/TLS"  # Certificate paths are hardcoded in AMF code
+CERTS_DIR_PATH = "/support/TLS"  # Certificate paths are hardcoded in AMF code
 PRIVATE_KEY_NAME = "amf.key"
 CSR_NAME = "amf.csr"
 CERTIFICATE_NAME = "amf.pem"
@@ -223,7 +223,7 @@ class AMFOperatorCharm(CharmBase):
         """Generates and stores CSR."""
         private_key = self._get_stored_private_key()
         csr = generate_csr(private_key=private_key.encode(), subject=CERTIFICATE_COMMON_NAME)
-        self._store_csr(csr.decode())
+        self._store_csr(csr.decode().strip())
         self._certificates.request_certificate_creation(certificate_signing_request=csr)
 
     def _delete_private_key(self):
@@ -257,15 +257,15 @@ class AMFOperatorCharm(CharmBase):
 
     def _get_stored_certificate(self) -> str:
         """Returns stored certificate."""
-        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}"))
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read())
 
     def _get_stored_csr(self) -> str:
         """Returns stored CSR."""
-        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}"))
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read())
 
     def _get_stored_private_key(self) -> str:
         """Returns stored private key."""
-        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}"))
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read())
 
     def _certificate_is_stored(self) -> bool:
         """Returns whether certificate is stored in workload."""
@@ -464,6 +464,13 @@ class AMFOperatorCharm(CharmBase):
                         "command": f"/bin/amf --amfcfg {CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",  # noqa: E501
                         "environment": self._amf_environment_variables,
                     },
+                },
+                "checks": {
+                    "online": {
+                        "override": "replace",
+                        "level": "ready",
+                        "tcp": {"port": SBI_PORT},
+                    }
                 },
             }
         )
