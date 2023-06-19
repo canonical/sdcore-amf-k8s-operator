@@ -20,6 +20,7 @@ from charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ignore[import]
     CertificateAvailableEvent,
+    CertificateExpiringEvent,
     TLSCertificatesRequiresV2,
     generate_csr,
     generate_private_key,
@@ -42,7 +43,7 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
-CERTS_DIR_PATH = "/free5gc/support/TLS"  # The certificates directory and file names are hardcoded AMF code and can't be placed elsewhere # noqa: E501
+CERTS_DIR_PATH = "/free5gc/support/TLS"  # Certificate paths are hardcoded in AMF code
 PRIVATE_KEY_NAME = "amf.key"
 CSR_NAME = "amf.csr"
 CERTIFICATE_NAME = "amf.pem"
@@ -100,6 +101,9 @@ class AMFOperatorCharm(CharmBase):
         )
         self.framework.observe(
             self._certificates.on.certificate_available, self._on_certificate_available
+        )
+        self.framework.observe(
+            self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
 
     def _configure_amf(
@@ -180,9 +184,7 @@ class AMFOperatorCharm(CharmBase):
         if not self._private_key_is_stored():
             event.defer()
             return
-        csr = self._generate_csr()
-        self._certificates.request_certificate_creation(certificate_signing_request=csr)
-        logger.info("Certificate request sent")
+        self._request_new_certificate()
 
     def _on_certificate_available(self, event: CertificateAvailableEvent):
         """Pushes certificate to workload and configures AMF."""
@@ -191,26 +193,38 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_container.can_connect():
             event.defer()
             return
-        self._amf_container.push(
-            path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=event.certificate
-        )
-        logger.info("Certificate pushed to workload")
+        if not self._csr_is_stored():
+            logger.warning("Certificate is available but no CSR is stored")
+            return
+        if event.certificate_signing_request != self._get_stored_csr():
+            logger.debug("Stored CSR doesn't match one in certificate available event")
+            return
+        self._store_certificate(event.certificate)
         self._configure_amf(event)
+
+    def _on_certificate_expiring(self, event: CertificateExpiringEvent):
+        """Requests new certificate."""
+        if not self.unit.is_leader():
+            return
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        if event.certificate != self._get_stored_certificate():
+            logger.debug("Expiring certificate is not the one stored")
+            return
+        self._request_new_certificate()
 
     def _generate_private_key(self) -> None:
         """Generates and stores private key."""
         private_key = generate_private_key()
-        self._amf_container.push(
-            path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}", source=private_key.decode()
-        )
-        logger.info("Pushed private key to workload")
+        self._store_private_key(private_key.decode())
 
-    def _generate_csr(self) -> bytes:
+    def _request_new_certificate(self):
         """Generates and stores CSR."""
-        private_key = str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}"))
+        private_key = self._get_stored_private_key()
         csr = generate_csr(private_key=private_key.encode(), subject=CERTIFICATE_COMMON_NAME)
-        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode())
-        return csr
+        self._store_csr(csr.decode())
+        self._certificates.request_certificate_creation(certificate_signing_request=csr)
 
     def _delete_private_key(self):
         """Removes private key from workload."""
@@ -241,9 +255,36 @@ class AMFOperatorCharm(CharmBase):
         """Returns whether CSR is stored in workload."""
         return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
 
+    def _get_stored_certificate(self) -> str:
+        """Returns stored certificate."""
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}"))
+
+    def _get_stored_csr(self) -> str:
+        """Returns stored CSR."""
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}"))
+
+    def _get_stored_private_key(self) -> str:
+        """Returns stored private key."""
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}"))
+
     def _certificate_is_stored(self) -> bool:
         """Returns whether certificate is stored in workload."""
         return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
+
+    def _store_certificate(self, certificate: str):
+        """Stores certificate in workload."""
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=certificate)
+        logger.info("Pushed certificate pushed to workload")
+
+    def _store_private_key(self, private_key: str):
+        """Stores private key in workload."""
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}", source=private_key)
+        logger.info("Pushed private key to workload")
+
+    def _store_csr(self, csr: str):
+        """Stores CSR in workload."""
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr)
+        logger.info("Pushed CSR to workload")
 
     def _get_invalid_configs(self) -> list[str]:
         """Returns list of invalid configurations.
