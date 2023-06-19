@@ -4,3 +4,5 @@ lightkube-models
 pydantic
 pytest-interface-tester
 jinja2
+jsonschema
+cryptography

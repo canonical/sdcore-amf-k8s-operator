@@ -18,6 +18,12 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
 )
 from charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
+from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ignore[import]
+    CertificateAvailableEvent,
+    TLSCertificatesRequiresV2,
+    generate_csr,
+    generate_private_key,
+)
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
 from ops.charm import CharmBase, EventBase, RelationJoinedEvent
@@ -36,6 +42,11 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
+CERTS_DIR_PATH = "/free5gc/support/TLS"  # The certificates directory and file names are hardcoded AMF code and can't be placed elsewhere # noqa: E501
+PRIVATE_KEY_NAME = "amf.key"
+CSR_NAME = "amf.csr"
+CERTIFICATE_NAME = "amf.pem"
+CERTIFICATE_COMMON_NAME = "amf.sdcore"
 CORE_NETWORK_FULL_NAME = "SDCORE5G"
 CORE_NETWORK_SHORT_NAME = "SDCORE"
 N2_RELATION_NAME = "fiveg-n2"
@@ -50,6 +61,7 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
+        self._certificates = TLSCertificatesRequiresV2(self, "certificates")
         self._amf_metrics_endpoint = MetricsEndpointProvider(
             self,
             jobs=[
@@ -77,6 +89,18 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
+        self.framework.observe(
+            self.on.certificates_relation_created, self._on_certificates_relation_created
+        )
+        self.framework.observe(
+            self.on.certificates_relation_joined, self._on_certificates_relation_joined
+        )
+        self.framework.observe(
+            self.on.certificates_relation_broken, self._on_certificates_relation_broken
+        )
+        self.framework.observe(
+            self._certificates.on.certificate_available, self._on_certificate_available
+        )
 
     def _configure_amf(
         self,
@@ -124,6 +148,102 @@ class AMFOperatorCharm(CharmBase):
         self._configure_amf_workload()
         self._set_n2_information()
         self.unit.status = ActiveStatus()
+
+    def _on_certificates_relation_created(self, event):
+        """Generates Private key."""
+        if not self.unit.is_leader():
+            return
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        self._generate_private_key()
+
+    def _on_certificates_relation_broken(self, event):
+        """Deletes TLS related artifacts and reconfigures AMF."""
+        if not self.unit.is_leader():
+            return
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        self._delete_private_key()
+        self._delete_csr()
+        self._delete_certificate()
+        self._configure_amf(event)
+
+    def _on_certificates_relation_joined(self, event):
+        """Generates CSR and requests new certificate."""
+        if not self.unit.is_leader():
+            return
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        if not self._private_key_is_stored():
+            event.defer()
+            return
+        csr = self._generate_csr()
+        self._certificates.request_certificate_creation(certificate_signing_request=csr)
+        logger.info("Certificate request sent")
+
+    def _on_certificate_available(self, event: CertificateAvailableEvent):
+        """Pushes certificate to workload and configures AMF."""
+        if not self.unit.is_leader():
+            return
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        self._amf_container.push(
+            path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=event.certificate
+        )
+        logger.info("Certificate pushed to workload")
+        self._configure_amf(event)
+
+    def _generate_private_key(self) -> None:
+        """Generates and stores private key."""
+        private_key = generate_private_key()
+        self._amf_container.push(
+            path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}", source=private_key.decode()
+        )
+        logger.info("Pushed private key to workload")
+
+    def _generate_csr(self) -> bytes:
+        """Generates and stores CSR."""
+        private_key = str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}"))
+        csr = generate_csr(private_key=private_key.encode(), subject=CERTIFICATE_COMMON_NAME)
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode())
+        return csr
+
+    def _delete_private_key(self):
+        """Removes private key from workload."""
+        if not self._private_key_is_stored():
+            return
+        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+        logger.info("Removed private key from workload")
+
+    def _delete_csr(self):
+        """Deletes CSR from workload."""
+        if not self._csr_is_stored():
+            return
+        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
+        logger.info("Removed CSR from workload")
+
+    def _delete_certificate(self):
+        """Deletes certificate from workload."""
+        if not self._certificate_is_stored():
+            return
+        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
+        logger.info("Removed certificate from workload")
+
+    def _private_key_is_stored(self) -> bool:
+        """Returns whether private key is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+
+    def _csr_is_stored(self) -> bool:
+        """Returns whether CSR is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
+
+    def _certificate_is_stored(self) -> bool:
+        """Returns whether certificate is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
 
     def _get_invalid_configs(self) -> list[str]:
         """Returns list of invalid configurations.
@@ -182,6 +302,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
+            scheme="https" if self._certificate_is_stored() else "http",
         )
         if not self._config_file_content_matches(content=content):
             self._push_config_file(
@@ -202,6 +323,7 @@ class AMFOperatorCharm(CharmBase):
         full_network_name: str,
         short_network_name: str,
         dnn: str,
+        scheme: str,
     ) -> str:
         """Renders the AMF config file.
 
@@ -233,6 +355,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name=full_network_name,
             short_network_name=short_network_name,
             dnn=dnn,
+            scheme=scheme,
         )
         return content
 

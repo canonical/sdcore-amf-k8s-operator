@@ -136,6 +136,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("ops.model.Container.exists")
     @patch("charm.check_output")
+    @patch("ops.model.Container.pull", new=Mock)
     @patch("ops.model.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -178,7 +179,7 @@ class TestCharm(unittest.TestCase):
         patch_pull,
     ):
         patch_pull.return_value = StringIO("Dummy Content")
-        patch_exists.return_value = True
+        patch_exists.side_effect = [True, False, True, False]
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -213,7 +214,7 @@ class TestCharm(unittest.TestCase):
             StringIO(self._read_file("tests/unit/expected_config/config.conf").strip()),
         ]
         patch_check_output.return_value = b"1.1.1.1"
-        patch_exists.return_value = True
+        patch_exists.side_effect = [True, False, True, False]
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -474,3 +475,94 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
         self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
         self.assertEqual(relation_data["amf_port"], "38412")
+
+    @patch("charm.generate_private_key")
+    @patch("ops.model.Container.push")
+    def test_given_can_connect_when_on_certificates_relation_created_then_private_key_is_generated(
+        self, patch_push, patch_generate_private_key
+    ):
+        private_key = b"whatever key content"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_leader(is_leader=True)
+        patch_generate_private_key.return_value = private_key
+
+        self.harness.charm._on_certificates_relation_created(event=Mock)
+
+        patch_push.assert_called_with(
+            path="/free5gc/support/TLS/amf.key", source=private_key.decode()
+        )
+
+    @patch("ops.model.Container.remove_path")
+    @patch("ops.model.Container.exists")
+    def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
+        self, patch_exists, patch_remove_path
+    ):
+        patch_exists.return_value = True
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_leader(is_leader=True)
+
+        self.harness.charm._on_certificates_relation_broken(event=Mock)
+
+        patch_remove_path.assert_any_call(path="/free5gc/support/TLS/amf.pem")
+        patch_remove_path.assert_any_call(path="/free5gc/support/TLS/amf.key")
+        patch_remove_path.assert_any_call(path="/free5gc/support/TLS/amf.csr")
+
+    @patch(
+        "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
+        new=Mock,
+    )
+    @patch("ops.model.Container.push")
+    @patch("charm.generate_csr")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    def test_given_private_key_exists_when_on_certificates_relation_joined_then_csr_is_generated(
+        self, patch_exists, patch_pull, patch_generate_csr, patch_push
+    ):
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        patch_pull.return_value = "private key content"
+        patch_exists.return_value = True
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_leader(is_leader=True)
+
+        self.harness.charm._on_certificates_relation_joined(event=Mock)
+
+        patch_push.assert_called_with(path="/free5gc/support/TLS/amf.csr", source=csr.decode())
+
+    @patch(
+        "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
+    )
+    @patch("ops.model.Container.push", new=Mock)
+    @patch("charm.generate_csr")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    def test_given_private_key_exists_when_on_certificates_relation_joined_then_cert_is_requested(
+        self,
+        patch_exists,
+        patch_pull,
+        patch_generate_csr,
+        patch_request_certificate_creation,
+    ):
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        patch_pull.return_value = "private key content"
+        patch_exists.return_value = True
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_leader(is_leader=True)
+
+        self.harness.charm._on_certificates_relation_joined(event=Mock)
+
+        patch_request_certificate_creation.assert_called_with(certificate_signing_request=csr)
+
+    @patch("ops.model.Container.push")
+    def test_given_can_connect_when_certificate_available_then_certificate_is_pushed(
+        self,
+        patch_push,
+    ):
+        certificate = "certificate content"
+        event = Mock()
+        event.certificate = certificate
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_leader(is_leader=True)
+        self.harness.charm._on_certificate_available(event=event)
+        patch_push.assert_called_with(path="/free5gc/support/TLS/amf.pem", source=certificate)
