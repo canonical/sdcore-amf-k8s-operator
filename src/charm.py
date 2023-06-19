@@ -222,7 +222,11 @@ class AMFOperatorCharm(CharmBase):
     def _request_new_certificate(self):
         """Generates and stores CSR."""
         private_key = self._get_stored_private_key()
-        csr = generate_csr(private_key=private_key.encode(), subject=CERTIFICATE_COMMON_NAME)
+        csr = generate_csr(
+            private_key=private_key.encode(),
+            subject=CERTIFICATE_COMMON_NAME,
+            sans_dns=[CERTIFICATE_COMMON_NAME],
+        )
         self._store_csr(csr.decode().strip())
         self._certificates.request_certificate_creation(certificate_signing_request=csr)
 
