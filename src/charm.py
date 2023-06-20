@@ -174,7 +174,7 @@ class AMFOperatorCharm(CharmBase):
         self._delete_certificate()
         self._configure_amf(event)
 
-    def _on_certificates_relation_joined(self, event):
+    def _on_certificates_relation_joined(self, event: EventBase) -> None:
         """Generates CSR and requests new certificate."""
         if not self.unit.is_leader():
             return
