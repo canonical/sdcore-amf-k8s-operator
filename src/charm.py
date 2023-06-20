@@ -285,7 +285,7 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container.push(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}", source=private_key)
         logger.info("Pushed private key to workload")
 
-    def _store_csr(self, csr: str):
+    def _store_csr(self, csr: str) -> None:
         """Stores CSR in workload."""
         self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr)
         logger.info("Pushed CSR to workload")
