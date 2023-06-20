@@ -153,7 +153,7 @@ class AMFOperatorCharm(CharmBase):
         self._set_n2_information()
         self.unit.status = ActiveStatus()
 
-    def _on_certificates_relation_created(self, event):
+    def _on_certificates_relation_created(self, event: EventBase) -> None:
         """Generates Private key."""
         if not self.unit.is_leader():
             return
