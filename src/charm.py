@@ -58,6 +58,8 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        if not self.unit.is_leader():
+            raise NotImplementedError("Scaling is not implemented for this charm")
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
@@ -155,8 +157,6 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_certificates_relation_created(self, event: EventBase) -> None:
         """Generates Private key."""
-        if not self.unit.is_leader():
-            return
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -164,8 +164,6 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_certificates_relation_broken(self, event: EventBase) -> None:
         """Deletes TLS related artifacts and reconfigures AMF."""
-        if not self.unit.is_leader():
-            return
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -176,8 +174,6 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_certificates_relation_joined(self, event: EventBase) -> None:
         """Generates CSR and requests new certificate."""
-        if not self.unit.is_leader():
-            return
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -188,8 +184,6 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Pushes certificate to workload and configures AMF."""
-        if not self.unit.is_leader():
-            return
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -204,8 +198,6 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_certificate_expiring(self, event: CertificateExpiringEvent):
         """Requests new certificate."""
-        if not self.unit.is_leader():
-            return
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -217,17 +209,17 @@ class AMFOperatorCharm(CharmBase):
     def _generate_private_key(self) -> None:
         """Generates and stores private key."""
         private_key = generate_private_key()
-        self._store_private_key(private_key.decode())
+        self._store_private_key(private_key)
 
     def _request_new_certificate(self) -> None:
         """Generates and stores CSR, and uses it to request a new certificate."""
         private_key = self._get_stored_private_key()
         csr = generate_csr(
-            private_key=private_key.encode(),
+            private_key=private_key,
             subject=CERTIFICATE_COMMON_NAME,
             sans_dns=[CERTIFICATE_COMMON_NAME],
         )
-        self._store_csr(csr.decode().strip())
+        self._store_csr(csr)
         self._certificates.request_certificate_creation(certificate_signing_request=csr)
 
     def _delete_private_key(self):
@@ -267,9 +259,11 @@ class AMFOperatorCharm(CharmBase):
         """Returns stored CSR."""
         return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read())
 
-    def _get_stored_private_key(self) -> str:
+    def _get_stored_private_key(self) -> bytes:
         """Returns stored private key."""
-        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read())
+        return str(
+            self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read()
+        ).encode()
 
     def _certificate_is_stored(self) -> bool:
         """Returns whether certificate is stored in workload."""
@@ -280,14 +274,17 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=certificate)
         logger.info("Pushed certificate pushed to workload")
 
-    def _store_private_key(self, private_key: str) -> None:
+    def _store_private_key(self, private_key: bytes) -> None:
         """Stores private key in workload."""
-        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}", source=private_key)
+        self._amf_container.push(
+            path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
+            source=private_key.decode(),
+        )
         logger.info("Pushed private key to workload")
 
-    def _store_csr(self, csr: str) -> None:
+    def _store_csr(self, csr: bytes) -> None:
         """Stores CSR in workload."""
-        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr)
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode().strip())
         logger.info("Pushed CSR to workload")
 
     def _get_invalid_configs(self) -> list[str]:
@@ -315,8 +312,6 @@ class AMFOperatorCharm(CharmBase):
     def _set_n2_information(self) -> None:
         """Sets N2 information for the N2 relation."""
         if not self._relation_created(N2_RELATION_NAME):
-            return
-        if not self.unit.is_leader():
             return
         if not self._amf_service_is_running():
             return

@@ -21,6 +21,7 @@ class TestCharm(unittest.TestCase):
         self.harness = testing.Harness(AMFOperatorCharm)
         self.harness.set_model_name(name=self.namespace)
         self.addCleanup(self.harness.cleanup)
+        self.harness.set_leader(is_leader=True)
         self.harness.begin()
 
     def _database_is_available(self):
@@ -325,24 +326,10 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.check_output")
-    def test_given_unit_not_leader_when__fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
-        self, patch_check_output
-    ):
-        patch_check_output.return_value = b"1.1.1.1"
-        self.harness.set_leader(is_leader=False)
-        relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
-        self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
-        relation_data = self.harness.get_relation_data(
-            relation_id=relation_id, app_or_unit=self.harness.charm.app.name
-        )
-        self.assertEqual(relation_data, {})
-
-    @patch("charm.check_output")
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
         self, patch_check_output
     ):
         patch_check_output.return_value = b"1.1.1.1"
-        self.harness.set_leader(is_leader=True)
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
@@ -368,7 +355,6 @@ class TestCharm(unittest.TestCase):
         patch_pull.return_value = StringIO(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        self.harness.set_leader(is_leader=True)
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         patch_exists.return_value = True
@@ -403,7 +389,6 @@ class TestCharm(unittest.TestCase):
         patch_exists,
         patch_pull,
     ):
-        self.harness.set_leader(is_leader=True)
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
@@ -446,7 +431,6 @@ class TestCharm(unittest.TestCase):
         patch_exists,
         patch_pull,
     ):
-        self.harness.set_leader(is_leader=True)
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         patch_exists.return_value = True
@@ -483,7 +467,6 @@ class TestCharm(unittest.TestCase):
     ):
         private_key = b"whatever key content"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
         patch_generate_private_key.return_value = private_key
 
         self.harness.charm._on_certificates_relation_created(event=Mock)
@@ -497,7 +480,6 @@ class TestCharm(unittest.TestCase):
     ):
         patch_exists.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificates_relation_broken(event=Mock)
 
@@ -521,7 +503,6 @@ class TestCharm(unittest.TestCase):
         patch_pull.return_value = StringIO("private key content")
         patch_exists.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificates_relation_joined(event=Mock)
 
@@ -546,7 +527,6 @@ class TestCharm(unittest.TestCase):
         patch_pull.return_value = StringIO("private key content")
         patch_exists.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificates_relation_joined(event=Mock)
 
@@ -569,7 +549,6 @@ class TestCharm(unittest.TestCase):
         event.certificate = certificate
         event.certificate_signing_request = csr
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificate_available(event=event)
 
@@ -591,7 +570,6 @@ class TestCharm(unittest.TestCase):
         event.certificate = certificate
         event.certificate_signing_request = "Relation CSR content (different from stored one)"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificate_available(event=event)
 
@@ -612,7 +590,6 @@ class TestCharm(unittest.TestCase):
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificate_expiring(event=event)
 
@@ -634,7 +611,6 @@ class TestCharm(unittest.TestCase):
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.set_leader(is_leader=True)
 
         self.harness.charm._on_certificate_expiring(event=event)
 
