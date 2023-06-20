@@ -578,7 +578,7 @@ class TestCharm(unittest.TestCase):
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push")
-    def test_given_csr_doesnt_match_stored_one_when_certificate_available_then_certificate_is_pushed(  # noqa: E501
+    def test_given_csr_doesnt_match_stored_one_when_certificate_available_then_certificate_is_not_pushed(  # noqa: E501
         self,
         patch_push,
         patch_exists,
