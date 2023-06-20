@@ -383,6 +383,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name (str): Full name of the network.
             short_network_name (str): Short name of the network.
             dnn (str): Data Network name.
+            scheme (str): SBI interface scheme ("http" or "https")
 
         Returns:
             str: Content of the rendered config file.
