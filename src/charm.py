@@ -18,6 +18,13 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
 )
 from charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
+from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ignore[import]
+    CertificateAvailableEvent,
+    CertificateExpiringEvent,
+    TLSCertificatesRequiresV2,
+    generate_csr,
+    generate_private_key,
+)
 from jinja2 import Environment, FileSystemLoader
 from lightkube.models.core_v1 import ServicePort
 from ops.charm import CharmBase, EventBase, RelationJoinedEvent
@@ -36,6 +43,11 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
+CERTS_DIR_PATH = "/support/TLS"  # Certificate paths are hardcoded in AMF code
+PRIVATE_KEY_NAME = "amf.key"
+CSR_NAME = "amf.csr"
+CERTIFICATE_NAME = "amf.pem"
+CERTIFICATE_COMMON_NAME = "amf.sdcore"
 CORE_NETWORK_FULL_NAME = "SDCORE5G"
 CORE_NETWORK_SHORT_NAME = "SDCORE"
 N2_RELATION_NAME = "fiveg-n2"
@@ -46,10 +58,13 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        if not self.unit.is_leader():
+            raise NotImplementedError("Scaling is not implemented for this charm")
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
+        self._certificates = TLSCertificatesRequiresV2(self, "certificates")
         self._amf_metrics_endpoint = MetricsEndpointProvider(
             self,
             jobs=[
@@ -77,6 +92,21 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
+        self.framework.observe(
+            self.on.certificates_relation_created, self._on_certificates_relation_created
+        )
+        self.framework.observe(
+            self.on.certificates_relation_joined, self._on_certificates_relation_joined
+        )
+        self.framework.observe(
+            self.on.certificates_relation_broken, self._on_certificates_relation_broken
+        )
+        self.framework.observe(
+            self._certificates.on.certificate_available, self._on_certificate_available
+        )
+        self.framework.observe(
+            self._certificates.on.certificate_expiring, self._on_certificate_expiring
+        )
 
     def _configure_amf(
         self,
@@ -125,6 +155,138 @@ class AMFOperatorCharm(CharmBase):
         self._set_n2_information()
         self.unit.status = ActiveStatus()
 
+    def _on_certificates_relation_created(self, event: EventBase) -> None:
+        """Generates Private key."""
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        self._generate_private_key()
+
+    def _on_certificates_relation_broken(self, event: EventBase) -> None:
+        """Deletes TLS related artifacts and reconfigures AMF."""
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        self._delete_private_key()
+        self._delete_csr()
+        self._delete_certificate()
+        self._configure_amf(event)
+
+    def _on_certificates_relation_joined(self, event: EventBase) -> None:
+        """Generates CSR and requests new certificate."""
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        if not self._private_key_is_stored():
+            event.defer()
+            return
+        self._request_new_certificate()
+
+    def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
+        """Pushes certificate to workload and configures AMF."""
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        if not self._csr_is_stored():
+            logger.warning("Certificate is available but no CSR is stored")
+            return
+        if event.certificate_signing_request != self._get_stored_csr():
+            logger.debug("Stored CSR doesn't match one in certificate available event")
+            return
+        self._store_certificate(event.certificate)
+        self._configure_amf(event)
+
+    def _on_certificate_expiring(self, event: CertificateExpiringEvent):
+        """Requests new certificate."""
+        if not self._amf_container.can_connect():
+            event.defer()
+            return
+        if event.certificate != self._get_stored_certificate():
+            logger.debug("Expiring certificate is not the one stored")
+            return
+        self._request_new_certificate()
+
+    def _generate_private_key(self) -> None:
+        """Generates and stores private key."""
+        private_key = generate_private_key()
+        self._store_private_key(private_key)
+
+    def _request_new_certificate(self) -> None:
+        """Generates and stores CSR, and uses it to request a new certificate."""
+        private_key = self._get_stored_private_key()
+        csr = generate_csr(
+            private_key=private_key,
+            subject=CERTIFICATE_COMMON_NAME,
+            sans_dns=[CERTIFICATE_COMMON_NAME],
+        )
+        self._store_csr(csr)
+        self._certificates.request_certificate_creation(certificate_signing_request=csr)
+
+    def _delete_private_key(self):
+        """Removes private key from workload."""
+        if not self._private_key_is_stored():
+            return
+        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+        logger.info("Removed private key from workload")
+
+    def _delete_csr(self):
+        """Deletes CSR from workload."""
+        if not self._csr_is_stored():
+            return
+        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
+        logger.info("Removed CSR from workload")
+
+    def _delete_certificate(self):
+        """Deletes certificate from workload."""
+        if not self._certificate_is_stored():
+            return
+        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
+        logger.info("Removed certificate from workload")
+
+    def _private_key_is_stored(self) -> bool:
+        """Returns whether private key is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+
+    def _csr_is_stored(self) -> bool:
+        """Returns whether CSR is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
+
+    def _get_stored_certificate(self) -> str:
+        """Returns stored certificate."""
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read())
+
+    def _get_stored_csr(self) -> str:
+        """Returns stored CSR."""
+        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read())
+
+    def _get_stored_private_key(self) -> bytes:
+        """Returns stored private key."""
+        return str(
+            self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read()
+        ).encode()
+
+    def _certificate_is_stored(self) -> bool:
+        """Returns whether certificate is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
+
+    def _store_certificate(self, certificate: str) -> None:
+        """Stores certificate in workload."""
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=certificate)
+        logger.info("Pushed certificate pushed to workload")
+
+    def _store_private_key(self, private_key: bytes) -> None:
+        """Stores private key in workload."""
+        self._amf_container.push(
+            path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
+            source=private_key.decode(),
+        )
+        logger.info("Pushed private key to workload")
+
+    def _store_csr(self, csr: bytes) -> None:
+        """Stores CSR in workload."""
+        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode().strip())
+        logger.info("Pushed CSR to workload")
+
     def _get_invalid_configs(self) -> list[str]:
         """Returns list of invalid configurations.
 
@@ -150,8 +312,6 @@ class AMFOperatorCharm(CharmBase):
     def _set_n2_information(self) -> None:
         """Sets N2 information for the N2 relation."""
         if not self._relation_created(N2_RELATION_NAME):
-            return
-        if not self.unit.is_leader():
             return
         if not self._amf_service_is_running():
             return
@@ -182,6 +342,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
+            scheme="https" if self._certificate_is_stored() else "http",
         )
         if not self._config_file_content_matches(content=content):
             self._push_config_file(
@@ -202,6 +363,7 @@ class AMFOperatorCharm(CharmBase):
         full_network_name: str,
         short_network_name: str,
         dnn: str,
+        scheme: str,
     ) -> str:
         """Renders the AMF config file.
 
@@ -216,6 +378,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name (str): Full name of the network.
             short_network_name (str): Short name of the network.
             dnn (str): Data Network name.
+            scheme (str): SBI interface scheme ("http" or "https")
 
         Returns:
             str: Content of the rendered config file.
@@ -233,6 +396,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name=full_network_name,
             short_network_name=short_network_name,
             dnn=dnn,
+            scheme=scheme,
         )
         return content
 

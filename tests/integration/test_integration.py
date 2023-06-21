@@ -15,6 +15,7 @@ METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 DB_CHARM_NAME = "mongodb-k8s"
 NRF_CHARM_NAME = "sdcore-nrf"
+TLS_PROVIDER_CHARM_NAME = "self-signed-certificates"
 
 
 @pytest.fixture(scope="module")
@@ -43,6 +44,9 @@ async def build_and_deploy(ops_test):
         channel="edge",
         trust=True,
     )
+    await ops_test.model.deploy(
+        TLS_PROVIDER_CHARM_NAME, application_name=TLS_PROVIDER_CHARM_NAME, channel="edge"
+    )
 
 
 @pytest.mark.abort_on_fail
@@ -69,6 +73,7 @@ async def test_relate_and_wait_for_active_status(
         relation1=f"{APP_NAME}:database", relation2=f"{DB_CHARM_NAME}"
     )
     await ops_test.model.add_relation(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
+    await ops_test.model.add_relation(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
         status="active",

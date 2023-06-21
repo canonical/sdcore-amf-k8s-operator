@@ -11,6 +11,8 @@ containers:
     mounts:
       - storage: config
         location: /free5gc/config
+      - storage: certs
+        location: /support/TLS
 
 resources:
   amf-image:
@@ -20,6 +22,9 @@ resources:
 
 storage:
   config:
+    type: filesystem
+    minimum-size: 1M
+  certs:
     type: filesystem
     minimum-size: 1M
 
@@ -37,3 +42,5 @@ requires:
     interface: fiveg_nrf
   database:
     interface: mongodb_client
+  certificates:
+    interface: tls-certificates
