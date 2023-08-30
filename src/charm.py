@@ -26,8 +26,11 @@ from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ign
     generate_private_key,
 )
 from jinja2 import Environment, FileSystemLoader
-from lightkube.models.core_v1 import ServicePort
-from ops.charm import CharmBase, EventBase, RelationJoinedEvent
+from lightkube import Client
+from lightkube.models.core_v1 import ServicePort, ServiceSpec
+from lightkube.models.meta_v1 import ObjectMeta
+from lightkube.resources.core_v1 import Service
+from ops.charm import CharmBase, EventBase, InstallEvent, RelationJoinedEvent, RemoveEvent
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer
@@ -78,13 +81,14 @@ class AMFOperatorCharm(CharmBase):
             ports=[
                 ServicePort(name="prometheus-exporter", port=PROMETHEUS_PORT),
                 ServicePort(name="sbi", port=SBI_PORT),
-                ServicePort(name="ngapp", port=NGAPP_PORT, protocol="SCTP"),
                 ServicePort(name="sctp-grpc", port=SCTP_GRPC_PORT),
             ],
         )
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        self.framework.observe(self.on.install, self._on_install)
+        self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
@@ -107,6 +111,36 @@ class AMFOperatorCharm(CharmBase):
         )
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
+        )
+
+    def _on_install(self, event: InstallEvent) -> None:
+        client = Client()
+        logger.info("Creating external AMF service")
+        client.create(
+            Service(
+                apiVersion="v1",
+                kind="Service",
+                metadata=ObjectMeta(
+                    namespace=self.model.name,
+                    name=f"{self.app.name}-external",
+                ),
+                spec=ServiceSpec(
+                    selector={"app.kubernetes.io/name": self.app.name},
+                    ports=[
+                        ServicePort(name="ngapp", port=NGAPP_PORT, protocol="SCTP"),
+                    ],
+                    type="LoadBalancer",
+                ),
+            )
+        )
+
+    def _on_remove(self, event: RemoveEvent) -> None:
+        client = Client()
+        logger.info("Removing external AMF service")
+        client.delete(
+            Service,
+            namespace=self.model.name,
+            name=f"{self.app.name}-external",
         )
 
     def _configure_amf(self, event: EventBase) -> None:
@@ -322,7 +356,7 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_service_is_running():
             return
         self.n2_provider.set_n2_information(
-            amf_ip_address=_get_pod_ip(),
+            amf_ip_address=self._amf_external_service_ip(),
             amf_hostname=self._amf_hostname(),
             amf_port=NGAPP_PORT,
         )
@@ -530,6 +564,20 @@ class AMFOperatorCharm(CharmBase):
         except ModelError:
             return False
         return service.is_running()
+
+    def _amf_external_service_ip(self) -> str:
+        """Returns the external service IP.
+
+        Returns:
+            str: External Service IP
+        """
+        client = Client()
+        service = client.get(Service, name="amf-external", namespace=self.model.name)
+        try:
+            return service.status.loadbalancer.ingress[0].ip  # type: ignore[attr-defined]
+        except AttributeError:
+            logger.error("Service 'amf-external' does not have an IP address")
+            return ""
 
 
 def _get_pod_ip() -> Optional[str]:
