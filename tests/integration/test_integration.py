@@ -77,17 +77,13 @@ async def test_relate_and_wait_for_active_status(ops_test: OpsTest, build_and_de
 
 
 @pytest.mark.abort_on_fail
-async def test_remove_nrf_relation_and_wait_for_blocked_status(
-    ops_test: OpsTest, build_and_deploy
-):
+async def test_remove_nrf_and_wait_for_blocked_status(ops_test: OpsTest, build_and_deploy):
     await ops_test.model.remove_application(NRF_CHARM_NAME, block_until_done=True)  # type: ignore[union-attr]  # noqa: E501
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="blocked", timeout=60)  # type: ignore[union-attr]  # noqa: E501
 
 
 @pytest.mark.abort_on_fail
-async def test_restore_nrf_relation_and_wait_for_active_status(
-    ops_test: OpsTest, build_and_deploy
-):
+async def test_restore_nrf_and_wait_for_active_status(ops_test: OpsTest, build_and_deploy):
     await ops_test.model.deploy(  # type: ignore[union-attr]
         NRF_CHARM_NAME,
         application_name=NRF_CHARM_NAME,
