@@ -75,6 +75,40 @@ class TestCharm(unittest.TestCase):
             BlockedStatus("Waiting for database relation"),
         )
 
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push", new=Mock)
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_amf_charm_in_active_state_when_nrf_relation_brakes_then_status_is_blocked(
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_exists,
+        patch_pull,
+    ):
+        patch_pull.return_value = StringIO(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
+        patch_exists.return_value = True
+        patch_check_output.return_value = b"1.1.1.1"
+        patch_exists.return_value = True
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        self.harness.set_can_connect(container="amf", val=True)
+        nrf_relation_id = self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self._database_is_available()
+        self.harness.container_pebble_ready("amf")
+
+        self.harness.remove_relation(nrf_relation_id)
+
+        self.assertEqual(
+            self.harness.model.unit.status,
+            BlockedStatus("Waiting for fiveg_nrf relation"),
+        )
+
     def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
         self,
     ):
