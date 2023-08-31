@@ -81,7 +81,7 @@ class TestCharm(unittest.TestCase):
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    def test_given_amf_charm_in_active_state_when_nrf_relation_brakes_then_status_is_blocked(
+    def test_given_amf_charm_in_active_state_when_nrf_relation_breaks_then_status_is_blocked(
         self,
         patch_is_resource_created,
         patch_nrf_url,
