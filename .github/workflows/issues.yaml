@@ -8,5 +8,4 @@ jobs:
   update:
     name: Update Issue
     uses: canonical/sdcore-github-workflows/.github/workflows/issues.yaml@main
-    secrets:
-      JIRA_URL: ${{ secrets.JIRA_URL }}
+    secrets: inherit
