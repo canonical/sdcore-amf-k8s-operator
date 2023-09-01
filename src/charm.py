@@ -90,6 +90,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
+        self.framework.observe(self._nrf_requires.on.nrf_broken, self._on_nrf_broken)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(
@@ -108,10 +109,7 @@ class AMFOperatorCharm(CharmBase):
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
 
-    def _configure_amf(
-        self,
-        event: EventBase,
-    ) -> None:
+    def _configure_amf(self, event: EventBase) -> None:
         """Handle pebble ready event for AMF container.
 
         Args:
@@ -205,6 +203,14 @@ class AMFOperatorCharm(CharmBase):
             logger.debug("Expiring certificate is not the one stored")
             return
         self._request_new_certificate()
+
+    def _on_nrf_broken(self, event: EventBase) -> None:
+        """Event handler for NRF relation broken.
+
+        Args:
+            event (NRFBrokenEvent): Juju event
+        """
+        self.unit.status = BlockedStatus("Waiting for fiveg_nrf relation")
 
     def _generate_private_key(self) -> None:
         """Generates and stores private key."""
