@@ -454,7 +454,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.update_config(
             {"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"}
         )
@@ -499,7 +499,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.update_config({"external-amf-ip": "2.2.2.2"})
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
