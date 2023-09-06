@@ -608,11 +608,17 @@ class AMFOperatorCharm(CharmBase):
             str: External Service IP
         """
         client = Client()
-        service = client.get(Service, name="amf-external", namespace=self.model.name)
+        service = client.get(
+            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
+        )
         try:
-            return service.status.loadbalancer.ingress[0].ip  # type: ignore[attr-defined]
+            return service.status.loadBalancer.ingress[0].ip  # type: ignore[attr-defined]
         except AttributeError:
-            logger.error("Service 'amf-external' does not have an IP address")
+            logger.error(
+                "Service '%s-external' does not have an IP address:\n%s",
+                self.model.app.name,
+                service,
+            )
             return ""
 
     def _amf_external_service_hostname(self) -> str:
@@ -622,11 +628,17 @@ class AMFOperatorCharm(CharmBase):
             str: External Service hostname
         """
         client = Client()
-        service = client.get(Service, name="amf-external", namespace=self.model.name)
+        service = client.get(
+            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
+        )
         try:
-            return service.status.loadbalancer.ingress[0].hostname  # type: ignore[attr-defined]
+            return service.status.loadBalancer.ingress[0].hostname  # type: ignore[attr-defined]
         except AttributeError:
-            logger.error("Service 'amf-external' does not have a hostname")
+            logger.error(
+                "Service '%s-external' does not have a hostname:\n%s",
+                self.model.app.name,
+                service,
+            )
             return ""
 
 

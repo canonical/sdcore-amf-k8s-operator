@@ -369,7 +369,7 @@ class TestCharm(unittest.TestCase):
     ):
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
-            status=Mock(loadbalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -403,7 +403,7 @@ class TestCharm(unittest.TestCase):
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
-            status=Mock(loadbalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
         patch_exists.return_value = True
@@ -447,7 +447,7 @@ class TestCharm(unittest.TestCase):
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
-            status=Mock(loadbalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
         patch_exists.return_value = True
@@ -493,7 +493,7 @@ class TestCharm(unittest.TestCase):
         )
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
-        service = Mock(status=Mock(loadbalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
+        service = Mock(status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
         patch_get.return_value = service
         patch_exists.return_value = True
         patch_is_resource_created.return_value = True
@@ -546,7 +546,7 @@ class TestCharm(unittest.TestCase):
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
-            status=Mock(loadbalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
         patch_exists.return_value = True
@@ -585,7 +585,7 @@ class TestCharm(unittest.TestCase):
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
-            status=Mock(loadbalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
         patch_exists.return_value = True
