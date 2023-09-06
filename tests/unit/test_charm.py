@@ -61,14 +61,14 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Waiting for fiveg_nrf relation"),
+            BlockedStatus("Waiting for fiveg-nrf relation"),
         )
 
     def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -98,7 +98,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        nrf_relation_id = self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        nrf_relation_id = self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
@@ -106,14 +106,14 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Waiting for fiveg_nrf relation"),
+            BlockedStatus("Waiting for fiveg-nrf relation"),
         )
 
     def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -128,7 +128,7 @@ class TestCharm(unittest.TestCase):
     ):
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -143,7 +143,7 @@ class TestCharm(unittest.TestCase):
     ):
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -161,7 +161,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -188,7 +188,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
@@ -219,7 +219,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
@@ -253,7 +253,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         patch_push.assert_not_called()
@@ -280,7 +280,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         expected_plan = {
@@ -327,7 +327,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -349,7 +349,7 @@ class TestCharm(unittest.TestCase):
         patch_check_output.return_value = b""
         patch_nrf_url.return_value = "http://nrf:8081"
         patch_dir_exists.return_value = True
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
 
         self.harness.container_pebble_ready(container_name="amf")
@@ -395,7 +395,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
@@ -439,7 +439,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
@@ -471,7 +471,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
