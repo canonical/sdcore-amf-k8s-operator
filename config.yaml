@@ -3,12 +3,12 @@ options:
     type: string
     default: internet
     description: Data Network Name (DNN)
-  amf-ip:
+  external-amf-ip:
     type: string
     description: |-
       Externally accessible IP for the AMF.
       If not provided, this will default to the LoadBalancer Service IP.
-  amf-hostname:
+  external-amf-hostname:
     type: string
     description: |-
       Externally accessible FQDN for the AMF.

@@ -115,7 +115,6 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
-        logger.info("Creating external AMF service")
         client.create(
             Service(
                 apiVersion="v1",
@@ -133,15 +132,16 @@ class AMFOperatorCharm(CharmBase):
                 ),
             )
         )
+        logger.info("Created external AMF service")
 
     def _on_remove(self, event: RemoveEvent) -> None:
         client = Client()
-        logger.info("Removing external AMF service")
         client.delete(
             Service,
             namespace=self.model.name,
             name=f"{self.app.name}-external",
         )
+        logger.info("Removed external AMF service")
 
     def _configure_amf(self, event: EventBase) -> None:
         """Handle pebble ready event for AMF container.
@@ -341,11 +341,11 @@ class AMFOperatorCharm(CharmBase):
     def _get_dnn_config(self) -> Optional[str]:
         return self.model.config.get("dnn")
 
-    def _get_amf_ip_config(self) -> Optional[str]:
-        return self.model.config.get("amf-ip")
+    def _get_external_amf_ip_config(self) -> Optional[str]:
+        return self.model.config.get("external-amf-ip")
 
-    def _get_amf_hostname_config(self) -> Optional[str]:
-        return self.model.config.get("amf-hostname")
+    def _get_external_amf_hostname_config(self) -> Optional[str]:
+        return self.model.config.get("external-amf-hostname")
 
     def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
         """Handles N2 relation joined event.
@@ -364,7 +364,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             str: IP address of the AMF
         """
-        if configured_ip := self._get_amf_ip_config():
+        if configured_ip := self._get_external_amf_ip_config():
             return configured_ip
         return self._amf_external_service_ip()
 
@@ -379,7 +379,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             str: Hostname of the AMF
         """
-        if configured_hostname := self._get_amf_hostname_config():
+        if configured_hostname := self._get_external_amf_hostname_config():
             return configured_hostname
         elif lb_hostname := self._amf_external_service_hostname():
             return lb_hostname
