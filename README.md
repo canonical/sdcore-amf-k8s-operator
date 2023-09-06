@@ -32,6 +32,17 @@ juju deploy self-signed-certificates --channel=edge
 juju integrate sdcore-amf:certificates self-signed-certificates:certificates
 ```
 
+### Overriding external access information for N2 interface
+
+By default, the N2 connection information sent to the RAN will be taken from
+the created `LoadBalancer` Kubernetes Service. If this is not appropriate with
+your network configuration, you can override that information through
+configuration:
+
+```bash
+juju config sdcore-amf external-amf-ip=192.168.0.4 external-amf-hostname=amf.example.com
+```
+
 ## Image
 
 **amf**: ghcr.io/canonical/sdcore-amf:1.3
