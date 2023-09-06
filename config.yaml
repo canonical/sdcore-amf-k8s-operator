@@ -3,3 +3,15 @@ options:
     type: string
     default: internet
     description: Data Network Name (DNN)
+  amf-ip:
+    type: string
+    description: |-
+      Externally accessible IP for the AMF.
+      If not provided, this will default to the LoadBalancer Service IP.
+  amf-hostname:
+    type: string
+    description: |-
+      Externally accessible FQDN for the AMF.
+      If not provided, this will default to the LoadBalancer Service hostname
+      if available. If that is not available, it will default to the internal
+      Kubernetes FQDN of the service.

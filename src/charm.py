@@ -341,6 +341,12 @@ class AMFOperatorCharm(CharmBase):
     def _get_dnn_config(self) -> Optional[str]:
         return self.model.config.get("dnn")
 
+    def _get_amf_ip_config(self) -> Optional[str]:
+        return self.model.config.get("amf-ip")
+
+    def _get_amf_hostname_config(self) -> Optional[str]:
+        return self.model.config.get("amf-hostname")
+
     def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
         """Handles N2 relation joined event.
 
@@ -349,6 +355,36 @@ class AMFOperatorCharm(CharmBase):
         """
         self._set_n2_information()
 
+    def _get_n2_amf_ip(self) -> str:
+        """Returns the IP to send for the N2 interface.
+
+        If a configuration is provided, it is returned, otherwise
+        returns the IP of the external LoadBalancer Service.
+
+        Returns:
+            str: IP address of the AMF
+        """
+        if configured_ip := self._get_amf_ip_config():
+            return configured_ip
+        return self._amf_external_service_ip()
+
+    def _get_n2_amf_hostname(self) -> str:
+        """Returns the hostname to send for the N2 interface.
+
+        If a configuration is provided, it is returned. If that is
+        not available, returns the hostname of the external LoadBalancer
+        Service. If the LoadBalancer Service does not have a hostname,
+        returns the internal Kubernetes service FQDN.
+
+        Returns:
+            str: Hostname of the AMF
+        """
+        if configured_hostname := self._get_amf_hostname_config():
+            return configured_hostname
+        elif lb_hostname := self._amf_external_service_hostname():
+            return lb_hostname
+        return self._amf_hostname()
+
     def _set_n2_information(self) -> None:
         """Sets N2 information for the N2 relation."""
         if not self._relation_created(N2_RELATION_NAME):
@@ -356,8 +392,8 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_service_is_running():
             return
         self.n2_provider.set_n2_information(
-            amf_ip_address=self._amf_external_service_ip(),
-            amf_hostname=self._amf_hostname(),
+            amf_ip_address=self._get_n2_amf_ip(),
+            amf_hostname=self._get_n2_amf_hostname(),
             amf_port=NGAPP_PORT,
         )
 
@@ -549,7 +585,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             str: The AMF hostname.
         """
-        return f"{self.model.app.name}.{self.model.name}.svc.cluster.local"
+        return f"{self.model.app.name}-external.{self.model.name}.svc.cluster.local"
 
     def _amf_service_is_running(self) -> bool:
         """Returns whether the AMF service is running.
@@ -577,6 +613,20 @@ class AMFOperatorCharm(CharmBase):
             return service.status.loadbalancer.ingress[0].ip  # type: ignore[attr-defined]
         except AttributeError:
             logger.error("Service 'amf-external' does not have an IP address")
+            return ""
+
+    def _amf_external_service_hostname(self) -> str:
+        """Returns the external service hostname.
+
+        Returns:
+            str: External Service hostname
+        """
+        client = Client()
+        service = client.get(Service, name="amf-external", namespace=self.model.name)
+        try:
+            return service.status.loadbalancer.ingress[0].hostname  # type: ignore[attr-defined]
+        except AttributeError:
+            logger.error("Service 'amf-external' does not have a hostname")
             return ""
 
 
