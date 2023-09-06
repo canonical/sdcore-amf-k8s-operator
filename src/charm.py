@@ -62,7 +62,7 @@ class AMFOperatorCharm(CharmBase):
             raise NotImplementedError("Scaling is not implemented for this charm")
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
-        self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
+        self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg-nrf")
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
         self._certificates = TLSCertificatesRequiresV2(self, "certificates")
         self._amf_metrics_endpoint = MetricsEndpointProvider(
@@ -124,7 +124,7 @@ class AMFOperatorCharm(CharmBase):
                 f"The following configurations are not valid: {invalid_configs}"
             )
             return
-        for relation in ["fiveg_nrf", "database"]:
+        for relation in ["fiveg-nrf", "database"]:
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
                 return
@@ -210,7 +210,7 @@ class AMFOperatorCharm(CharmBase):
         Args:
             event (NRFBrokenEvent): Juju event
         """
-        self.unit.status = BlockedStatus("Waiting for fiveg_nrf relation")
+        self.unit.status = BlockedStatus("Waiting for fiveg-nrf relation")
 
     def _generate_private_key(self) -> None:
         """Generates and stores private key."""

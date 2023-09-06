@@ -38,7 +38,7 @@ provides:
     interface: fiveg_n2
 
 requires:
-  fiveg_nrf:
+  fiveg-nrf:
     interface: fiveg_nrf
   database:
     interface: mongodb_client
