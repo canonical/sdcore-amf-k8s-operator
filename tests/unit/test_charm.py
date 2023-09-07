@@ -3,8 +3,11 @@
 
 import unittest
 from io import StringIO
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, call, patch
 
+from lightkube.models.core_v1 import ServicePort, ServiceSpec
+from lightkube.models.meta_v1 import ObjectMeta
+from lightkube.resources.core_v1 import Service
 from ops import testing
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 
@@ -359,11 +362,16 @@ class TestCharm(unittest.TestCase):
             WaitingStatus("Waiting for pod IP address to be available"),
         )
 
+    @patch("lightkube.core.client.Client.get")
     @patch("charm.check_output")
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
-        self, patch_check_output
+        self, patch_check_output, patch_get
     ):
         patch_check_output.return_value = b"1.1.1.1"
+        service = Mock(
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+        )
+        patch_get.return_value = service
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
@@ -371,6 +379,8 @@ class TestCharm(unittest.TestCase):
         )
         self.assertEqual(relation_data, {})
 
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.get")
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push")
@@ -385,12 +395,17 @@ class TestCharm(unittest.TestCase):
         patch_push,
         patch_exists,
         patch_pull,
+        patch_get,
     ):
         patch_pull.return_value = StringIO(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
+        service = Mock(
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+        )
+        patch_get.return_value = service
         patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -405,9 +420,103 @@ class TestCharm(unittest.TestCase):
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
-        self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
+        self.assertEqual(relation_data["amf_hostname"], "amf.pizza.com")
         self.assertEqual(relation_data["amf_port"], "38412")
 
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.get")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push")
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_n2_information_and_service_is_running_and_n2_config_is_overriden_when_fiveg_n2_relation_joined_then_custom_n2_information_is_in_relation_databag(  # noqa: E501
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_push,
+        patch_exists,
+        patch_pull,
+        patch_get,
+    ):
+        patch_pull.return_value = StringIO(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
+        patch_exists.return_value = True
+        patch_check_output.return_value = b"1.1.1.1"
+        service = Mock(
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+        )
+        patch_get.return_value = service
+        patch_exists.return_value = True
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.update_config(
+            {"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"}
+        )
+        self._database_is_available()
+        self.harness.container_pebble_ready("amf")
+
+        relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
+        self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
+        relation_data = self.harness.get_relation_data(
+            relation_id=relation_id, app_or_unit=self.harness.charm.app.name
+        )
+        self.assertEqual(relation_data["amf_ip_address"], "2.2.2.2")
+        self.assertEqual(relation_data["amf_hostname"], "amf.burger.com")
+        self.assertEqual(relation_data["amf_port"], "38412")
+
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.get")
+    @patch("ops.model.Container.pull")
+    @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push")
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_n2_information_and_service_is_running_and_lb_service_has_no_hostname_when_fiveg_n2_relation_joined_then_internal_service_hostname_is_used(  # noqa: E501
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_push,
+        patch_exists,
+        patch_pull,
+        patch_get,
+    ):
+        patch_pull.return_value = StringIO(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
+        patch_exists.return_value = True
+        patch_check_output.return_value = b"1.1.1.1"
+        service = Mock(status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
+        patch_get.return_value = service
+        patch_exists.return_value = True
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.update_config({"external-amf-ip": "2.2.2.2"})
+        self._database_is_available()
+        self.harness.container_pebble_ready("amf")
+
+        relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
+        self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
+        relation_data = self.harness.get_relation_data(
+            relation_id=relation_id, app_or_unit=self.harness.charm.app.name
+        )
+        self.assertEqual(relation_data["amf_ip_address"], "2.2.2.2")
+        self.assertEqual(
+            relation_data["amf_hostname"], "sdcore-amf-external.whatever.svc.cluster.local"
+        )
+        self.assertEqual(relation_data["amf_port"], "38412")
+
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.get")
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push")
@@ -422,6 +531,7 @@ class TestCharm(unittest.TestCase):
         patch_push,
         patch_exists,
         patch_pull,
+        patch_get,
     ):
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
@@ -435,6 +545,10 @@ class TestCharm(unittest.TestCase):
         )
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
+        service = Mock(
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+        )
+        patch_get.return_value = service
         patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -447,9 +561,11 @@ class TestCharm(unittest.TestCase):
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
-        self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
+        self.assertEqual(relation_data["amf_hostname"], "amf.pizza.com")
         self.assertEqual(relation_data["amf_port"], "38412")
 
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.get")
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push")
@@ -464,9 +580,14 @@ class TestCharm(unittest.TestCase):
         patch_push,
         patch_exists,
         patch_pull,
+        patch_get,
     ):
         patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
+        service = Mock(
+            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
+        )
+        patch_get.return_value = service
         patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -491,7 +612,7 @@ class TestCharm(unittest.TestCase):
             relation_id=relation_2_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data["amf_ip_address"], "1.1.1.1")
-        self.assertEqual(relation_data["amf_hostname"], "sdcore-amf.whatever.svc.cluster.local")
+        self.assertEqual(relation_data["amf_hostname"], "amf.pizza.com")
         self.assertEqual(relation_data["amf_port"], "38412")
 
     @patch("charm.generate_private_key")
@@ -649,3 +770,49 @@ class TestCharm(unittest.TestCase):
         self.harness.charm._on_certificate_expiring(event=event)
 
         patch_request_certificate_creation.assert_called_with(certificate_signing_request=csr)
+
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.create")
+    def test_when_install_then_external_service_is_created(self, patch_create):
+        self.harness.charm.on.install.emit()
+
+        calls = [
+            call(
+                Service(
+                    apiVersion="v1",
+                    kind="Service",
+                    metadata=ObjectMeta(
+                        namespace=self.namespace,
+                        name=f"{self.harness.charm.app.name}-external",
+                    ),
+                    spec=ServiceSpec(
+                        selector={"app.kubernetes.io/name": self.harness.charm.app.name},
+                        ports=[
+                            ServicePort(
+                                name="ngapp",
+                                port=38412,
+                                protocol="SCTP",
+                            ),
+                        ],
+                        type="LoadBalancer",
+                    ),
+                )
+            ),
+        ]
+
+        patch_create.assert_has_calls(calls=calls)
+
+    @patch("lightkube.core.client.GenericSyncClient", new=Mock)
+    @patch("lightkube.core.client.Client.delete")
+    def test_when_remove_then_external_service_is_deleted(self, patch_delete):
+        self.harness.charm.on.remove.emit()
+
+        calls = [
+            call(
+                Service,
+                namespace=self.namespace,
+                name=f"{self.harness.charm.app.name}-external",
+            ),
+        ]
+
+        patch_delete.assert_has_calls(calls=calls)

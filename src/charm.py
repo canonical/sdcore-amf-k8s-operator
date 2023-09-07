@@ -26,8 +26,11 @@ from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ign
     generate_private_key,
 )
 from jinja2 import Environment, FileSystemLoader
-from lightkube.models.core_v1 import ServicePort
-from ops.charm import CharmBase, EventBase, RelationJoinedEvent
+from lightkube import Client
+from lightkube.models.core_v1 import ServicePort, ServiceSpec
+from lightkube.models.meta_v1 import ObjectMeta
+from lightkube.resources.core_v1 import Service
+from ops.charm import CharmBase, EventBase, InstallEvent, RelationJoinedEvent, RemoveEvent
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer
@@ -78,13 +81,14 @@ class AMFOperatorCharm(CharmBase):
             ports=[
                 ServicePort(name="prometheus-exporter", port=PROMETHEUS_PORT),
                 ServicePort(name="sbi", port=SBI_PORT),
-                ServicePort(name="ngapp", port=NGAPP_PORT, protocol="SCTP"),
                 ServicePort(name="sctp-grpc", port=SCTP_GRPC_PORT),
             ],
         )
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        self.framework.observe(self.on.install, self._on_install)
+        self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
@@ -108,6 +112,36 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
+
+    def _on_install(self, event: InstallEvent) -> None:
+        client = Client()
+        client.create(
+            Service(
+                apiVersion="v1",
+                kind="Service",
+                metadata=ObjectMeta(
+                    namespace=self.model.name,
+                    name=f"{self.app.name}-external",
+                ),
+                spec=ServiceSpec(
+                    selector={"app.kubernetes.io/name": self.app.name},
+                    ports=[
+                        ServicePort(name="ngapp", port=NGAPP_PORT, protocol="SCTP"),
+                    ],
+                    type="LoadBalancer",
+                ),
+            )
+        )
+        logger.info("Created external AMF service")
+
+    def _on_remove(self, event: RemoveEvent) -> None:
+        client = Client()
+        client.delete(
+            Service,
+            namespace=self.model.name,
+            name=f"{self.app.name}-external",
+        )
+        logger.info("Removed external AMF service")
 
     def _configure_amf(self, event: EventBase) -> None:
         """Handle pebble ready event for AMF container.
@@ -307,6 +341,12 @@ class AMFOperatorCharm(CharmBase):
     def _get_dnn_config(self) -> Optional[str]:
         return self.model.config.get("dnn")
 
+    def _get_external_amf_ip_config(self) -> Optional[str]:
+        return self.model.config.get("external-amf-ip")
+
+    def _get_external_amf_hostname_config(self) -> Optional[str]:
+        return self.model.config.get("external-amf-hostname")
+
     def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
         """Handles N2 relation joined event.
 
@@ -315,6 +355,36 @@ class AMFOperatorCharm(CharmBase):
         """
         self._set_n2_information()
 
+    def _get_n2_amf_ip(self) -> str:
+        """Returns the IP to send for the N2 interface.
+
+        If a configuration is provided, it is returned, otherwise
+        returns the IP of the external LoadBalancer Service.
+
+        Returns:
+            str: IP address of the AMF
+        """
+        if configured_ip := self._get_external_amf_ip_config():
+            return configured_ip
+        return self._amf_external_service_ip()
+
+    def _get_n2_amf_hostname(self) -> str:
+        """Returns the hostname to send for the N2 interface.
+
+        If a configuration is provided, it is returned. If that is
+        not available, returns the hostname of the external LoadBalancer
+        Service. If the LoadBalancer Service does not have a hostname,
+        returns the internal Kubernetes service FQDN.
+
+        Returns:
+            str: Hostname of the AMF
+        """
+        if configured_hostname := self._get_external_amf_hostname_config():
+            return configured_hostname
+        elif lb_hostname := self._amf_external_service_hostname():
+            return lb_hostname
+        return self._amf_hostname()
+
     def _set_n2_information(self) -> None:
         """Sets N2 information for the N2 relation."""
         if not self._relation_created(N2_RELATION_NAME):
@@ -322,8 +392,8 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_service_is_running():
             return
         self.n2_provider.set_n2_information(
-            amf_ip_address=_get_pod_ip(),
-            amf_hostname=self._amf_hostname(),
+            amf_ip_address=self._get_n2_amf_ip(),
+            amf_hostname=self._get_n2_amf_hostname(),
             amf_port=NGAPP_PORT,
         )
 
@@ -515,7 +585,7 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             str: The AMF hostname.
         """
-        return f"{self.model.app.name}.{self.model.name}.svc.cluster.local"
+        return f"{self.model.app.name}-external.{self.model.name}.svc.cluster.local"
 
     def _amf_service_is_running(self) -> bool:
         """Returns whether the AMF service is running.
@@ -530,6 +600,46 @@ class AMFOperatorCharm(CharmBase):
         except ModelError:
             return False
         return service.is_running()
+
+    def _amf_external_service_ip(self) -> str:
+        """Returns the external service IP.
+
+        Returns:
+            str: External Service IP
+        """
+        client = Client()
+        service = client.get(
+            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
+        )
+        try:
+            return service.status.loadBalancer.ingress[0].ip  # type: ignore[attr-defined]
+        except AttributeError:
+            logger.error(
+                "Service '%s-external' does not have an IP address:\n%s",
+                self.model.app.name,
+                service,
+            )
+            return ""
+
+    def _amf_external_service_hostname(self) -> str:
+        """Returns the external service hostname.
+
+        Returns:
+            str: External Service hostname
+        """
+        client = Client()
+        service = client.get(
+            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
+        )
+        try:
+            return service.status.loadBalancer.ingress[0].hostname  # type: ignore[attr-defined]
+        except AttributeError:
+            logger.error(
+                "Service '%s-external' does not have a hostname:\n%s",
+                self.model.app.name,
+                service,
+            )
+            return ""
 
 
 def _get_pod_ip() -> Optional[str]:
