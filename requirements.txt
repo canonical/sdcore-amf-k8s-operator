@@ -1,4 +1,4 @@
-ops==2.4.1
+ops
 lightkube
 lightkube-models
 pydantic
