@@ -183,7 +183,6 @@ class AMFOperatorCharm(CharmBase):
             event.defer()
             return
         if not self._certificate_is_stored():
-            logger.error("Waiting for certificates to be stored")
             self.unit.status = WaitingStatus("Waiting for certificates to be stored")
             event.defer()
             return
