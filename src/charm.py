@@ -206,7 +206,7 @@ class AMFOperatorCharm(CharmBase):
         self._delete_private_key()
         self._delete_csr()
         self._delete_certificate()
-        self._configure_amf(event)
+        self.unit.status = BlockedStatus("Waiting for certificates relation")
 
     def _on_certificates_relation_joined(self, event: EventBase) -> None:
         """Generates CSR and requests new certificate."""

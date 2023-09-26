@@ -803,6 +803,36 @@ class TestCharm(unittest.TestCase):
         patch_remove_path.assert_any_call(path="/support/TLS/amf.key")
         patch_remove_path.assert_any_call(path="/support/TLS/amf.csr")
 
+    @patch("ops.model.Container.push")
+    @patch("ops.model.Container.remove_path")
+    @patch("ops.model.Container.exists")
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_status_is_blocked(  # noqa: E501
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_exists,
+        patch_remove_path,
+        patch_push,
+    ):
+        patch_exists.side_effect = [True, True, False, False, False, False]
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        patch_check_output.return_value = b"1.1.1.1"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
+        self._database_is_available()
+        self.harness.charm._on_certificates_relation_broken(event=Mock())
+        self.assertEqual(
+            self.harness.charm.unit.status, BlockedStatus("Waiting for certificates relation")
+        )
+
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
         new=Mock,
