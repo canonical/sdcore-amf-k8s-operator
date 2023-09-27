@@ -46,7 +46,7 @@ async def build_and_deploy(ops_test: OpsTest):
         trust=True,
     )
     await ops_test.model.deploy(  # type: ignore[union-attr]
-        TLS_PROVIDER_CHARM_NAME, application_name=TLS_PROVIDER_CHARM_NAME, channel="edge"
+        TLS_PROVIDER_CHARM_NAME, application_name=TLS_PROVIDER_CHARM_NAME, channel="beta"
     )
 
 
@@ -108,7 +108,7 @@ async def test_restore_tls_and_wait_for_active_status(ops_test: OpsTest, build_a
     await ops_test.model.deploy(  # type: ignore[union-attr]
         TLS_PROVIDER_CHARM_NAME,
         application_name=TLS_PROVIDER_CHARM_NAME,
-        channel="edge",
+        channel="beta",
         trust=True,
     )
     await ops_test.model.add_relation(  # type: ignore[union-attr]
