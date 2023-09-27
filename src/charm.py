@@ -143,7 +143,7 @@ class AMFOperatorCharm(CharmBase):
         )
         logger.info("Removed external AMF service")
 
-    def _configure_amf(self, event: EventBase) -> None:
+    def _configure_amf(self, event: EventBase) -> None:  # noqa C901
         """Handle pebble ready event for AMF container.
 
         Args:
@@ -158,7 +158,7 @@ class AMFOperatorCharm(CharmBase):
                 f"The following configurations are not valid: {invalid_configs}"
             )
             return
-        for relation in ["fiveg-nrf", "database"]:
+        for relation in ["fiveg-nrf", "database", "certificates"]:
             if not self._relation_created(relation):
                 self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
                 return
@@ -182,6 +182,10 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
             event.defer()
             return
+        if not self._certificate_is_stored():
+            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
+            event.defer()
+            return
         self._generate_config_file()
         self._configure_amf_workload()
         self._set_n2_information()
@@ -202,7 +206,7 @@ class AMFOperatorCharm(CharmBase):
         self._delete_private_key()
         self._delete_csr()
         self._delete_certificate()
-        self._configure_amf(event)
+        self.unit.status = BlockedStatus("Waiting for certificates relation")
 
     def _on_certificates_relation_joined(self, event: EventBase) -> None:
         """Generates CSR and requests new certificate."""
@@ -418,7 +422,7 @@ class AMFOperatorCharm(CharmBase):
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
-            scheme="https" if self._certificate_is_stored() else "http",
+            scheme="https",
         )
         if not self._config_file_content_matches(content=content):
             self._push_config_file(

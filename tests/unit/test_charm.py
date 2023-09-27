@@ -78,6 +78,18 @@ class TestCharm(unittest.TestCase):
             BlockedStatus("Waiting for database relation"),
         )
 
+    def test_given_certificates_relation_not_created_when_pebble_ready_then_status_is_blocked(
+        self,
+    ):
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="database", remote_app="mongodb")
+        self.harness.container_pebble_ready("amf")
+        self.assertEqual(
+            self.harness.model.unit.status,
+            BlockedStatus("Waiting for certificates relation"),
+        )
+
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push", new=Mock)
@@ -112,41 +124,63 @@ class TestCharm(unittest.TestCase):
             BlockedStatus("Waiting for fiveg-nrf relation"),
         )
 
+    @patch("charm.generate_private_key")
+    @patch("ops.model.Container.push")
     def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
-        self,
+        self, patch_push, patch_generate_private_key
     ):
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for the amf database to be available"),
         )
 
+    @patch("charm.generate_private_key")
+    @patch("ops.model.Container.push")
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    def test_give_database_info_not_available_when_pebble_ready_then_status_is_waiting(
-        self,
-        patch_is_resource_created,
+    def test_given_database_info_not_available_when_pebble_ready_then_status_is_waiting(
+        self, patch_is_resource_created, patch_push, patch_generate_private_key
     ):
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for AMF database info to be available"),
         )
 
+    @patch("charm.generate_private_key")
+    @patch("ops.model.Container.push")
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
         self,
         patch_is_resource_created,
+        patch_push,
+        patch_generate_private_key,
     ):
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -154,17 +188,22 @@ class TestCharm(unittest.TestCase):
             WaitingStatus("Waiting for NRF data to be available"),
         )
 
+    @patch("charm.generate_private_key")
+    @patch("ops.model.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_storage_not_attached_when_pebble_ready_then_status_is_waiting(
-        self,
-        patch_is_resource_created,
-        patch_nrf_url,
+        self, patch_is_resource_created, patch_nrf_url, patch_push, patch_generate_private_key
     ):
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -173,68 +212,153 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("ops.model.Container.exists")
+    @patch("ops.model.Container.push")
     @patch("charm.check_output")
-    @patch("ops.model.Container.pull", new=Mock)
+    @patch("charm.generate_private_key")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_certificates_not_stored_when_pebble_ready_then_status_is_waiting(
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_generate_private_key,
+        patch_check_output,
+        patch_push,
+        patch_exists,
+    ):
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
+        patch_check_output.return_value = b"1.1.1.1"
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        patch_exists.side_effect = [True, False, True, False]
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
+        self._database_is_available()
+        self.harness.container_pebble_ready("amf")
+        self.assertEqual(
+            self.harness.model.unit.status,
+            WaitingStatus("Waiting for certificates to be stored"),
+        )
+
+    @patch("ops.model.Container.exists")
+    @patch("charm.check_output")
+    @patch("ops.model.Container.pull")
+    @patch("charm.generate_private_key")
     @patch("ops.model.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    def test_given_relations_created_and_database_available_and_nrf_data_available_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
+    def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
         self,
         patch_is_resource_created,
         patch_nrf_url,
         patch_push,
+        patch_generate_private_key,
+        patch_pull,
         patch_check_output,
         patch_exists,
     ):
-        patch_exists.side_effect = [True, False, True, False]
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
+        csr = "Whatever CSR content"
+        patch_pull.return_value = StringIO(csr)
+        patch_exists.return_value = True
+        certificate = "Whatever certificate content"
+        event = Mock()
+        event.certificate = certificate
+        event.certificate_signing_request = csr
+        patch_exists.side_effect = [True, False, True, True, False]
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
+        self.harness.charm._on_certificate_available(event=event)
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
-            patch_push.assert_called_with(
+        push_calls = [
+            call(
+                path="/support/TLS/amf.key",
+                source=private_key.decode(),
+            ),
+            call(
+                path="/support/TLS/amf.pem",
+                source=certificate,
+            ),
+            call(
                 path="/free5gc/config/amfcfg.conf",
                 source=expected_content.strip(),
-            )
+            ),
+        ]
+        patch_push.assert_has_calls(push_calls)
 
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push")
     @patch("charm.check_output")
+    @patch("charm.generate_private_key")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_content_of_config_file_changed_when_pebble_ready_then_config_file_is_rendered_and_pushed(  # noqa: E501
         self,
         patch_is_resource_created,
         patch_nrf_url,
+        patch_generate_private_key,
         patch_check_output,
         patch_push,
         patch_exists,
         patch_pull,
     ):
-        patch_pull.return_value = StringIO("Dummy Content")
-        patch_exists.side_effect = [True, False, True, False]
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        event = Mock()
+        event.certificate = certificate
+        event.certificate_signing_request = csr
+        patch_pull.side_effect = [StringIO(csr), StringIO("Dummy Content")]
+        patch_exists.side_effect = [True, False, True, True, False]
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
+        self.harness.charm._on_certificate_available(event=event)
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
-            patch_push.assert_called_with(
+        push_calls = [
+            call(
+                path="/support/TLS/amf.key",
+                source=private_key.decode(),
+            ),
+            call(
+                path="/support/TLS/amf.pem",
+                source=certificate,
+            ),
+            call(
                 path="/free5gc/config/amfcfg.conf",
                 source=expected_content.strip(),
-            )
+            ),
+        ]
+        patch_push.assert_has_calls(push_calls)
 
     @patch("ops.model.Container.exists")
     @patch("ops.model.Container.push")
     @patch("charm.check_output")
+    @patch("charm.generate_private_key")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     @patch("ops.model.Container.pull")
@@ -243,23 +367,32 @@ class TestCharm(unittest.TestCase):
         patch_pull,
         patch_is_resource_created,
         patch_nrf_url,
+        patch_generate_private_key,
         patch_check_output,
         patch_push,
         patch_exists,
     ):
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         patch_pull.side_effect = [
             StringIO(self._read_file("tests/unit/expected_config/config.conf").strip()),
             StringIO(self._read_file("tests/unit/expected_config/config.conf").strip()),
         ]
         patch_check_output.return_value = b"1.1.1.1"
-        patch_exists.side_effect = [True, False, True, False]
+        patch_exists.side_effect = [True, False, True, True, True, False]
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
-        patch_push.assert_not_called()
+        patch_push.assert_called_once_with(
+            path="/support/TLS/amf.key",
+            source=private_key.decode(),
+        )
 
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
@@ -284,6 +417,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         expected_plan = {
@@ -331,6 +467,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -353,6 +492,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         patch_dir_exists.return_value = True
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
 
         self.harness.container_pebble_ready(container_name="amf")
@@ -411,6 +553,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
@@ -455,6 +600,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self.harness.update_config(
             {"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"}
         )
@@ -500,6 +648,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self.harness.update_config({"external-amf-ip": "2.2.2.2"})
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
@@ -554,6 +705,9 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
@@ -568,6 +722,7 @@ class TestCharm(unittest.TestCase):
     @patch("lightkube.core.client.Client.get")
     @patch("ops.model.Container.pull")
     @patch("ops.model.Container.exists")
+    @patch("charm.generate_private_key")
     @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
@@ -578,6 +733,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url,
         patch_check_output,
         patch_push,
+        patch_generate_private_key,
         patch_exists,
         patch_pull,
         patch_get,
@@ -591,8 +747,13 @@ class TestCharm(unittest.TestCase):
         patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self._database_is_available()
         self.harness.container_pebble_ready("amf")
 
@@ -641,6 +802,36 @@ class TestCharm(unittest.TestCase):
         patch_remove_path.assert_any_call(path="/support/TLS/amf.pem")
         patch_remove_path.assert_any_call(path="/support/TLS/amf.key")
         patch_remove_path.assert_any_call(path="/support/TLS/amf.csr")
+
+    @patch("ops.model.Container.push")
+    @patch("ops.model.Container.remove_path")
+    @patch("ops.model.Container.exists")
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_status_is_blocked(  # noqa: E501
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_exists,
+        patch_remove_path,
+        patch_push,
+    ):
+        patch_exists.side_effect = [True, True, False, False, False, False]
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        patch_check_output.return_value = b"1.1.1.1"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
+        self._database_is_available()
+        self.harness.charm._on_certificates_relation_broken(event=Mock())
+        self.assertEqual(
+            self.harness.charm.unit.status, BlockedStatus("Waiting for certificates relation")
+        )
 
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
