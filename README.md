@@ -22,6 +22,7 @@ juju deploy mongodb-k8s --trust --channel=5/edge
 juju deploy sdcore-nrf --trust --channel=edge
 juju deploy self-signed-certificates --channel=beta
 juju integrate sdcore-nrf:database mongodb-k8s
+juju integrate sdcore-nrf:certificates self-signed-certificates:certificates
 juju integrate sdcore-amf:database mongodb-k8s
 juju integrate sdcore-amf:fiveg-nrf sdcore-nrf:fiveg-nrf
 juju integrate sdcore-amf:certificates self-signed-certificates:certificates
