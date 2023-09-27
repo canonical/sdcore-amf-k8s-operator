@@ -1,9 +1,11 @@
 name: sdcore-amf
- 
 display-name: SD-Core AMF
 summary: A Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
 description: |
   A Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
+website: https://charmhub.io/sdcore-amf
+source: https://github.com/canonical/sdcore-amf-operator
+issues: https://github.com/canonical/sdcore-amf-operator/issues
 
 containers:
   amf:
