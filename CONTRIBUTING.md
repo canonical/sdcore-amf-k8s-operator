@@ -3,9 +3,7 @@ To make contributions to this charm, you'll need a working Juju development setu
 
 ## Prerequisites
 ### Charmcraft installation
-Charmcraft depends on LXD to build the charms in a container matching the target base(s).
-
-To install Charmcraft and LXD run the following commands:
+Install Charmcraft and LXD:
 ```shell
 sudo snap install --classic charmcraft
 sudo snap install lxd
@@ -15,7 +13,7 @@ lxd init --auto
 ```
 
 ### MicroK8s installation
-To install MicroK8s run the following commands:
+Install MicroK8s:
 ```shell
 sudo snap install microk8s --channel=1.27-strict/stable
 sudo usermod -a -G snap_microk8s $USER
@@ -24,26 +22,23 @@ sudo microk8s enable hostpath-storage
 ```
 
 ### Install Juju
-To install Juju run the following command:
+Install Juju and bootstrap a controller on the MicroK8S instance:
 ```shell
-sudo snap install juju
-```
-To bootstrap a Juju controller on the MicroK8s instance run the following command:
-```shell
+sudo snap install juju --channel=3.1/stable
 juju bootstrap microk8s
 ```
 
 ### Install tox
 This project requires `tox>=4.0.0` for development and testing, which is available as a `pip` package.
 
-To install `pip` and `tox`, run the following commands:
+Install `pip` and `tox`:
 ```shell
 sudo apt install python3-pip
-python3 -m pip install tox
+python3 -m pip install "tox>=4.0.0"
 ```
 
 ## Development
-You can use the environments created by `tox` for development:
+Activate the virtual environment created by `tox` for development:
 ```shell
 tox --notest -e unit
 source .tox/unit/bin/activate
