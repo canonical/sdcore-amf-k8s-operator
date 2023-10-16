@@ -3,8 +3,6 @@ To make contributions to this charm, you'll need a working Juju development setu
 
 ## Prerequisites
 ### Charmcraft installation
-Charmcraft is a command line tool used alongside the Charmed Operator Framework to create, build, and publish charms.
-
 Charmcraft depends on LXD to build the charms in a container matching the target base(s).
 
 To install Charmcraft and LXD run the following commands:
@@ -52,7 +50,9 @@ source .tox/unit/bin/activate
 ```
 
 ## Testing
-This project uses `tox` for managing test environments. There are some pre-configured environments
+This project uses `tox` for managing test environments.
+
+There are some pre-configured environments
 that can be used for linting and formatting code when you're preparing contributions to the charm:
 
 ```shell
@@ -63,12 +63,7 @@ tox -e integration   # integration tests
 ```
 
 ## Build
-Building charms is done using Charmcraft (official documentation [here](https://juju.is/docs/sdk/publishing)).
-
-The installation procedure is covered in the Prerequisites section. 
-
 Go to the charm directory and run:
-
 ```bash
 charmcraft pack
 ```
