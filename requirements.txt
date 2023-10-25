@@ -6,3 +6,4 @@ pytest-interface-tester
 jinja2
 jsonschema
 cryptography
+cosl # Required by prometheus_k8s.v0.prometheus_scrape
