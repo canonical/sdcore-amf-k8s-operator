@@ -115,7 +115,7 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
-        client.create(
+        client.apply(
             Service(
                 apiVersion="v1",
                 kind="Service",
@@ -130,9 +130,12 @@ class AMFOperatorCharm(CharmBase):
                     ],
                     type="LoadBalancer",
                 ),
-            )
+            ),
+            # The default for this value is "controller" when using create, so
+            # we use that name here
+            field_manager="controller",
         )
-        logger.info("Created external AMF service")
+        logger.info("Created/asserted existence of external AMF service")
 
     def _on_remove(self, event: RemoveEvent) -> None:
         client = Client()
