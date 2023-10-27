@@ -61,7 +61,6 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        self.framework.observe(self.on.remove, self._on_remove)
         if not self.unit.is_leader():
             # NOTE: In cases where leader status is lost before the charm is
             # finished processing all teardown events, this prevents teardown
@@ -95,6 +94,7 @@ class AMFOperatorCharm(CharmBase):
             self, relation_name="database", database_name=DATABASE_NAME
         )
         self.framework.observe(self.on.install, self._on_install)
+        self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
@@ -156,14 +156,13 @@ class AMFOperatorCharm(CharmBase):
         # hooks are finished running. In this case, we will leave behind a
         # dirty state in k8s, but it will be cleaned up when the juju model is
         # destroyed. It will be re-used if the charm is re-deployed.
-        if self.unit.is_leader():
-            client = Client()
-            client.delete(
-                Service,
-                namespace=self.model.name,
-                name=f"{self.app.name}-external",
-            )
-            logger.info("Removed external AMF service")
+        client = Client()
+        client.delete(
+            Service,
+            namespace=self.model.name,
+            name=f"{self.app.name}-external",
+        )
+        logger.info("Removed external AMF service")
 
     def _configure_amf(self, event: EventBase) -> None:  # noqa C901
         """Handle pebble ready event for AMF container.
