@@ -963,7 +963,7 @@ class TestCharm(unittest.TestCase):
         patch_request_certificate_creation.assert_called_with(certificate_signing_request=csr)
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
-    @patch("lightkube.core.client.Client.create")
+    @patch("lightkube.core.client.Client.apply")
     def test_when_install_then_external_service_is_created(self, patch_create):
         self.harness.charm.on.install.emit()
 
@@ -987,7 +987,8 @@ class TestCharm(unittest.TestCase):
                         ],
                         type="LoadBalancer",
                     ),
-                )
+                ),
+                field_manager="controller",
             ),
         ]
 
