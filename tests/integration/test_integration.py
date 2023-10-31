@@ -37,7 +37,7 @@ async def build_and_deploy(ops_test: OpsTest):
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
-        channel="5/edge",
+        channel="6/edge",
         trust=True,
     )
     await ops_test.model.deploy(
