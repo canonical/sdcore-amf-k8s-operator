@@ -214,7 +214,11 @@ class AMFOperatorCharm(CharmBase):
             return
         self._generate_config_file()
         self._configure_amf_workload()
-        self._set_n2_information()
+        try:
+            self._set_n2_information()
+        except ValueError:
+            self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
+            return
         self.unit.status = ActiveStatus()
 
     def _on_certificates_relation_created(self, event: EventBase) -> None:
@@ -386,7 +390,11 @@ class AMFOperatorCharm(CharmBase):
         Args:
             event (RelationJoinedEvent): Juju event
         """
-        self._set_n2_information()
+        try:
+            self._set_n2_information()
+        except ValueError:
+            self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
+            return
 
     def _get_n2_amf_ip(self) -> str:
         """Returns the IP to send for the N2 interface.
@@ -634,7 +642,7 @@ class AMFOperatorCharm(CharmBase):
             return False
         return service.is_running()
 
-    def _amf_external_service_ip(self) -> str:
+    def _amf_external_service_ip(self) -> Optional[str]:
         """Returns the external service IP.
 
         Returns:
@@ -646,15 +654,15 @@ class AMFOperatorCharm(CharmBase):
         )
         try:
             return service.status.loadBalancer.ingress[0].ip  # type: ignore[attr-defined]
-        except AttributeError:
+        except (AttributeError, TypeError):
             logger.error(
                 "Service '%s-external' does not have an IP address:\n%s",
                 self.model.app.name,
                 service,
             )
-            return ""
+            return None
 
-    def _amf_external_service_hostname(self) -> str:
+    def _amf_external_service_hostname(self) -> Optional[str]:
         """Returns the external service hostname.
 
         Returns:
@@ -666,13 +674,13 @@ class AMFOperatorCharm(CharmBase):
         )
         try:
             return service.status.loadBalancer.ingress[0].hostname  # type: ignore[attr-defined]
-        except AttributeError:
+        except (AttributeError, TypeError):
             logger.error(
                 "Service '%s-external' does not have a hostname:\n%s",
                 self.model.app.name,
                 service,
             )
-            return ""
+            return None
 
 
 def _get_pod_ip() -> Optional[str]:
