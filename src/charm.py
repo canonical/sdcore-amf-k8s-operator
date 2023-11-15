@@ -396,14 +396,14 @@ class AMFOperatorCharm(CharmBase):
             self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
             return
 
-    def _get_n2_amf_ip(self) -> str:
+    def _get_n2_amf_ip(self) -> Optional[str]:
         """Returns the IP to send for the N2 interface.
 
         If a configuration is provided, it is returned, otherwise
         returns the IP of the external LoadBalancer Service.
 
         Returns:
-            str: IP address of the AMF
+            str/None: IP address of the AMF if available else None
         """
         if configured_ip := self._get_external_amf_ip_config():
             return configured_ip
@@ -646,7 +646,7 @@ class AMFOperatorCharm(CharmBase):
         """Returns the external service IP.
 
         Returns:
-            str: External Service IP
+            str/None: External Service IP if available else None
         """
         client = Client()
         service = client.get(
@@ -666,7 +666,7 @@ class AMFOperatorCharm(CharmBase):
         """Returns the external service hostname.
 
         Returns:
-            str: External Service hostname
+            str: External Service hostname if available else None
         """
         client = Client()
         service = client.get(
