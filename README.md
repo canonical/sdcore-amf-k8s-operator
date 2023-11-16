@@ -1,11 +1,5 @@
-<div align="center">
-  <img src="./icon.svg" alt="ONF Icon" width="200" height="200">
-</div>
-<div align="center">
-  <h1>SD-Core AMF Operator</h1>
-</div>
-
-# sdcore-amf-operator
+# SD-Core AMF Operator (k8s)
+[![CharmHub Badge](https://charmhub.io/sdcore-amf/badge.svg)](https://charmhub.io/sdcore-amf)
 
 Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
 
