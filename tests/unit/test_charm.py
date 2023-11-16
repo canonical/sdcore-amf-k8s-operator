@@ -27,7 +27,7 @@ class TestCharm(unittest.TestCase):
         self.harness.set_leader(is_leader=True)
         self.harness.begin()
 
-    def _database_is_available(self):
+    def _create_database_relation_and_populate_data(self) -> int:
         database_relation_id = self.harness.add_relation("database", "mongodb")
         self.harness.add_relation_unit(
             relation_id=database_relation_id, remote_unit_name="mongodb/0"
@@ -115,7 +115,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         nrf_relation_id = self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         self.harness.remove_relation(nrf_relation_id)
@@ -149,7 +149,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
-        database_relation_id = self._database_is_available()
+        database_relation_id = self._create_database_relation_and_populate_data()
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -219,7 +219,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -242,7 +242,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -275,7 +275,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -318,7 +318,7 @@ class TestCharm(unittest.TestCase):
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self.harness.charm._on_certificate_available(event=event)
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
@@ -373,7 +373,7 @@ class TestCharm(unittest.TestCase):
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self.harness.charm._on_certificate_available(event=event)
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
@@ -425,7 +425,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         patch_push.assert_called_once_with(
             path="/support/TLS/amf.key",
@@ -458,7 +458,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         expected_plan = {
             "services": {
@@ -508,7 +508,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -533,7 +533,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
 
         self.harness.container_pebble_ready(container_name="amf")
 
@@ -594,7 +594,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -644,7 +644,7 @@ class TestCharm(unittest.TestCase):
         self.harness.update_config(
             {"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"}
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -690,7 +690,7 @@ class TestCharm(unittest.TestCase):
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self.harness.update_config({"external-amf-ip": "2.2.2.2"})
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -787,7 +787,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_data = self.harness.get_relation_data(
@@ -833,7 +833,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_1_id = self.harness.add_relation(
@@ -906,7 +906,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.charm._on_certificates_relation_broken(event=Mock())
         self.assertEqual(
             self.harness.charm.unit.status, BlockedStatus("Waiting for certificates relation")
