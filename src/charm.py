@@ -101,6 +101,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
+        self.framework.observe(self.on.database_relation_broken, self._on_database_relation_broken)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
@@ -282,6 +283,14 @@ class AMFOperatorCharm(CharmBase):
             event (NRFBrokenEvent): Juju event
         """
         self.unit.status = BlockedStatus("Waiting for fiveg-nrf relation")
+
+    def _on_database_relation_broken(self, event: EventBase) -> None:
+        """Event handler for database relation broken.
+
+        Args:
+            event: Juju event
+        """
+        self.unit.status = BlockedStatus("Waiting for database relation")
 
     def _generate_private_key(self) -> None:
         """Generates and stores private key."""
