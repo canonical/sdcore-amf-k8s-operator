@@ -737,7 +737,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._database_is_available()
+        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
