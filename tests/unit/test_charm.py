@@ -2,7 +2,6 @@
 # See LICENSE file for licensing details.
 
 import unittest
-from io import StringIO
 from unittest.mock import Mock, PropertyMock, call, patch
 
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
@@ -91,9 +90,6 @@ class TestCharm(unittest.TestCase):
             BlockedStatus("Waiting for certificates relation"),
         )
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -102,15 +98,8 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_exists,
-        patch_pull,
     ):
-        patch_pull.return_value = StringIO(
-            self._read_file("tests/unit/expected_config/config.conf").strip()
-        )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -125,9 +114,6 @@ class TestCharm(unittest.TestCase):
             BlockedStatus("Waiting for fiveg-nrf relation"),
         )
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -136,15 +122,9 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_exists,
-        patch_pull,
     ):
-        patch_pull.return_value = StringIO(
-            self._read_file("tests/unit/expected_config/config.conf").strip()
-        )
-        patch_exists.return_value = True
+        self.harness.add_storage(storage_name="certs", attach=True)
         patch_check_output.return_value = b"1.1.1.1"
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -163,10 +143,10 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
-        self, patch_push, patch_generate_private_key
+        self, patch_generate_private_key
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         self.harness.set_can_connect(container="amf", val=True)
@@ -182,11 +162,11 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_database_info_not_available_when_pebble_ready_then_status_is_waiting(
-        self, patch_is_resource_created, patch_push, patch_generate_private_key
+        self, patch_is_resource_created, patch_generate_private_key
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
@@ -203,14 +183,13 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
         self,
         patch_is_resource_created,
-        patch_push,
         patch_generate_private_key,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
@@ -227,12 +206,12 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_storage_not_attached_when_pebble_ready_then_status_is_waiting(
-        self, patch_is_resource_created, patch_nrf_url, patch_push, patch_generate_private_key
+        self, patch_is_resource_created, patch_nrf_url, patch_generate_private_key
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
@@ -249,8 +228,6 @@ class TestCharm(unittest.TestCase):
             WaitingStatus("Waiting for storage to be attached"),
         )
 
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charm.generate_private_key")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
@@ -261,15 +238,14 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url,
         patch_generate_private_key,
         patch_check_output,
-        patch_push,
-        patch_exists,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
-        patch_exists.side_effect = [True, False, True, False]
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
         self.harness.add_relation(
@@ -282,33 +258,26 @@ class TestCharm(unittest.TestCase):
             WaitingStatus("Waiting for certificates to be stored"),
         )
 
-    @patch("ops.model.Container.exists")
     @patch("charm.check_output")
-    @patch("ops.model.Container.pull")
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
         self,
         patch_is_resource_created,
         patch_nrf_url,
-        patch_push,
         patch_generate_private_key,
-        patch_pull,
         patch_check_output,
-        patch_exists,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         csr = "Whatever CSR content"
-        patch_pull.return_value = StringIO(csr)
-        patch_exists.return_value = True
         certificate = "Whatever certificate content"
-        event = Mock()
-        event.certificate = certificate
-        event.certificate_signing_request = csr
-        patch_exists.side_effect = [True, False, True, True, False]
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -317,30 +286,16 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self.harness.charm._on_certificate_available(event=event)
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
-        push_calls = [
-            call(
-                path="/support/TLS/amf.key",
-                source=private_key.decode(),
-            ),
-            call(
-                path="/support/TLS/amf.pem",
-                source=certificate,
-            ),
-            call(
-                path="/free5gc/config/amfcfg.conf",
-                source=expected_content.strip(),
-            ),
-        ]
-        patch_push.assert_has_calls(push_calls)
+        self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
+        self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
+        self.assertEqual(
+            (root / "free5gc/config/amfcfg.conf").read_text(), expected_content.strip()
+        )
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charm.generate_private_key")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
@@ -351,17 +306,17 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url,
         patch_generate_private_key,
         patch_check_output,
-        patch_push,
-        patch_exists,
-        patch_pull,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
         csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "free5gc/config/amfcfg.conf").write_text("Dummy Content")
         event = Mock()
         event.certificate = certificate
         event.certificate_signing_request = csr
-        patch_pull.side_effect = [StringIO(csr), StringIO("Dummy Content")]
-        patch_exists.side_effect = [True, False, True, True, False]
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         patch_check_output.return_value = b"1.1.1.1"
@@ -377,47 +332,32 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
-        push_calls = [
-            call(
-                path="/support/TLS/amf.key",
-                source=private_key.decode(),
-            ),
-            call(
-                path="/support/TLS/amf.pem",
-                source=certificate,
-            ),
-            call(
-                path="/free5gc/config/amfcfg.conf",
-                source=expected_content.strip(),
-            ),
-        ]
-        patch_push.assert_has_calls(push_calls)
+        self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
+        self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
+        self.assertEqual(
+            (root / "free5gc/config/amfcfg.conf").read_text(), expected_content.strip()
+        )
 
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charm.generate_private_key")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    @patch("ops.model.Container.pull")
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
         self,
-        patch_pull,
         patch_is_resource_created,
         patch_nrf_url,
         patch_generate_private_key,
         patch_check_output,
-        patch_push,
-        patch_exists,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
-        patch_pull.side_effect = [
-            StringIO(self._read_file("tests/unit/expected_config/config.conf").strip()),
-            StringIO(self._read_file("tests/unit/expected_config/config.conf").strip()),
-        ]
+        root = self.harness.get_filesystem_root("amf")
+        (root / "free5gc/config/amfcfg.conf").write_text(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
         patch_check_output.return_value = b"1.1.1.1"
-        patch_exists.side_effect = [True, False, True, True, True, False]
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -427,14 +367,8 @@ class TestCharm(unittest.TestCase):
         )
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
-        patch_push.assert_called_once_with(
-            path="/support/TLS/amf.key",
-            source=private_key.decode(),
-        )
+        self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -443,13 +377,17 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_exists,
-        patch_pull,
     ):
-        patch_pull.return_value = StringIO(
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -481,9 +419,6 @@ class TestCharm(unittest.TestCase):
         updated_plan = self.harness.get_container_pebble_plan("amf").to_dict()
         self.assertEqual(expected_plan, updated_plan)
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -492,15 +427,18 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_exists,
-        patch_pull,
     ):
-        patch_pull.return_value = StringIO(
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -515,20 +453,17 @@ class TestCharm(unittest.TestCase):
             ActiveStatus(),
         )
 
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.check_output")
     @patch("ops.model.Container.exec", new=Mock)
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
-    @patch("ops.model.Container.exists")
     def test_given_empty_ip_address_when_pebble_ready_then_status_is_waiting(
         self,
-        patch_dir_exists,
         patch_nrf_url,
         patch_check_output,
     ):
+        self.harness.add_storage(storage_name="config", attach=True)
         patch_check_output.return_value = b""
         patch_nrf_url.return_value = "http://nrf:8081"
-        patch_dir_exists.return_value = True
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
@@ -561,9 +496,6 @@ class TestCharm(unittest.TestCase):
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.get")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -572,21 +504,23 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
-        patch_exists,
-        patch_pull,
         patch_get,
     ):
-        patch_pull.return_value = StringIO(
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -608,9 +542,6 @@ class TestCharm(unittest.TestCase):
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.get")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -619,21 +550,23 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
-        patch_exists,
-        patch_pull,
         patch_get,
     ):
-        patch_pull.return_value = StringIO(
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -658,9 +591,6 @@ class TestCharm(unittest.TestCase):
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.get")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -669,19 +599,21 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
-        patch_exists,
-        patch_pull,
         patch_get,
     ):
-        patch_pull.return_value = StringIO(
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
         patch_get.return_value = service
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -706,9 +638,6 @@ class TestCharm(unittest.TestCase):
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.get")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -717,19 +646,21 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
-        patch_exists,
-        patch_pull,
         patch_get,
     ):
-        patch_pull.return_value = StringIO(
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(status=Mock(loadBalancer=Mock(ingress=None)))
         patch_get.return_value = service
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -747,9 +678,6 @@ class TestCharm(unittest.TestCase):
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.get")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -758,28 +686,30 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
-        patch_exists,
-        patch_pull,
         patch_get,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
+
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         self.assertEqual(relation_data, {})
-
-        patch_pull.return_value = StringIO(
-            self._read_file("tests/unit/expected_config/config.conf").strip()
-        )
-        patch_exists.return_value = True
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
@@ -799,10 +729,7 @@ class TestCharm(unittest.TestCase):
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.get")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -811,19 +738,24 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_push,
         patch_generate_private_key,
-        patch_exists,
-        patch_pull,
         patch_get,
     ):
-        patch_exists.return_value = True
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
         patch_check_output.return_value = b"1.1.1.1"
         service = Mock(
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         patch_get.return_value = service
-        patch_exists.return_value = True
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         private_key = b"whatever key content"
@@ -856,24 +788,32 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(relation_data["amf_port"], "38412")
 
     @patch("charm.generate_private_key")
-    @patch("ops.model.Container.push")
     def test_given_can_connect_when_on_certificates_relation_created_then_private_key_is_generated(
-        self, patch_push, patch_generate_private_key
+        self, patch_generate_private_key
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        root = self.harness.get_filesystem_root("amf")
         private_key = b"whatever key content"
         self.harness.set_can_connect(container="amf", val=True)
         patch_generate_private_key.return_value = private_key
 
         self.harness.charm._on_certificates_relation_created(event=Mock)
 
-        patch_push.assert_called_with(path="/support/TLS/amf.key", source=private_key.decode())
+        self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
 
     @patch("ops.model.Container.remove_path")
-    @patch("ops.model.Container.exists")
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
-        self, patch_exists, patch_remove_path
+        self, patch_remove_path
     ):
-        patch_exists.return_value = True
+        self.harness.add_storage(storage_name="certs", attach=True)
+        private_key = b"whatever key content"
+        csr = "Whatever CSR content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.key").write_text(private_key.decode())
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+
         self.harness.set_can_connect(container="amf", val=True)
 
         self.harness.charm._on_certificates_relation_broken(event=Mock)
@@ -882,9 +822,6 @@ class TestCharm(unittest.TestCase):
         patch_remove_path.assert_any_call(path="/support/TLS/amf.key")
         patch_remove_path.assert_any_call(path="/support/TLS/amf.csr")
 
-    @patch("ops.model.Container.push")
-    @patch("ops.model.Container.remove_path")
-    @patch("ops.model.Container.exists")
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
@@ -893,11 +830,13 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created,
         patch_nrf_url,
         patch_check_output,
-        patch_exists,
-        patch_remove_path,
-        patch_push,
     ):
-        patch_exists.side_effect = [True, True, False, False, False, False]
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.pem").write_text(certificate)
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         patch_check_output.return_value = b"1.1.1.1"
@@ -916,41 +855,37 @@ class TestCharm(unittest.TestCase):
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
         new=Mock,
     )
-    @patch("ops.model.Container.push")
     @patch("charm.generate_csr")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
     def test_given_private_key_exists_when_on_certificates_relation_joined_then_csr_is_generated(
-        self, patch_exists, patch_pull, patch_generate_csr, patch_push
+        self, patch_generate_csr
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
-        patch_pull.return_value = StringIO("private key content")
-        patch_exists.side_effect = [True, False]
+        private_key = "private key content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.key").write_text(private_key)
         self.harness.set_can_connect(container="amf", val=True)
 
         self.harness.charm._on_certificates_relation_joined(event=Mock)
 
-        patch_push.assert_called_with(path="/support/TLS/amf.csr", source=csr.decode())
+        self.assertEqual((root / "support/TLS/amf.csr").read_text(), csr.decode())
 
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
     )
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.generate_csr")
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
     def test_given_private_key_exists_and_cert_not_yet_requested_when_on_certificates_relation_joined_then_cert_is_requested(  # noqa: E501
         self,
-        patch_exists,
-        patch_pull,
         patch_generate_csr,
         patch_request_certificate_creation,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
-        patch_pull.return_value = StringIO("private key content")
-        patch_exists.side_effect = [True, False]
+        private_key = "private key content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.key").write_text(private_key)
         self.harness.set_can_connect(container="amf", val=True)
 
         self.harness.charm._on_certificates_relation_joined(event=Mock)
@@ -960,35 +895,31 @@ class TestCharm(unittest.TestCase):
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
     )
-    @patch("ops.model.Container.push", new=Mock)
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
     def test_given_cert_already_stored_when_on_certificates_relation_joined_then_cert_is_not_requested(  # noqa: E501
         self,
-        patch_exists,
-        patch_pull,
         patch_request_certificate_creation,
     ):
-        patch_pull.return_value = StringIO("private key content")
-        patch_exists.return_value = True
+        self.harness.add_storage(storage_name="certs", attach=True)
+        private_key = "whatever key content"
+        certificate = "Whatever certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.key").write_text(private_key)
+        (root / "support/TLS/amf.pem").write_text(certificate)
         self.harness.set_can_connect(container="amf", val=True)
 
         self.harness.charm._on_certificates_relation_joined(event=Mock)
 
-        patch_request_certificate_creation.assert_not_called
+        patch_request_certificate_creation.assert_not_called()
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     def test_given_csr_matches_stored_one_when_certificate_available_then_certificate_is_pushed(
         self,
-        patch_push,
-        patch_exists,
-        patch_pull,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        private_key = "whatever key content"
         csr = "Whatever CSR content"
-        patch_pull.return_value = StringIO(csr)
-        patch_exists.return_value = True
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.key").write_text(private_key)
+        (root / "support/TLS/amf.csr").write_text(csr)
         certificate = "Whatever certificate content"
         event = Mock()
         event.certificate = certificate
@@ -997,40 +928,41 @@ class TestCharm(unittest.TestCase):
 
         self.harness.charm._on_certificate_available(event=event)
 
-        patch_push.assert_called_with(path="/support/TLS/amf.pem", source=certificate)
+        self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
 
-    @patch("ops.model.Container.pull")
-    @patch("ops.model.Container.exists")
-    @patch("ops.model.Container.push")
     def test_given_csr_doesnt_match_stored_one_when_certificate_available_then_certificate_is_not_pushed(  # noqa: E501
         self,
-        patch_push,
-        patch_exists,
-        patch_pull,
     ):
-        patch_pull.return_value = StringIO("Stored CSR content")
-        patch_exists.return_value = True
-        certificate = "Whatever certificate content"
+        self.harness.add_storage(storage_name="certs", attach=True)
+        private_key = "whatever key content"
+        csr = "Stored CSR content"
+        certificate = "Stored certificate content"
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.key").write_text(private_key)
+        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        new_certificate = "Whatever certificate content"
         event = Mock()
-        event.certificate = certificate
+        event.certificate = new_certificate
         event.certificate_signing_request = "Relation CSR content (different from stored one)"
         self.harness.set_can_connect(container="amf", val=True)
 
         self.harness.charm._on_certificate_available(event=event)
 
-        patch_push.assert_not_called()
+        self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
 
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
     )
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.generate_csr")
-    @patch("ops.model.Container.pull")
     def test_given_certificate_does_not_match_stored_one_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self, patch_pull, patch_generate_csr, patch_request_certificate_creation
+        self, patch_generate_csr, patch_request_certificate_creation
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
-        patch_pull.return_value = StringIO("Stored certificate content")
+        root = self.harness.get_filesystem_root("amf")
+        certificate = "Stored certificate content"
+        (root / "support/TLS/amf.pem").write_text(certificate)
         event.certificate = "Relation certificate content (different from stored)"
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
@@ -1043,16 +975,18 @@ class TestCharm(unittest.TestCase):
     @patch(
         "charms.tls_certificates_interface.v2.tls_certificates.TLSCertificatesRequiresV2.request_certificate_creation",  # noqa: E501
     )
-    @patch("ops.model.Container.push", new=Mock)
     @patch("charm.generate_csr")
-    @patch("ops.model.Container.pull")
     def test_given_certificate_matches_stored_one_when_certificate_expiring_then_certificate_is_requested(  # noqa: E501
-        self, patch_pull, patch_generate_csr, patch_request_certificate_creation
+        self, patch_generate_csr, patch_request_certificate_creation
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        root = self.harness.get_filesystem_root("amf")
+        private_key = "whatever key content"
         certificate = "whatever certificate content"
+        (root / "support/TLS/amf.key").write_text(private_key)
+        (root / "support/TLS/amf.pem").write_text(certificate)
         event = Mock()
         event.certificate = certificate
-        patch_pull.return_value = StringIO(certificate)
         csr = b"whatever csr content"
         patch_generate_csr.return_value = csr
         self.harness.set_can_connect(container="amf", val=True)
