@@ -273,10 +273,8 @@ class TestCharm(unittest.TestCase):
         self.harness.add_storage(storage_name="config", attach=True)
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
@@ -383,10 +381,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -433,10 +429,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -511,10 +505,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -557,10 +549,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -606,10 +596,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -653,10 +641,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -693,10 +679,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -746,10 +730,8 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        csr = "Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
-        (root / "support/TLS/amf.csr").write_text(csr)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
