@@ -357,6 +357,7 @@ class TestCharm(unittest.TestCase):
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
+        config_modification_time = (root / "free5gc/config/amfcfg.conf").stat().st_mtime
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
@@ -367,7 +368,9 @@ class TestCharm(unittest.TestCase):
         )
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
-        self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
+        self.assertEqual(
+            (root / "free5gc/config/amfcfg.conf").stat().st_mtime, config_modification_time
+        )
 
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
