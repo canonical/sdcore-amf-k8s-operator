@@ -801,9 +801,8 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
 
-    @patch("ops.model.Container.remove_path")
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
-        self, patch_remove_path
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         private_key = b"whatever key content"
@@ -818,9 +817,10 @@ class TestCharm(unittest.TestCase):
 
         self.harness.charm._on_certificates_relation_broken(event=Mock)
 
-        patch_remove_path.assert_any_call(path="/support/TLS/amf.pem")
-        patch_remove_path.assert_any_call(path="/support/TLS/amf.key")
-        patch_remove_path.assert_any_call(path="/support/TLS/amf.csr")
+        with self.assertRaises(FileNotFoundError):
+            (root / "support/TLS/amf.key").read_text()
+            (root / "support/TLS/amf.pem").read_text()
+            (root / "support/TLS/amf.csr").read_text()
 
     @patch("charm.check_output")
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
