@@ -30,9 +30,17 @@ from lightkube import Client
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
+from ops import (
+    ActiveStatus,
+    BlockedStatus,
+    CollectStatusEvent,
+    MaintenanceStatus,
+    ModelError,
+    StatusBase,
+    WaitingStatus,
+)
 from ops.charm import CharmBase, EventBase, InstallEvent, RelationJoinedEvent, RemoveEvent
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
@@ -97,6 +105,7 @@ class AMFOperatorCharm(CharmBase):
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
@@ -123,6 +132,54 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
+
+    def _is_unit_in_non_active_status(self) -> Optional[StatusBase]:  # noqa: C901
+        """Check the possible conditions that Unit status is different than the Active.
+
+        Returns the Unit status that needs to be set if any condition is match, otherwise
+        returns None.
+
+        Returns:
+            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
+            None: If none of the conditionals match
+
+        """
+        if not self._amf_container.can_connect():
+            return MaintenanceStatus("Waiting for service to start")
+
+        if invalid_configs := self._get_invalid_configs():
+            return BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
+
+        for relation in ["fiveg-nrf", "database", "certificates"]:
+            if not self._relation_created(relation):
+                return BlockedStatus(f"Waiting for {relation} relation")
+
+        if not self._database_is_available():
+            return WaitingStatus("Waiting for the amf database to be available")
+
+        if not self._get_database_info():
+            return WaitingStatus("Waiting for AMF database info to be available")
+
+        if not self._nrf_requires.nrf_url:
+            return WaitingStatus("Waiting for NRF data to be available")
+
+        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
+            return WaitingStatus("Waiting for storage to be attached")
+
+        if not _get_pod_ip():
+            return WaitingStatus("Waiting for pod IP address to be available")
+
+        return None
+
+    def _on_collect_unit_status(self, event: CollectStatusEvent):
+        """Check the unit status and set to Unit when CollectStatusEvent is fired.
+
+        Args:
+            event: CollectStatusEvent
+        """
+        if self._is_unit_in_non_active_status():
+            event.add_status(self._is_unit_in_non_active_status())  # type: ignore[arg-type]
+            return
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
@@ -176,37 +233,9 @@ class AMFOperatorCharm(CharmBase):
         Args:
             event (PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent): Juju event
         """
-        if not self._amf_container.can_connect():
-            self.unit.status = MaintenanceStatus("Waiting for service to start")
-            event.defer()
-            return
-        if invalid_configs := self._get_invalid_configs():
-            self.unit.status = BlockedStatus(
-                f"The following configurations are not valid: {invalid_configs}"
-            )
-            return
-        for relation in ["fiveg-nrf", "database", "certificates"]:
-            if not self._relation_created(relation):
-                self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
-                return
-        if not self._database_is_available():
-            self.unit.status = WaitingStatus("Waiting for the amf database to be available")
-            event.defer()
-            return
-        if not self._get_database_info():
-            self.unit.status = WaitingStatus("Waiting for AMF database info to be available")
-            event.defer()
-            return
-        if not self._nrf_requires.nrf_url:
-            self.unit.status = WaitingStatus("Waiting for NRF data to be available")
-            event.defer()
-            return
-        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
-            self.unit.status = WaitingStatus("Waiting for storage to be attached")
-            event.defer()
-            return
-        if not _get_pod_ip():
-            self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
+        if self._is_unit_in_non_active_status():
+            # Unit Status is in Maintanence or Blocked or Waiting status
+            self.unit.status = self._is_unit_in_non_active_status()  # type: ignore
             event.defer()
             return
         if not self._certificate_is_stored():
