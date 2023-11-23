@@ -804,7 +804,9 @@ class TestCharm(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             (root / "support/TLS/amf.key").read_text()
+        with self.assertRaises(FileNotFoundError):
             (root / "support/TLS/amf.pem").read_text()
+        with self.assertRaises(FileNotFoundError):
             (root / "support/TLS/amf.csr").read_text()
 
     @patch("charm.check_output")
