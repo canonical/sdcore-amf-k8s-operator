@@ -73,14 +73,6 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        if not self.unit.is_leader():
-            # NOTE: In cases where leader status is lost before the charm is
-            # finished processing all teardown events, this prevents teardown
-            # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to preform if we're removing the
-            # charm.
-            self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
-            return
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg-nrf")
@@ -134,16 +126,21 @@ class AMFOperatorCharm(CharmBase):
         )
 
     def _is_unit_in_non_active_status(self) -> Optional[StatusBase]:  # noqa: C901
-        """Check the possible conditions that Unit status is different than the Active.
-
-        Returns the Unit status that needs to be set if any condition is match, otherwise
-        returns None.
+        """Evaluate and return the unit's current status, or None if it should be active.
 
         Returns:
             StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
             None: If none of the conditionals match
 
         """
+        if not self.unit.is_leader():
+            # NOTE: In cases where leader status is lost before the charm is
+            # finished processing all teardown events, this prevents teardown
+            # event code from running. Luckily, for this charm, none of the
+            # teardown code is necessary to preform if we're removing the
+            # charm.
+            return BlockedStatus("Scaling is not implemented for this charm")
+
         if not self._amf_container.can_connect():
             return MaintenanceStatus("Waiting for service to start")
 
@@ -169,6 +166,11 @@ class AMFOperatorCharm(CharmBase):
         if not _get_pod_ip():
             return WaitingStatus("Waiting for pod IP address to be available")
 
+        try:
+            self._set_n2_information()
+        except ValueError:
+            return BlockedStatus("Waiting for MetalLB to be enabled")
+
         return None
 
     def _on_collect_unit_status(self, event: CollectStatusEvent):
@@ -177,9 +179,8 @@ class AMFOperatorCharm(CharmBase):
         Args:
             event: CollectStatusEvent
         """
-        if self._is_unit_in_non_active_status():
-            event.add_status(self._is_unit_in_non_active_status())  # type: ignore[arg-type]
-            return
+        if status := self._is_unit_in_non_active_status():
+            event.add_status(status)
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
@@ -235,19 +236,21 @@ class AMFOperatorCharm(CharmBase):
         """
         if self._is_unit_in_non_active_status():
             # Unit Status is in Maintanence or Blocked or Waiting status
-            self.unit.status = self._is_unit_in_non_active_status()  # type: ignore
             event.defer()
             return
+
         if not self._certificate_is_stored():
             self.unit.status = WaitingStatus("Waiting for certificates to be stored")
             event.defer()
             return
+
         self._generate_config_file()
         self._configure_amf_workload()
         try:
             self._set_n2_information()
         except ValueError:
-            self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
+            logger.info("Waiting for MetalLB to be enabled")
+            event.defer()
             return
         self.unit.status = ActiveStatus()
 
