@@ -39,7 +39,14 @@ from ops import (
     StatusBase,
     WaitingStatus,
 )
-from ops.charm import CharmBase, EventBase, InstallEvent, RelationJoinedEvent, RemoveEvent
+from ops.charm import (
+    CharmBase,
+    EventBase,
+    InstallEvent,
+    RelationBrokenEvent,
+    RelationJoinedEvent,
+    RemoveEvent,
+)
 from ops.main import main
 from ops.pebble import Layer
 
@@ -97,6 +104,11 @@ class AMFOperatorCharm(CharmBase):
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        # Setting attributes to detect broken relations until
+        # https://github.com/canonical/operator/issues/940 is fixed
+        self._database_relation_breaking = False
+        self._nrf_relation_breaking = False
+        self._tls_relation_breaking = False
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
@@ -147,9 +159,14 @@ class AMFOperatorCharm(CharmBase):
         if invalid_configs := self._get_invalid_configs():
             return BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
 
-        for relation in ["fiveg-nrf", "database", "certificates"]:
-            if not self._relation_created(relation):
-                return BlockedStatus(f"Waiting for {relation} relation")
+        if not self.model.get_relation("fiveg-nrf") or self._nrf_relation_breaking:
+            return BlockedStatus("Waiting for fiveg-nrf relation")
+
+        if not self.model.get_relation("database") or self._database_relation_breaking:
+            return BlockedStatus("Waiting for database relation")
+
+        if not self.model.get_relation("certificates") or self._tls_relation_breaking:
+            return BlockedStatus("Waiting for certificates relation")
 
         if not self._database_is_available():
             return WaitingStatus("Waiting for the amf database to be available")
@@ -166,6 +183,9 @@ class AMFOperatorCharm(CharmBase):
         if not _get_pod_ip():
             return WaitingStatus("Waiting for pod IP address to be available")
 
+        if not self._certificate_is_stored():
+            return WaitingStatus("Waiting for certificates to be stored")
+
         try:
             self._set_n2_information()
         except ValueError:
@@ -181,6 +201,8 @@ class AMFOperatorCharm(CharmBase):
         """
         if status := self._is_unit_in_non_active_status():
             event.add_status(status)
+        else:
+            event.add_status(ActiveStatus())
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
@@ -239,20 +261,8 @@ class AMFOperatorCharm(CharmBase):
             event.defer()
             return
 
-        if not self._certificate_is_stored():
-            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
-            event.defer()
-            return
-
         self._generate_config_file()
         self._configure_amf_workload()
-        try:
-            self._set_n2_information()
-        except ValueError:
-            logger.info("Waiting for MetalLB to be enabled")
-            event.defer()
-            return
-        self.unit.status = ActiveStatus()
 
     def _on_certificates_relation_created(self, event: EventBase) -> None:
         """Generates Private key."""
@@ -261,7 +271,7 @@ class AMFOperatorCharm(CharmBase):
             return
         self._generate_private_key()
 
-    def _on_certificates_relation_broken(self, event: EventBase) -> None:
+    def _on_certificates_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Deletes TLS related artifacts and reconfigures AMF."""
         if not self._amf_container.can_connect():
             event.defer()
@@ -269,7 +279,7 @@ class AMFOperatorCharm(CharmBase):
         self._delete_private_key()
         self._delete_csr()
         self._delete_certificate()
-        self.unit.status = BlockedStatus("Waiting for certificates relation")
+        self._tls_relation_breaking = True
 
     def _on_certificates_relation_joined(self, event: EventBase) -> None:
         """Generates CSR and requests new certificate."""
@@ -308,21 +318,21 @@ class AMFOperatorCharm(CharmBase):
             return
         self._request_new_certificate()
 
-    def _on_nrf_broken(self, event: EventBase) -> None:
+    def _on_nrf_broken(self, event: RelationBrokenEvent) -> None:
         """Event handler for NRF relation broken.
 
         Args:
             event (NRFBrokenEvent): Juju event
         """
-        self.unit.status = BlockedStatus("Waiting for fiveg-nrf relation")
+        self._nrf_relation_breaking = True
 
-    def _on_database_relation_broken(self, event: EventBase) -> None:
+    def _on_database_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Event handler for database relation broken.
 
         Args:
             event: Juju event
         """
-        self.unit.status = BlockedStatus("Waiting for database relation")
+        self._database_relation_breaking = True
 
     def _generate_private_key(self) -> None:
         """Generates and stores private key."""
@@ -434,7 +444,7 @@ class AMFOperatorCharm(CharmBase):
         try:
             self._set_n2_information()
         except ValueError:
-            self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
+            logger.info("Waiting for MetalLB to be enabled")
             return
 
     def _get_n2_amf_ip(self) -> Optional[str]:
