@@ -451,7 +451,6 @@ class TestCharm(unittest.TestCase):
         )
 
     @patch("charm.check_output")
-    @patch("ops.model.Container.exec", new=Mock)
     @patch("charms.sdcore_nrf.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
     def test_given_empty_ip_address_when_pebble_ready_then_status_is_waiting(
         self,
