@@ -10,9 +10,6 @@ from subprocess import check_output
 from typing import Optional
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
-from charms.observability_libs.v1.kubernetes_service_patch import (  # type: ignore[import]
-    KubernetesServicePatch,
-)
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
@@ -86,14 +83,7 @@ class AMFOperatorCharm(CharmBase):
                 }
             ],
         )
-        self._service_patcher = KubernetesServicePatch(
-            charm=self,
-            ports=[
-                ServicePort(name="prometheus-exporter", port=PROMETHEUS_PORT),
-                ServicePort(name="sbi", port=SBI_PORT),
-                ServicePort(name="sctp-grpc", port=SCTP_GRPC_PORT),
-            ],
-        )
+        self.unit.set_ports(PROMETHEUS_PORT, SBI_PORT, SCTP_GRPC_PORT)
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
