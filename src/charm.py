@@ -57,8 +57,8 @@ N2_RELATION_NAME = "fiveg-n2"
 DEFAULT_FIELD_MANAGER = "controller"
 
 
-class AMFOperatorCharm(CharmBase):
-    """Main class to describe juju event handling for the SD-Core AMF operator."""
+class AMFK8sOperatorCharm(CharmBase):
+    """Main class to describe juju event handling for the SD-Core AMF K8s operator."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -693,4 +693,4 @@ def _get_pod_ip() -> Optional[str]:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main(AMFOperatorCharm)
+    main(AMFK8sOperatorCharm)

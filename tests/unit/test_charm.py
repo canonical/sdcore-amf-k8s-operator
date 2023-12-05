@@ -10,13 +10,13 @@ from lightkube.resources.core_v1 import Service
 from ops import testing
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 
-from charm import AMFOperatorCharm
+from charm import AMFK8sOperatorCharm
 
 
 class TestCharm(unittest.TestCase):
     def setUp(self):
         self.namespace = "whatever"
-        self.harness = testing.Harness(AMFOperatorCharm)
+        self.harness = testing.Harness(AMFK8sOperatorCharm)
         self.harness.set_model_name(name=self.namespace)
         self.addCleanup(self.harness.cleanup)
         self.harness.set_leader(is_leader=True)
@@ -618,7 +618,7 @@ class TestCharm(unittest.TestCase):
         )
         self.assertEqual(relation_data["amf_ip_address"], "2.2.2.2")
         self.assertEqual(
-            relation_data["amf_hostname"], "sdcore-amf-external.whatever.svc.cluster.local"
+            relation_data["amf_hostname"], "sdcore-amf-k8s-external.whatever.svc.cluster.local"
         )
         self.assertEqual(relation_data["amf_port"], "38412")
 

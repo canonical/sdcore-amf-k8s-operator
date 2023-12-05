@@ -1,11 +1,11 @@
-name: sdcore-amf
-display-name: SD-Core AMF
+name: sdcore-amf-k8s
+display-name: SD-Core AMF K8s
 summary: A Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
 description: |
   A Charmed Operator for SD-Core's Access and Mobility Management Function (AMF).
-website: https://charmhub.io/sdcore-amf
-source: https://github.com/canonical/sdcore-amf-operator
-issues: https://github.com/canonical/sdcore-amf-operator/issues
+website: https://charmhub.io/sdcore-amf-k8s
+source: https://github.com/canonical/sdcore-amf-k8s-operator
+issues: https://github.com/canonical/sdcore-amf-k8s-operator/issues
 
 containers:
   amf:
