@@ -10,13 +10,13 @@ from lightkube.resources.core_v1 import Service
 from ops import testing
 from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 
-from charm import AMFK8sOperatorCharm
+from charm import AMFOperatorCharm
 
 
 class TestCharm(unittest.TestCase):
     def setUp(self):
         self.namespace = "whatever"
-        self.harness = testing.Harness(AMFK8sOperatorCharm)
+        self.harness = testing.Harness(AMFOperatorCharm)
         self.harness.set_model_name(name=self.namespace)
         self.addCleanup(self.harness.cleanup)
         self.harness.set_leader(is_leader=True)

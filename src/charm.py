@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed operator for the SD-Core AMF service."""
+"""Charmed operator for the SD-Core AMF service for K8s."""
 
 import logging
 from ipaddress import IPv4Address
@@ -57,8 +57,8 @@ N2_RELATION_NAME = "fiveg-n2"
 DEFAULT_FIELD_MANAGER = "controller"
 
 
-class AMFK8sOperatorCharm(CharmBase):
-    """Main class to describe juju event handling for the SD-Core AMF K8s operator."""
+class AMFOperatorCharm(CharmBase):
+    """Main class to describe juju event handling for the SD-Core AMF operator for K8s."""
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -693,4 +693,4 @@ def _get_pod_ip() -> Optional[str]:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    main(AMFK8sOperatorCharm)
+    main(AMFOperatorCharm)
