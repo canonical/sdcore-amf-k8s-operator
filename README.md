@@ -1,4 +1,4 @@
-# SD-Core AMF Operator for K8s
+# SD-Core AMF Operator (k8s)
 [![CharmHub Badge](https://charmhub.io/sdcore-amf-k8s/badge.svg)](https://charmhub.io/sdcore-amf-k8s)
 
 Charmed Operator for SD-Core's Access and Mobility Management Function (AMF) for K8s.
