@@ -8,7 +8,7 @@ import pytest
 from ops import testing
 from ops.charm import CharmBase, RelationJoinedEvent
 
-from lib.charms.sdcore_amf.v0.fiveg_n2 import N2Provides
+from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
 
 METADATA = """
 name: fiveg-n2-provider

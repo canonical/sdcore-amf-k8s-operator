@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 METADATA = yaml.safe_load(Path("./metadata.yaml").read_text())
 APP_NAME = METADATA["name"]
 DB_CHARM_NAME = "mongodb-k8s"
-NRF_CHARM_NAME = "sdcore-nrf"
+NRF_CHARM_NAME = "sdcore-nrf-k8s"
 TLS_PROVIDER_CHARM_NAME = "self-signed-certificates"
 
 

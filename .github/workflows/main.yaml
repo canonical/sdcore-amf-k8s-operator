@@ -27,7 +27,7 @@ jobs:
   integration-test:
     uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@main
     with:
-      charm-file-name: "sdcore-amf_ubuntu-22.04-amd64.charm"
+      charm-file-name: "sdcore-amf-k8s_ubuntu-22.04-amd64.charm"
 
   publish-charm:
     name: Publish Charm
@@ -39,7 +39,7 @@ jobs:
     if: ${{ github.ref_name == 'main' }}
     uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@main
     with:
-      charm-file-name: "sdcore-amf_ubuntu-22.04-amd64.charm"
+      charm-file-name: "sdcore-amf-k8s_ubuntu-22.04-amd64.charm"
     secrets: inherit
 
   lib-needs-publishing:
@@ -53,7 +53,7 @@ jobs:
         with:
           filters: |
             fiveg_n2:
-              - 'lib/charms/sdcore_amf/v0/fiveg_n2.py'
+              - 'lib/charms/sdcore_amf_k8s/v0/fiveg_n2.py'
 
   publish-lib:
     name: Publish Lib
@@ -63,5 +63,5 @@ jobs:
     if: ${{ github.ref_name == 'main' }} && ${{ needs.changes.outputs.needs-publishing == 'true' }}
     uses: canonical/sdcore-github-workflows/.github/workflows/publish-lib.yaml@main
     with:
-      lib-name: "charms.sdcore_amf.v0.fiveg_n2"
+      lib-name: "charms.sdcore_amf_k8s.v0.fiveg_n2"
     secrets: inherit

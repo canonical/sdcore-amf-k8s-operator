@@ -2,7 +2,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Charmed operator for the SD-Core AMF service."""
+"""Charmed operator for the SD-Core AMF service for K8s."""
 
 import logging
 from ipaddress import IPv4Address
@@ -13,8 +13,8 @@ from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # typ
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
-from charms.sdcore_amf.v0.fiveg_n2 import N2Provides  # type: ignore[import]
-from charms.sdcore_nrf.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
+from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
+from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ignore[import]
     CertificateAvailableEvent,
     CertificateExpiringEvent,
@@ -58,7 +58,7 @@ DEFAULT_FIELD_MANAGER = "controller"
 
 
 class AMFOperatorCharm(CharmBase):
-    """Main class to describe juju event handling for the SD-Core AMF operator."""
+    """Main class to describe juju event handling for the SD-Core AMF operator for K8s."""
 
     def __init__(self, *args):
         super().__init__(*args)

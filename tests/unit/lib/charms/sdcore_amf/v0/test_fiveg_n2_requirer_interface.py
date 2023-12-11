@@ -8,7 +8,7 @@ from unittest.mock import call, patch
 from ops import testing
 from ops.charm import CharmBase
 
-from lib.charms.sdcore_amf.v0.fiveg_n2 import N2InformationAvailableEvent, N2Requires
+from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2InformationAvailableEvent, N2Requires
 
 METADATA = """
 name: fiveg-n2-requirer
@@ -23,7 +23,7 @@ requires:
 
 logger = logging.getLogger(__name__)
 
-CHARM_LIB_PATH = "lib.charms.sdcore_amf.v0.fiveg_n2"
+CHARM_LIB_PATH = "lib.charms.sdcore_amf_k8s.v0.fiveg_n2"
 
 
 class DummyFivegN2Requires(CharmBase):
