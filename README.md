@@ -6,7 +6,7 @@ Charmed Operator for SD-Core's Access and Mobility Management Function (AMF) for
 
 ## Pre-requisites
 
-Juju model on a Kubernetes cluster.
+Juju model on a Kubernetes Cluster.
 
 ## Usage
 
@@ -36,4 +36,3 @@ juju config sdcore-amf-k8s external-amf-ip=192.168.0.4 external-amf-hostname=amf
 ## Image
 
 **amf**: ghcr.io/canonical/sdcore-amf:1.3
-
