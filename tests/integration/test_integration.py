@@ -37,7 +37,7 @@ async def build_and_deploy(ops_test: OpsTest):
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
-        channel="5/edge",
+        channel="6/beta",
         trust=True,
     )
     await ops_test.model.deploy(
@@ -141,7 +141,7 @@ async def test_restore_database_and_wait_for_active_status(ops_test: OpsTest, bu
     await ops_test.model.deploy(
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
-        channel="5/edge",
+        channel="6/beta",
         trust=True,
     )
     await ops_test.model.integrate(relation1=APP_NAME, relation2=DB_CHARM_NAME)
