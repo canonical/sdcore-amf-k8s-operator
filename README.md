@@ -14,7 +14,7 @@ Juju model on a Kubernetes Cluster.
 juju deploy sdcore-amf-k8s --trust --channel=edge
 juju deploy mongodb-k8s --trust --channel=6/beta
 juju deploy sdcore-nrf-k8s --channel=edge
-juju deploy self-signed-certificates --channel=beta
+juju deploy self-signed-certificates --channel=stable
 juju integrate sdcore-nrf-k8s:database mongodb-k8s
 juju integrate sdcore-nrf-k8s:certificates self-signed-certificates:certificates
 juju integrate sdcore-amf-k8s:database mongodb-k8s

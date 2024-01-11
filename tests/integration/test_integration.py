@@ -47,7 +47,9 @@ async def build_and_deploy(ops_test: OpsTest):
         trust=True,
     )
     await ops_test.model.deploy(
-        TLS_PROVIDER_CHARM_NAME, application_name=TLS_PROVIDER_CHARM_NAME, channel="beta"
+        TLS_PROVIDER_CHARM_NAME,
+        application_name=TLS_PROVIDER_CHARM_NAME,
+        channel="stable",
     )
 
 
