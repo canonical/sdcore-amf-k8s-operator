@@ -47,7 +47,9 @@ async def build_and_deploy(ops_test: OpsTest):
         trust=True,
     )
     await ops_test.model.deploy(
-        TLS_PROVIDER_CHARM_NAME, application_name=TLS_PROVIDER_CHARM_NAME, channel="beta"
+        TLS_PROVIDER_CHARM_NAME,
+        application_name=TLS_PROVIDER_CHARM_NAME,
+        channel="stable",
     )
 
 
@@ -115,8 +117,7 @@ async def test_restore_tls_and_wait_for_active_status(ops_test: OpsTest, build_a
     await ops_test.model.deploy(
         TLS_PROVIDER_CHARM_NAME,
         application_name=TLS_PROVIDER_CHARM_NAME,
-        channel="beta",
-        trust=True,
+        channel="stable",
     )
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=1000)
