@@ -15,10 +15,10 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
 )
 from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
-from charms.tls_certificates_interface.v2.tls_certificates import (  # type: ignore[import]
+from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ignore[import]
     CertificateAvailableEvent,
     CertificateExpiringEvent,
-    TLSCertificatesRequiresV2,
+    TLSCertificatesRequiresV3,
     generate_csr,
     generate_private_key,
 )
@@ -74,7 +74,7 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg-nrf")
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
-        self._certificates = TLSCertificatesRequiresV2(self, "certificates")
+        self._certificates = TLSCertificatesRequiresV3(self, "certificates")
         self._amf_metrics_endpoint = MetricsEndpointProvider(
             self,
             jobs=[
