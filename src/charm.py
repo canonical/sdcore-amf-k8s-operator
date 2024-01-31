@@ -168,7 +168,6 @@ class AMFOperatorCharm(CharmBase):
         """
         if not self._amf_container.can_connect():
             self.unit.status = MaintenanceStatus("Waiting for service to start")
-            event.defer()
             return
         if invalid_configs := self._get_invalid_configs():
             self.unit.status = BlockedStatus(
@@ -181,27 +180,21 @@ class AMFOperatorCharm(CharmBase):
                 return
         if not self._database_is_available():
             self.unit.status = WaitingStatus("Waiting for the amf database to be available")
-            event.defer()
             return
         if not self._get_database_info():
             self.unit.status = WaitingStatus("Waiting for AMF database info to be available")
-            event.defer()
             return
         if not self._nrf_requires.nrf_url:
             self.unit.status = WaitingStatus("Waiting for NRF data to be available")
-            event.defer()
             return
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
             self.unit.status = WaitingStatus("Waiting for storage to be attached")
-            event.defer()
             return
         if not _get_pod_ip():
             self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
-            event.defer()
             return
         if not self._certificate_is_stored():
             self.unit.status = WaitingStatus("Waiting for certificates to be stored")
-            event.defer()
             return
         self._generate_config_file()
         self._configure_amf_workload()
@@ -215,14 +208,12 @@ class AMFOperatorCharm(CharmBase):
     def _on_certificates_relation_created(self, event: EventBase) -> None:
         """Generates Private key."""
         if not self._amf_container.can_connect():
-            event.defer()
             return
         self._generate_private_key()
 
     def _on_certificates_relation_broken(self, event: EventBase) -> None:
         """Deletes TLS related artifacts and reconfigures AMF."""
         if not self._amf_container.can_connect():
-            event.defer()
             return
         self._delete_private_key()
         self._delete_csr()
@@ -232,10 +223,8 @@ class AMFOperatorCharm(CharmBase):
     def _on_certificates_relation_joined(self, event: EventBase) -> None:
         """Generates CSR and requests new certificate."""
         if not self._amf_container.can_connect():
-            event.defer()
             return
         if not self._private_key_is_stored():
-            event.defer()
             return
         if self._certificate_is_stored():
             return
@@ -245,7 +234,6 @@ class AMFOperatorCharm(CharmBase):
     def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
         """Pushes certificate to workload and configures AMF."""
         if not self._amf_container.can_connect():
-            event.defer()
             return
         if not self._csr_is_stored():
             logger.warning("Certificate is available but no CSR is stored")
@@ -259,7 +247,6 @@ class AMFOperatorCharm(CharmBase):
     def _on_certificate_expiring(self, event: CertificateExpiringEvent):
         """Requests new certificate."""
         if not self._amf_container.can_connect():
-            event.defer()
             return
         if event.certificate != self._get_stored_certificate():
             logger.debug("Expiring certificate is not the one stored")
