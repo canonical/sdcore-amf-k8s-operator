@@ -90,6 +90,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
+        self.framework.observe(self.on.update_status, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self.on.database_relation_broken, self._on_database_relation_broken)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
@@ -99,16 +100,13 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(
-            self.on.certificates_relation_created, self._on_certificates_relation_created
-        )
-        self.framework.observe(
-            self.on.certificates_relation_joined, self._on_certificates_relation_joined
+            self.on.certificates_relation_joined, self._configure_amf
         )
         self.framework.observe(
             self.on.certificates_relation_broken, self._on_certificates_relation_broken
         )
         self.framework.observe(
-            self._certificates.on.certificate_available, self._on_certificate_available
+            self._certificates.on.certificate_available, self._configure_amf
         )
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
@@ -193,9 +191,16 @@ class AMFOperatorCharm(CharmBase):
         if not _get_pod_ip():
             self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
             return
+        if not self._private_key_is_stored():
+            self._generate_private_key()
         if not self._certificate_is_stored():
-            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
-            return
+            if not self._csr_is_stored():
+                self._request_new_certificate()
+                self.unit.status = WaitingStatus("Waiting for certificates to be stored")
+                return
+            else:
+                for provider_certificate in self._certificates.get_assigned_certificates():
+                    self._store_certificate(certificate=provider_certificate.certificate)
         self._generate_config_file()
         self._configure_amf_workload()
         try:
@@ -205,48 +210,20 @@ class AMFOperatorCharm(CharmBase):
             return
         self.unit.status = ActiveStatus()
 
-    def _on_certificates_relation_created(self, event: EventBase) -> None:
-        """Generates Private key."""
-        if not self._amf_container.can_connect():
-            return
-        self._generate_private_key()
-
     def _on_certificates_relation_broken(self, event: EventBase) -> None:
         """Deletes TLS related artifacts and reconfigures AMF."""
         if not self._amf_container.can_connect():
+            event.defer()
             return
         self._delete_private_key()
         self._delete_csr()
         self._delete_certificate()
         self.unit.status = BlockedStatus("Waiting for certificates relation")
 
-    def _on_certificates_relation_joined(self, event: EventBase) -> None:
-        """Generates CSR and requests new certificate."""
-        if not self._amf_container.can_connect():
-            return
-        if not self._private_key_is_stored():
-            return
-        if self._certificate_is_stored():
-            return
-
-        self._request_new_certificate()
-
-    def _on_certificate_available(self, event: CertificateAvailableEvent) -> None:
-        """Pushes certificate to workload and configures AMF."""
-        if not self._amf_container.can_connect():
-            return
-        if not self._csr_is_stored():
-            logger.warning("Certificate is available but no CSR is stored")
-            return
-        if event.certificate_signing_request != self._get_stored_csr():
-            logger.debug("Stored CSR doesn't match one in certificate available event")
-            return
-        self._store_certificate(event.certificate)
-        self._configure_amf(event)
-
     def _on_certificate_expiring(self, event: CertificateExpiringEvent):
         """Requests new certificate."""
         if not self._amf_container.can_connect():
+            event.defer()
             return
         if event.certificate != self._get_stored_certificate():
             logger.debug("Expiring certificate is not the one stored")
