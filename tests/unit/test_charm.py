@@ -13,6 +13,7 @@ from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
 from charm import AMFOperatorCharm
 from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
 
+
 class TestCharm(unittest.TestCase):
     def setUp(self):
         self.namespace = "whatever"
@@ -235,7 +236,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url,
         patch_generate_private_key,
         patch_check_output,
-        patch_generate_csr
+        patch_generate_csr,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -742,7 +743,6 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url,
         patch_generate_private_key,
         patch_check_output,
-
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -824,7 +824,10 @@ class TestCharm(unittest.TestCase):
     )
     @patch("charm.generate_csr")
     def test_given_private_key_exists_when_pebble_ready_then_csr_is_generated(
-        self, patch_generate_csr, patch_nrf_url, patch_check_output,
+        self,
+        patch_generate_csr,
+        patch_nrf_url,
+        patch_check_output,
     ):
         patch_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -932,7 +935,9 @@ class TestCharm(unittest.TestCase):
         certificate = "Whatever certificate content"
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        patch_get_assigned_certificates.return_value = [provider_certificate,]
+        patch_get_assigned_certificates.return_value = [
+            provider_certificate,
+        ]
 
         self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
         self.harness.add_relation(

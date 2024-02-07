@@ -16,7 +16,6 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
 from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
 from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ignore[import]
-    CertificateAvailableEvent,
     CertificateExpiringEvent,
     TLSCertificatesRequiresV3,
     generate_csr,
@@ -99,15 +98,11 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self._nrf_requires.on.nrf_broken, self._on_nrf_broken)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
-        self.framework.observe(
-            self.on.certificates_relation_joined, self._configure_amf
-        )
+        self.framework.observe(self.on.certificates_relation_joined, self._configure_amf)
         self.framework.observe(
             self.on.certificates_relation_broken, self._on_certificates_relation_broken
         )
-        self.framework.observe(
-            self._certificates.on.certificate_available, self._configure_amf
-        )
+        self.framework.observe(self._certificates.on.certificate_available, self._configure_amf)
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
