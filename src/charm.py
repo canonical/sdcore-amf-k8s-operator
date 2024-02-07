@@ -196,7 +196,8 @@ class AMFOperatorCharm(CharmBase):
             else:
                 provider_certificates = self._certificates.get_assigned_certificates()
                 if provider_certificates:
-                    self._store_certificate(certificate=provider_certificates[0].certificate)
+                     if not self._certificate_is_stored():
+                        self._store_certificate(certificate=provider_certificates[0].certificate)
         self._generate_config_file()
         self._configure_amf_workload()
         try:
