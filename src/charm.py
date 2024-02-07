@@ -194,8 +194,9 @@ class AMFOperatorCharm(CharmBase):
                 self.unit.status = WaitingStatus("Waiting for certificates to be stored")
                 return
             else:
-                for provider_certificate in self._certificates.get_assigned_certificates():
-                    self._store_certificate(certificate=provider_certificate.certificate)
+                provider_certificates = self._certificates.get_assigned_certificates()
+                if provider_certificates:
+                    self._store_certificate(certificate=provider_certificates[0].certificate)
         self._generate_config_file()
         self._configure_amf_workload()
         try:
