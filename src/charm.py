@@ -188,18 +188,25 @@ class AMFOperatorCharm(CharmBase):
             return
         if not self._private_key_is_stored():
             self._generate_private_key()
-        if not self._certificate_is_stored():
-            if not self._csr_is_stored():
-                self._request_new_certificate()
-                self.unit.status = WaitingStatus("Waiting for certificates to be stored")
-                return
-            else:
-                provider_certificates = self._certificates.get_assigned_certificates()
-                if provider_certificates:
-                    if not self._certificate_is_stored():
-                        self._store_certificate(certificate=provider_certificates[0].certificate)
+
+        if not self._csr_is_stored():
+            self._request_new_certificate()
+            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
+            return
+
+        restart = False
+        csr = self._get_stored_csr()
+        for provider_certificate in self._certificates.get_assigned_certificates():
+            if provider_certificate.csr == csr:
+                existing_certificate = (
+                    self._get_stored_certificate() if self._certificate_is_stored() else ""
+                )
+                if not existing_certificate == provider_certificate.certificate:
+                    self._store_certificate(certificate=provider_certificate.certificate)
+                    restart = True
+
         self._generate_config_file()
-        self._configure_amf_workload()
+        self._configure_amf_workload(restart=restart)
         try:
             self._set_n2_information()
         except ValueError:
