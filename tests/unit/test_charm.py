@@ -1235,7 +1235,7 @@ class TestCharm(unittest.TestCase):
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
 
-        self.assertFalse(self.harness.charm._certificates_updated())
+        self.assertFalse(self.harness.charm._certificate_updated())
 
     @patch(
         "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
@@ -1259,7 +1259,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self.assertFalse(self.harness.charm._certificates_updated())
+        self.assertFalse(self.harness.charm._certificate_updated())
 
     @patch(
         "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
@@ -1284,7 +1284,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self.assertFalse(self.harness.charm._certificates_updated())
+        self.assertFalse(self.harness.charm._certificate_updated())
 
     @patch(
         "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
@@ -1309,7 +1309,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self.assertTrue(self.harness.charm._certificates_updated())
+        self.assertTrue(self.harness.charm._certificate_updated())
         self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
 
     @patch(
@@ -1340,7 +1340,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self.assertTrue(self.harness.charm._certificates_updated())
+        self.assertTrue(self.harness.charm._certificate_updated())
         self.assertEqual((root / "support/TLS/amf.pem").read_text(), correct_certificate)
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)

@@ -192,7 +192,7 @@ class AMFOperatorCharm(CharmBase):
             self._request_new_certificate()
             self.unit.status = WaitingStatus("Waiting for certificates to be stored")
             return
-        restart = self._certificates_updated()
+        restart = self._certificate_updated()
         self._generate_config_file()
         self._configure_amf_workload(restart=restart)
         try:
@@ -238,7 +238,10 @@ class AMFOperatorCharm(CharmBase):
         """
         self.unit.status = BlockedStatus("Waiting for database relation")
 
-    def _certificates_updated(self) -> bool:
+    def _certificate_updated(self) -> bool:
+        """Compares the current certificate to what is stored and updates it.
+
+        Returns True if the certificate was updated"""
         csr = self._get_stored_csr()
         for provider_certificate in self._certificates.get_assigned_certificates():
             if provider_certificate.csr == csr:
