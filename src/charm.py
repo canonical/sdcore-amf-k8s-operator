@@ -241,7 +241,8 @@ class AMFOperatorCharm(CharmBase):
     def _certificate_updated(self) -> bool:
         """Compares the current certificate to what is stored and updates it.
 
-        Returns True if the certificate was updated"""
+        Returns True if the certificate was updated
+        """
         csr = self._get_stored_csr()
         for provider_certificate in self._certificates.get_assigned_certificates():
             if provider_certificate.csr == csr:
