@@ -1,7 +1,16 @@
+# Copyright 2024 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 variable "model_name" {
   description = "Name of Juju model to deploy application to."
   type        = string
   default     = ""
+}
+
+variable "app_name" {
+  description = "Name of the application in the Juju model."
+  type        = string
+  default     = "amf"
 }
 
 variable "channel" {
@@ -10,26 +19,8 @@ variable "channel" {
   default     = "1.3/edge"
 }
 
-variable "amf-config" {
-  description = "Additional configuration for the AMF"
+variable "config" {
+  description = "Application config. Details about available options can be found at https://charmhub.io/sdcore-amf-k8s-operator/configure."
+  type        = map(string)
   default     = {}
 }
-
-variable "db_application_name" {
-  description = "The name of the application providing the `database` endpoint."
-  type        = string
-  default     = ""
-}
-
-variable "certs_application_name" {
-  description = "Name of the application providing the `certificates` integration endpoint."
-  type        = string
-  default     = ""
-}
-
-variable "nrf_application_name" {
-  description = "The name of the application providing the `fiveg_nrf` endpoint."
-  type        = string
-  default     = ""
-}
-
