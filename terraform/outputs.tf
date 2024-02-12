@@ -9,24 +9,24 @@ output "app_name" {
 # Required integration endpoints
 
 output "fiveg_nrf_endpoint" {
-  description = "Name of the endpoint used to integrate with the NRF."
+        description = "Name of the endpoint used to integrate with the NRF."
   value = "fiveg-nrf"
 }
 
 output "database_endpoint" {
-  description = "Name of the endpoint used to integrate with the database."
+        description = "Name of the endpoint used to integrate with the database."
   value = "database"
 }
 
 output "certificates_endpoint" {
-  description = "Name of the endpoint used to integrate with the TLS certificates provider."
+        description = "Name of the endpoint used to integrate with the TLS certificates provider."
   value = "certificates"
 }
 
 # Provided integration endpoints
 
 output "metrics_endpoint" {
-  description = "Exposes the Prometheus metrics endpoint providing telemetry about the AMF instance."
+        description = "Exposes the Prometheus metrics endpoint providing telemetry about the AMF instance."
   value = "metrics-endpoint"
 }
 
