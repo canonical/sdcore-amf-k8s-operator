@@ -25,7 +25,7 @@ like shown below:
 
 ```text
 module "amf" {
-  source = "git::https://github.com/canonical/sdcore-amf-k8s-operator/terraform"
+  source = "git::https://github.com/canonical/sdcore-amf-k8s-operator//terraform"
   
   model_name = "juju_model_name"
   (Customize configuration variables here if needed)
