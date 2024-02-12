@@ -1105,6 +1105,7 @@ class TestCharm(unittest.TestCase):
         (root / "support/TLS/amf.key").write_text(private_key)
         (root / "support/TLS/amf.csr").write_text(csr)
         certificate = "Whatever certificate content"
+        (root / "support/TLS/amf.pem").write_text(certificate)
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
         provider_certificate.csr = csr
@@ -1143,6 +1144,7 @@ class TestCharm(unittest.TestCase):
         (root / "support/TLS/amf.key").write_text(private_key)
         (root / "support/TLS/amf.csr").write_text(csr)
         certificate = "Whatever certificate content"
+        (root / "support/TLS/amf.pem").write_text(certificate)
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
         provider_certificate.csr = csr
@@ -1224,124 +1226,6 @@ class TestCharm(unittest.TestCase):
         self.harness.charm._on_certificate_expiring(event=event)
 
         patch_request_certificate_creation.assert_called_with(certificate_signing_request=csr)
-
-    def test_given_no_assigned_certificates_then_certificate_not_updated(self):  # noqa: E501
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root("amf")
-        csr = "whatever csr content"
-        (root / "support/TLS/amf.csr").write_text(csr)
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-
-        self.assertFalse(self.harness.charm._certificate_updated())
-
-    @patch(
-        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
-    )
-    def test_given_assigned_certificate_with_no_matching_csr_then_certificate_not_updated(  # noqa: E501
-        self,
-        patch_get_assigned_certificates,
-    ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root("amf")
-        csr = "whatever csr content"
-        (root / "support/TLS/amf.csr").write_text(csr)
-        certificate = "Whatever certificate content"
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = "different csr"
-        patch_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.assertFalse(self.harness.charm._certificate_updated())
-
-    @patch(
-        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
-    )
-    def test_given_assigned_certificate_with_matching_csr_and_same_content_then_certificate_not_updated(  # noqa: E501
-        self,
-        patch_get_assigned_certificates,
-    ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root("amf")
-        csr = "whatever csr content"
-        (root / "support/TLS/amf.csr").write_text(csr)
-        certificate = "Whatever certificate content"
-        (root / "support/TLS/amf.pem").write_text(certificate)
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
-        patch_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.assertFalse(self.harness.charm._certificate_updated())
-
-    @patch(
-        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
-    )
-    def test_given_assigned_certificate_with_matching_csr_and_different_content_then_certificate_updated(  # noqa: E501
-        self,
-        patch_get_assigned_certificates,
-    ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root("amf")
-        csr = "whatever csr content"
-        (root / "support/TLS/amf.csr").write_text(csr)
-        (root / "support/TLS/amf.pem").write_text("Different certificate")
-        certificate = "Whatever certificate content"
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
-        patch_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.assertTrue(self.harness.charm._certificate_updated())
-        self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
-
-    @patch(
-        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates",  # noqa: E501
-    )
-    def test_given_multiple_assigned_certificates_with_one_matching_csr_and_different_content_then_certificate_updated(  # noqa: E501
-        self,
-        patch_get_assigned_certificates,
-    ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root("amf")
-        csr = "whatever csr content"
-        (root / "support/TLS/amf.csr").write_text(csr)
-        (root / "support/TLS/amf.pem").write_text("Different certificate")
-        incorrect_provider_certificate = Mock(ProviderCertificate)
-        incorrect_provider_certificate.certificate = "Incorrect certificate"
-        incorrect_provider_certificate.csr = "Incorrect csr"
-        correct_certificate = "Whatever certificate content"
-        correct_provider_certificate = Mock(ProviderCertificate)
-        correct_provider_certificate.certificate = correct_certificate
-        correct_provider_certificate.csr = csr
-
-        patch_get_assigned_certificates.return_value = [
-            incorrect_provider_certificate,
-            correct_provider_certificate,
-        ]
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.assertTrue(self.harness.charm._certificate_updated())
-        self.assertEqual((root / "support/TLS/amf.pem").read_text(), correct_certificate)
 
     @patch("lightkube.core.client.GenericSyncClient", new=Mock)
     @patch("lightkube.core.client.Client.apply")

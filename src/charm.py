@@ -192,7 +192,15 @@ class AMFOperatorCharm(CharmBase):
             self._request_new_certificate()
             self.unit.status = WaitingStatus("Waiting for certificates to be stored")
             return
-        restart = self._certificate_updated()
+
+        restart = False
+        provider_certificate = self._get_current_provider_certificate()
+        if provider_certificate:
+            restart = self._update_certificate(provider_certificate=provider_certificate)
+        else:
+            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
+            return
+
         self._generate_config_file()
         self._configure_amf_workload(restart=restart)
         try:
@@ -238,20 +246,29 @@ class AMFOperatorCharm(CharmBase):
         """
         self.unit.status = BlockedStatus("Waiting for database relation")
 
-    def _certificate_updated(self) -> bool:
-        """Compares the current certificate to what is stored and updates it.
+    def _get_current_provider_certificate(self) -> str | None:
+        """Compares the current certificate request to what is in the interface.
+
+        Returns The current valid provider certificate if present
+        """
+        csr = self._get_stored_csr().encode()
+        for provider_certificate in self._certificates.get_assigned_certificates():
+            if provider_certificate.csr == csr:
+                return provider_certificate.certificate
+        return None
+
+    def _update_certificate(self, provider_certificate) -> bool:
+        """Compares the provided certificate to what is stored.
 
         Returns True if the certificate was updated
         """
-        csr = self._get_stored_csr()
-        for provider_certificate in self._certificates.get_assigned_certificates():
-            if provider_certificate.csr == csr:
-                existing_certificate = (
-                    self._get_stored_certificate() if self._certificate_is_stored() else ""
-                )
-                if not existing_certificate == provider_certificate.certificate:
-                    self._store_certificate(certificate=provider_certificate.certificate)
-                    return True
+        existing_certificate = (
+            self._get_stored_certificate() if self._certificate_is_stored() else ""
+        )
+
+        if not existing_certificate == provider_certificate:
+            self._store_certificate(certificate=provider_certificate)
+            return True
         return False
 
     def _generate_private_key(self) -> None:
