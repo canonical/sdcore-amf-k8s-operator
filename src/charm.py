@@ -190,8 +190,6 @@ class AMFOperatorCharm(CharmBase):
             self._generate_private_key()
         if not self._csr_is_stored():
             self._request_new_certificate()
-            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
-            return
 
         restart = False
         provider_certificate = self._get_current_provider_certificate()
