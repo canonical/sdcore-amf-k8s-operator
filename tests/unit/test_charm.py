@@ -286,7 +286,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -337,7 +337,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -384,7 +384,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -447,7 +447,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -536,7 +536,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -594,7 +594,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -655,7 +655,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -714,7 +714,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -767,7 +767,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -833,7 +833,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -904,7 +904,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_csr.return_value = csr
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -928,11 +928,11 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         private_key = b"whatever key content"
-        csr = "Whatever CSR content"
+        csr = b"Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.key").write_text(private_key.decode())
-        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.csr").write_text(csr.decode())
         (root / "support/TLS/amf.pem").write_text(certificate)
 
         self.harness.set_can_connect(container="amf", val=True)
@@ -1061,15 +1061,15 @@ class TestCharm(unittest.TestCase):
         self.harness.add_storage(storage_name="config", attach=True)
         patch_nrf_url.return_value = "http://nrf:8081"
         private_key = "whatever key content"
-        csr = "Whatever CSR content"
+        csr = b"Whatever CSR content"
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.key").write_text(private_key)
         (root / "support/TLS/amf.pem").write_text(certificate)
-        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.csr").write_text(csr.decode())
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -1100,15 +1100,15 @@ class TestCharm(unittest.TestCase):
         self.harness.add_storage(storage_name="config", attach=True)
         patch_nrf_url.return_value = "http://nrf:8081"
         private_key = "whatever key content"
-        csr = "Whatever CSR content"
+        csr = b"Whatever CSR content"
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.key").write_text(private_key)
-        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.csr").write_text(csr.decode())
         certificate = "Whatever certificate content"
         (root / "support/TLS/amf.pem").write_text(certificate)
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
@@ -1139,15 +1139,15 @@ class TestCharm(unittest.TestCase):
         self.harness.add_storage(storage_name="config", attach=True)
         patch_nrf_url.return_value = "http://nrf:8081"
         private_key = "whatever key content"
-        csr = "Whatever CSR content"
+        csr = b"Whatever CSR content"
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.key").write_text(private_key)
-        (root / "support/TLS/amf.csr").write_text(csr)
+        (root / "support/TLS/amf.csr").write_text(csr.decode())
         certificate = "Whatever certificate content"
         (root / "support/TLS/amf.pem").write_text(certificate)
         provider_certificate = Mock(ProviderCertificate)
         provider_certificate.certificate = certificate
-        provider_certificate.csr = csr
+        provider_certificate.csr = csr.decode()
         patch_get_assigned_certificates.return_value = [
             provider_certificate,
         ]

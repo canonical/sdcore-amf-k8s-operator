@@ -249,7 +249,7 @@ class AMFOperatorCharm(CharmBase):
 
         Returns The current valid provider certificate if present
         """
-        csr = self._get_stored_csr().encode()
+        csr = self._get_stored_csr()
         for provider_certificate in self._certificates.get_assigned_certificates():
             if provider_certificate.csr == csr:
                 return provider_certificate.certificate
@@ -320,7 +320,7 @@ class AMFOperatorCharm(CharmBase):
 
     def _get_stored_csr(self) -> str:
         """Returns stored CSR."""
-        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read())
+        return self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read()
 
     def _get_stored_private_key(self) -> bytes:
         """Returns stored private key."""
