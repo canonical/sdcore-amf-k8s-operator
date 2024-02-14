@@ -40,7 +40,7 @@ provides:
     interface: fiveg_n2
 
 requires:
-  fiveg-nrf:
+  fiveg_nrf:
     interface: fiveg_nrf
   database:
     interface: mongodb_client
