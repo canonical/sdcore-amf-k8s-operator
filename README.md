@@ -18,7 +18,7 @@ juju deploy self-signed-certificates --channel=stable
 juju integrate sdcore-nrf-k8s:database mongodb-k8s
 juju integrate sdcore-nrf-k8s:certificates self-signed-certificates:certificates
 juju integrate sdcore-amf-k8s:database mongodb-k8s
-juju integrate sdcore-amf-k8s:fiveg-nrf sdcore-nrf-k8s:fiveg-nrf
+juju integrate sdcore-amf-k8s:fiveg_nrf sdcore-nrf-k8s:fiveg_nrf
 juju integrate sdcore-amf-k8s:certificates self-signed-certificates:certificates
 ```
 
