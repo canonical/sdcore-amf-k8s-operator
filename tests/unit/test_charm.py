@@ -61,14 +61,14 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Waiting for fiveg-nrf relation"),
+            BlockedStatus("Waiting for fiveg_nrf relation"),
         )
 
     def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
             self.harness.model.unit.status,
@@ -79,7 +79,7 @@ class TestCharm(unittest.TestCase):
         self,
     ):
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
         self.assertEqual(
@@ -100,7 +100,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        nrf_relation_id = self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        nrf_relation_id = self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
@@ -108,7 +108,7 @@ class TestCharm(unittest.TestCase):
 
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Waiting for fiveg-nrf relation"),
+            BlockedStatus("Waiting for fiveg_nrf relation"),
         )
 
     @patch("charm.check_output")
@@ -125,7 +125,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         database_relation_id = self._create_database_relation_and_populate_data()
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
@@ -147,7 +147,7 @@ class TestCharm(unittest.TestCase):
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
@@ -168,7 +168,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
@@ -191,7 +191,7 @@ class TestCharm(unittest.TestCase):
         patch_generate_private_key.return_value = private_key
         patch_is_resource_created.return_value = True
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -214,7 +214,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -247,7 +247,7 @@ class TestCharm(unittest.TestCase):
         patch_check_output.return_value = b"1.1.1.1"
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -293,13 +293,12 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.pem").write_text(certificate)
-
         self._create_database_relation_and_populate_data()
 
         self.harness.container_pebble_ready("amf")
@@ -352,7 +351,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -397,7 +396,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -460,7 +459,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -481,7 +480,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_storage(storage_name="config", attach=True)
         patch_check_output.return_value = b""
         patch_nrf_url.return_value = "http://nrf:8081"
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -553,7 +552,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -611,7 +610,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -670,7 +669,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -729,7 +728,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -791,7 +790,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -852,7 +851,7 @@ class TestCharm(unittest.TestCase):
         private_key = b"whatever key content"
         patch_generate_private_key.return_value = private_key
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -914,7 +913,7 @@ class TestCharm(unittest.TestCase):
         patch_is_resource_created.return_value = True
         patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="nrf")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -965,7 +964,7 @@ class TestCharm(unittest.TestCase):
         patch_nrf_url.return_value = "http://nrf:8081"
         patch_check_output.return_value = b"1.1.1.1"
         self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -999,7 +998,7 @@ class TestCharm(unittest.TestCase):
         (root / "support/TLS/amf.key").write_text(private_key)
         self.harness.set_can_connect(container="amf", val=True)
 
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -1031,7 +1030,7 @@ class TestCharm(unittest.TestCase):
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.key").write_text(private_key)
 
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -1074,7 +1073,7 @@ class TestCharm(unittest.TestCase):
             provider_certificate,
         ]
 
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -1113,7 +1112,7 @@ class TestCharm(unittest.TestCase):
             provider_certificate,
         ]
 
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -1152,7 +1151,7 @@ class TestCharm(unittest.TestCase):
             provider_certificate,
         ]
 
-        self.harness.add_relation(relation_name="fiveg-nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
