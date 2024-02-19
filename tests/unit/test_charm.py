@@ -7,8 +7,7 @@ from unittest.mock import Mock, PropertyMock, call, patch
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
-from ops import testing
-from ops.model import ActiveStatus, BlockedStatus, WaitingStatus
+from ops import ActiveStatus, BlockedStatus, WaitingStatus, testing
 
 from charm import AMFOperatorCharm
 from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
@@ -59,6 +58,7 @@ class TestCharm(unittest.TestCase):
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             BlockedStatus("Waiting for fiveg_nrf relation"),
@@ -70,6 +70,7 @@ class TestCharm(unittest.TestCase):
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             BlockedStatus("Waiting for database relation"),
@@ -82,6 +83,7 @@ class TestCharm(unittest.TestCase):
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
         self.harness.add_relation(relation_name="database", remote_app="mongodb")
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             BlockedStatus("Waiting for certificates relation"),
@@ -105,6 +107,7 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
 
         self.harness.remove_relation(nrf_relation_id)
+        self.harness.evaluate_status()
 
         self.assertEqual(
             self.harness.model.unit.status,
@@ -133,7 +136,7 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
 
         self.harness.remove_relation(database_relation_id)
-
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             BlockedStatus("Waiting for database relation"),
@@ -153,6 +156,7 @@ class TestCharm(unittest.TestCase):
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for the amf database to be available"),
@@ -174,6 +178,7 @@ class TestCharm(unittest.TestCase):
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for AMF database info to be available"),
@@ -197,6 +202,7 @@ class TestCharm(unittest.TestCase):
         )
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for NRF data to be available"),
@@ -220,6 +226,7 @@ class TestCharm(unittest.TestCase):
         )
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for storage to be attached"),
@@ -254,6 +261,7 @@ class TestCharm(unittest.TestCase):
         self._create_database_relation_and_populate_data()
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             WaitingStatus("Waiting for certificates to be stored"),
@@ -465,6 +473,7 @@ class TestCharm(unittest.TestCase):
         )
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
             ActiveStatus(),
@@ -487,7 +496,7 @@ class TestCharm(unittest.TestCase):
         self._create_database_relation_and_populate_data()
 
         self.harness.container_pebble_ready(container_name="amf")
-
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.charm.unit.status,
             WaitingStatus("Waiting for pod IP address to be available"),
@@ -736,6 +745,7 @@ class TestCharm(unittest.TestCase):
         self.harness.container_pebble_ready("amf")
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.charm.unit.status, BlockedStatus("Waiting for MetalLB to be enabled")
         )
@@ -775,7 +785,7 @@ class TestCharm(unittest.TestCase):
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
-
+        self.harness.evaluate_status()
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
@@ -919,7 +929,7 @@ class TestCharm(unittest.TestCase):
         )
         self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
-
+        self.harness.evaluate_status()
         self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
@@ -956,7 +966,6 @@ class TestCharm(unittest.TestCase):
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-
         certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.pem").write_text(certificate)
@@ -965,11 +974,12 @@ class TestCharm(unittest.TestCase):
         patch_check_output.return_value = b"1.1.1.1"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(
+        cert_rel_id = self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self._create_database_relation_and_populate_data()
-        self.harness.charm._on_certificates_relation_broken(event=Mock())
+        self.harness.remove_relation(cert_rel_id)
+        self.harness.evaluate_status()
         self.assertEqual(
             self.harness.charm.unit.status, BlockedStatus("Waiting for certificates relation")
         )
