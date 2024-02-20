@@ -26,9 +26,24 @@ from lightkube import Client
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
-from ops.charm import CharmBase, EventBase, InstallEvent, RelationJoinedEvent, RemoveEvent
+from ops import (
+    ActiveStatus,
+    BlockedStatus,
+    CollectStatusEvent,
+    MaintenanceStatus,
+    ModelError,
+    StatusBase,
+    WaitingStatus,
+)
+from ops.charm import (
+    CharmBase,
+    EventBase,
+    InstallEvent,
+    RelationBrokenEvent,
+    RelationJoinedEvent,
+    RemoveEvent,
+)
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Layer
 
 logger = logging.getLogger(__name__)
@@ -61,14 +76,6 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        if not self.unit.is_leader():
-            # NOTE: In cases where leader status is lost before the charm is
-            # finished processing all teardown events, this prevents teardown
-            # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to preform if we're removing the
-            # charm.
-            self.unit.status = BlockedStatus("Scaling is not implemented for this charm")
-            return
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
@@ -86,6 +93,7 @@ class AMFOperatorCharm(CharmBase):
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
@@ -106,6 +114,95 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
+
+    def _check_relations(self) -> Optional[StatusBase]:
+        """Evaluate and return the unit's current status regarding with relations.
+
+        Returns:
+            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
+            None: If none of the conditionals match
+
+        """
+        for relation in ["fiveg_nrf", "database", "certificates"]:
+            if not self.model.relations[relation]:
+                return BlockedStatus(f"Waiting for {relation} relation")
+
+        if not self._database_is_available():
+            return WaitingStatus("Waiting for the amf database to be available")
+
+        if not self._get_database_info():
+            return WaitingStatus("Waiting for AMF database info to be available")
+
+        if not self._nrf_requires.nrf_url:
+            return WaitingStatus("Waiting for NRF data to be available")
+
+        return None
+
+    def _check_container_availability(self) -> Optional[StatusBase]:
+        """Evaluate and return the unit's current status regarding with container/pod.
+
+        Returns:
+            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
+            None: If none of the conditionals match
+
+        """
+        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
+            return WaitingStatus("Waiting for storage to be attached")
+
+        if not _get_pod_ip():
+            return WaitingStatus("Waiting for pod IP address to be available")
+
+        return None
+
+    def _is_unit_in_non_active_status(self) -> Optional[StatusBase]:
+        """Evaluate and return the unit's current status, or None if it should be active.
+
+        Returns:
+            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
+            None: If none of the conditionals match
+
+        """
+        if not self.unit.is_leader():
+            # NOTE: In cases where leader status is lost before the charm is
+            # finished processing all teardown events, this prevents teardown
+            # event code from running. Luckily, for this charm, none of the
+            # teardown code is necessary to preform if we're removing the
+            # charm.
+            return BlockedStatus("Scaling is not implemented for this charm")
+
+        if not self._amf_container.can_connect():
+            return MaintenanceStatus("Waiting for service to start")
+
+        if invalid_configs := self._get_invalid_configs():
+            return BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
+
+        if relations_issues := self._check_relations():
+            return relations_issues
+
+        if container_issues := self._check_container_availability():
+            return container_issues
+        try:
+            self._set_n2_information()
+        except ValueError:
+            return BlockedStatus("Waiting for MetalLB to be enabled")
+
+        return None
+
+    def _on_collect_unit_status(self, event: CollectStatusEvent):
+        """Check the unit status and set to Unit when CollectStatusEvent is fired.
+
+        Args:
+            event: CollectStatusEvent
+        """
+        if status := self._is_unit_in_non_active_status():
+            event.add_status(status)
+            return
+
+        if self._csr_is_stored() and not self._get_current_provider_certificate():
+            event.add_status(WaitingStatus("Waiting for certificates to be stored"))
+            return
+
+        event.add_status(ActiveStatus())
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
@@ -159,56 +256,25 @@ class AMFOperatorCharm(CharmBase):
         Args:
             event (PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent): Juju event
         """
-        if not self._amf_container.can_connect():
-            self.unit.status = MaintenanceStatus("Waiting for service to start")
-            return
-        if invalid_configs := self._get_invalid_configs():
-            self.unit.status = BlockedStatus(
-                f"The following configurations are not valid: {invalid_configs}"
-            )
-            return
-        for relation in ["fiveg_nrf", "database", "certificates"]:
-            if not self._relation_created(relation):
-                self.unit.status = BlockedStatus(f"Waiting for {relation} relation")
-                return
-        if not self._database_is_available():
-            self.unit.status = WaitingStatus("Waiting for the amf database to be available")
-            return
-        if not self._get_database_info():
-            self.unit.status = WaitingStatus("Waiting for AMF database info to be available")
-            return
-        if not self._nrf_requires.nrf_url:
-            self.unit.status = WaitingStatus("Waiting for NRF data to be available")
-            return
-        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
-            self.unit.status = WaitingStatus("Waiting for storage to be attached")
-            return
-        if not _get_pod_ip():
-            self.unit.status = WaitingStatus("Waiting for pod IP address to be available")
+        if self._is_unit_in_non_active_status():
+            # Unit Status is in Maintanence or Blocked or Waiting status
             return
         if not self._private_key_is_stored():
             self._generate_private_key()
         if not self._csr_is_stored():
             self._request_new_certificate()
-
-        restart = False
         provider_certificate = self._get_current_provider_certificate()
-        if provider_certificate:
-            restart = self._update_certificate(provider_certificate=provider_certificate)
-        else:
-            self.unit.status = WaitingStatus("Waiting for certificates to be stored")
+        if not provider_certificate:
             return
-
+        restart = self._update_certificate(provider_certificate=provider_certificate)
         self._generate_config_file()
         self._configure_amf_workload(restart=restart)
         try:
             self._set_n2_information()
         except ValueError:
-            self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
             return
-        self.unit.status = ActiveStatus()
 
-    def _on_certificates_relation_broken(self, event: EventBase) -> None:
+    def _on_certificates_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Deletes TLS related artifacts and reconfigures AMF."""
         if not self._amf_container.can_connect():
             event.defer()
@@ -216,7 +282,6 @@ class AMFOperatorCharm(CharmBase):
         self._delete_private_key()
         self._delete_csr()
         self._delete_certificate()
-        self.unit.status = BlockedStatus("Waiting for certificates relation")
 
     def _on_certificate_expiring(self, event: CertificateExpiringEvent):
         """Requests new certificate."""
@@ -228,21 +293,21 @@ class AMFOperatorCharm(CharmBase):
             return
         self._request_new_certificate()
 
-    def _on_nrf_broken(self, event: EventBase) -> None:
+    def _on_nrf_broken(self, event: RelationBrokenEvent) -> None:
         """Event handler for NRF relation broken.
 
         Args:
             event (NRFBrokenEvent): Juju event
         """
-        self.unit.status = BlockedStatus("Waiting for fiveg_nrf relation")
+        logger.info("Waiting for fiveg_nrf relation")
 
-    def _on_database_relation_broken(self, event: EventBase) -> None:
+    def _on_database_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Event handler for database relation broken.
 
         Args:
             event: Juju event
         """
-        self.unit.status = BlockedStatus("Waiting for database relation")
+        logger.info("Waiting for database relation")
 
     def _get_current_provider_certificate(self) -> str | None:
         """Compares the current certificate request to what is in the interface.
@@ -379,7 +444,6 @@ class AMFOperatorCharm(CharmBase):
         try:
             self._set_n2_information()
         except ValueError:
-            self.unit.status = BlockedStatus("Waiting for MetalLB to be enabled")
             return
 
     def _get_n2_amf_ip(self) -> Optional[str]:
