@@ -1,0 +1,9 @@
+ops
+lightkube
+lightkube-models
+pydantic<2.0
+pytest-interface-tester
+jinja2
+jsonschema
+cryptography
+cosl # Required by prometheus_k8s.v0.prometheus_scrape
