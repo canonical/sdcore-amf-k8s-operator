@@ -10,6 +10,7 @@ from subprocess import check_output
 from typing import Optional
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
+from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
 )
@@ -65,7 +66,7 @@ CERTIFICATE_COMMON_NAME = "amf.sdcore"
 CORE_NETWORK_FULL_NAME = "SDCORE5G"
 CORE_NETWORK_SHORT_NAME = "SDCORE"
 N2_RELATION_NAME = "fiveg-n2"
-
+LOGGING_RELATION_NAME = "logging"
 
 # The default field manager set when using kubectl to create resources
 DEFAULT_FIELD_MANAGER = "controller"
@@ -93,6 +94,7 @@ class AMFOperatorCharm(CharmBase):
         self._database = DatabaseRequires(
             self, relation_name="database", database_name=DATABASE_NAME
         )
+        self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
