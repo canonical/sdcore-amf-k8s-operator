@@ -32,7 +32,7 @@ storage:
 
 assumes:
   - k8s-api
-  - juju >= 3.1
+  - juju >= 3.4
 
 provides:
   metrics-endpoint:
