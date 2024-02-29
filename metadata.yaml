@@ -32,6 +32,7 @@ storage:
 
 assumes:
   - k8s-api
+  - juju >= 3.4
 
 provides:
   metrics-endpoint:
@@ -46,3 +47,5 @@ requires:
     interface: mongodb_client
   certificates:
     interface: tls-certificates
+  logging:
+    interface: loki_push_api

@@ -17,6 +17,7 @@ APP_NAME = METADATA["name"]
 DB_CHARM_NAME = "mongodb-k8s"
 NRF_CHARM_NAME = "sdcore-nrf-k8s"
 TLS_PROVIDER_CHARM_NAME = "self-signed-certificates"
+GRAFANA_AGENT_CHARM_NAME = "grafana-agent-k8s"
 
 
 @pytest.fixture(scope="module")
@@ -51,6 +52,11 @@ async def build_and_deploy(ops_test: OpsTest):
         application_name=TLS_PROVIDER_CHARM_NAME,
         channel="stable",
     )
+    await ops_test.model.deploy(
+        GRAFANA_AGENT_CHARM_NAME,
+        application_name=GRAFANA_AGENT_CHARM_NAME,
+        channel="stable",
+    )
 
 
 @pytest.mark.abort_on_fail
@@ -73,6 +79,9 @@ async def test_relate_and_wait_for_active_status(ops_test: OpsTest, build_and_de
     await ops_test.model.integrate(relation1=f"{APP_NAME}:database", relation2=f"{DB_CHARM_NAME}")
     await ops_test.model.integrate(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
+    await ops_test.model.integrate(
+        relation1=f"{APP_NAME}:logging", relation2=GRAFANA_AGENT_CHARM_NAME
+    )
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
         status="active",
