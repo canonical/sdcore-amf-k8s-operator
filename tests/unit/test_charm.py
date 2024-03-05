@@ -1262,7 +1262,7 @@ class TestCharm(unittest.TestCase):
                         type="LoadBalancer",
                     ),
                 ),
-                field_manager="controller",
+                field_manager="sdcore-amf-k8s",
             ),
         ]
 
