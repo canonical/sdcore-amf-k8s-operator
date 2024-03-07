@@ -68,9 +68,6 @@ CORE_NETWORK_SHORT_NAME = "SDCORE"
 N2_RELATION_NAME = "fiveg-n2"
 LOGGING_RELATION_NAME = "logging"
 
-# The default field manager set when using kubectl to create resources
-DEFAULT_FIELD_MANAGER = "controller"
-
 
 class AMFOperatorCharm(CharmBase):
     """Main class to describe juju event handling for the SD-Core AMF operator for K8s."""
@@ -224,7 +221,7 @@ class AMFOperatorCharm(CharmBase):
                     type="LoadBalancer",
                 ),
             ),
-            field_manager=DEFAULT_FIELD_MANAGER,
+            field_manager=self.model.app.name,
         )
         logger.info("Created/asserted existence of external AMF service")
 
