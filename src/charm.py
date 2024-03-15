@@ -33,7 +33,6 @@ from ops import (
     CollectStatusEvent,
     MaintenanceStatus,
     ModelError,
-    StatusBase,
     WaitingStatus,
 )
 from ops.charm import (
@@ -74,6 +73,14 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
+        if not self.unit.is_leader():
+            # NOTE: In cases where leader status is lost before the charm is
+            # finished processing all teardown events, this prevents teardown
+            # event code from running. Luckily, for this charm, none of the
+            # teardown code is necessary to preform if we're removing the
+            # charm.
+            return
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
@@ -98,11 +105,11 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
         self.framework.observe(self.on.database_relation_joined, self._configure_amf)
-        self.framework.observe(self.on.database_relation_broken, self._on_database_relation_broken)
+        self.framework.observe(self.on.database_relation_broken, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
-        self.framework.observe(self._nrf_requires.on.nrf_broken, self._on_nrf_broken)
+        self.framework.observe(self._nrf_requires.on.nrf_broken, self._configure_amf)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(self.on.certificates_relation_joined, self._configure_amf)
@@ -114,52 +121,11 @@ class AMFOperatorCharm(CharmBase):
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
 
-    def _check_relations(self) -> Optional[StatusBase]:
-        """Evaluate and return the unit's current status regarding with relations.
+    def _on_collect_unit_status(self, event: CollectStatusEvent):  # noqa C901
+        """Check the unit status and set to Unit when CollectStatusEvent is fired.
 
-        Returns:
-            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
-            None: If none of the conditionals match
-
-        """
-        for relation in ["fiveg_nrf", "database", "certificates"]:
-            if not self.model.relations[relation]:
-                return BlockedStatus(f"Waiting for {relation} relation")
-
-        if not self._database_is_available():
-            return WaitingStatus("Waiting for the amf database to be available")
-
-        if not self._get_database_info():
-            return WaitingStatus("Waiting for AMF database info to be available")
-
-        if not self._nrf_requires.nrf_url:
-            return WaitingStatus("Waiting for NRF data to be available")
-
-        return None
-
-    def _check_container_availability(self) -> Optional[StatusBase]:
-        """Evaluate and return the unit's current status regarding with container/pod.
-
-        Returns:
-            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
-            None: If none of the conditionals match
-
-        """
-        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
-            return WaitingStatus("Waiting for storage to be attached")
-
-        if not _get_pod_ip():
-            return WaitingStatus("Waiting for pod IP address to be available")
-
-        return None
-
-    def _is_unit_in_non_active_status(self) -> Optional[StatusBase]:
-        """Evaluate and return the unit's current status, or None if it should be active.
-
-        Returns:
-            StatusBase: MaintenanceStatus/BlockedStatus/WaitingStatus
-            None: If none of the conditionals match
-
+        Args:
+            event: CollectStatusEvent
         """
         if not self.unit.is_leader():
             # NOTE: In cases where leader status is lost before the charm is
@@ -167,41 +133,103 @@ class AMFOperatorCharm(CharmBase):
             # event code from running. Luckily, for this charm, none of the
             # teardown code is necessary to preform if we're removing the
             # charm.
-            return BlockedStatus("Scaling is not implemented for this charm")
+            event.add_status(BlockedStatus("Scaling is not implemented for this charm"))
+            logger.info("Scaling is not implemented for this charm")
+            return
 
         if not self._amf_container.can_connect():
-            return MaintenanceStatus("Waiting for service to start")
+            event.add_status(MaintenanceStatus("Waiting for service to start"))
+            logger.info("Waiting for service to start")
+            return
 
         if invalid_configs := self._get_invalid_configs():
-            return BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
+            event.add_status(
+                BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
+            )
+            logger.info("The following configurations are not valid: %s", invalid_configs)
+            return
 
-        if relations_issues := self._check_relations():
-            return relations_issues
+        for relation in ["fiveg_nrf", "database", "certificates"]:
+            if not self.model.relations[relation]:
+                event.add_status(BlockedStatus(f"Waiting for {relation} relation"))
+                logger.info("Waiting for %s relation", relation)
+                return
 
-        if container_issues := self._check_container_availability():
-            return container_issues
+        if not self._database_is_available():
+            event.add_status(WaitingStatus("Waiting for the amf database to be available"))
+            logger.info("Waiting for the amf database to be available")
+            return
+
+        if not self._get_database_info():
+            event.add_status(WaitingStatus("Waiting for AMF database info to be available"))
+            logger.info("Waiting for AMF database info to be available")
+            return
+
+        if not self._nrf_requires.nrf_url:
+            event.add_status(WaitingStatus("Waiting for NRF data to be available"))
+            logger.info("Waiting for NRF data to be available")
+            return
+
+        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
+            event.add_status(WaitingStatus("Waiting for storage to be attached"))
+            logger.info("Waiting for storage to be attached")
+            return
+
+        if not _get_pod_ip():
+            event.add_status(WaitingStatus("Waiting for pod IP address to be available"))
+            logger.info("Waiting for pod IP address to be available")
+            return
+
         try:
             self._set_n2_information()
         except ValueError:
-            return BlockedStatus("Waiting for MetalLB to be enabled")
-
-        return None
-
-    def _on_collect_unit_status(self, event: CollectStatusEvent):
-        """Check the unit status and set to Unit when CollectStatusEvent is fired.
-
-        Args:
-            event: CollectStatusEvent
-        """
-        if status := self._is_unit_in_non_active_status():
-            event.add_status(status)
-            return
+            event.add_status(BlockedStatus("Waiting for MetalLB to be enabled"))
+            logger.info("Waiting for MetalLB to be enabled")
 
         if self._csr_is_stored() and not self._get_current_provider_certificate():
             event.add_status(WaitingStatus("Waiting for certificates to be stored"))
+            logger.info("Waiting for certificates to be stored")
+            return
+
+        if not self._amf_service_is_running():
+            event.add_status(WaitingStatus("Waiting for AMF service to start"))
+            logger.info("Waiting for AMF service to start")
             return
 
         event.add_status(ActiveStatus())
+
+    def ready_to_configure(self) -> bool:
+        """Returns whether the preconditions are met to proceed with the configuration.
+
+        Returns:
+            ready_to_configure: True if all conditions are met else False
+        """
+        if not self._amf_container.can_connect():
+            return False
+
+        if self._get_invalid_configs():
+            return False
+
+        for relation in ["fiveg_nrf", "database", "certificates"]:
+            if not self._relation_created(relation):
+                return False
+
+        if not self._database_is_available():
+            return False
+
+        if not self._get_database_info():
+            return False
+
+        if not self._nrf_requires.nrf_url:
+            return False
+
+        if not self._amf_container.exists(path=CONFIG_DIR_PATH):
+            return False
+
+        if not _get_pod_ip():
+            return False
+
+        return True
 
     def _on_install(self, event: InstallEvent) -> None:
         client = Client()
@@ -249,29 +277,96 @@ class AMFOperatorCharm(CharmBase):
         )
         logger.info("Removed external AMF service")
 
-    def _configure_amf(self, event: EventBase) -> None:  # noqa C901
+    def _configure_amf(self, event: EventBase) -> None:
         """Handle pebble ready event for AMF container.
 
         Args:
             event (PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent): Juju event
         """
-        if self._is_unit_in_non_active_status():
-            # Unit Status is in Maintanence or Blocked or Waiting status
+        if not self.ready_to_configure():
+            logger.info("The preconditions for the configuration are not met yet.")
             return
+
         if not self._private_key_is_stored():
             self._generate_private_key()
+
         if not self._csr_is_stored():
             self._request_new_certificate()
+
         provider_certificate = self._get_current_provider_certificate()
         if not provider_certificate:
             return
-        restart = self._update_certificate(provider_certificate=provider_certificate)
-        self._generate_config_file()
-        self._configure_amf_workload(restart=restart)
+
+        if certificate_update_required := self._is_certificate_update_required(
+            provider_certificate
+        ):
+            self._store_certificate(certificate=provider_certificate)
+
+        desired_config_file = self._generate_amf_config_file()
+        if config_update_required := self._is_config_update_required(desired_config_file):
+            self._push_config_file(content=desired_config_file)
+
+        should_restart = config_update_required or certificate_update_required
+        self._configure_pebble(restart=should_restart)
+
         try:
             self._set_n2_information()
         except ValueError:
             return
+
+    def _is_config_update_required(self, content: str) -> bool:
+        """Decides whether config update is required by checking existence and config content.
+
+        Args:
+            content (str): desired config file content
+
+        Returns:
+            True if config update is required else False
+        """
+        if not self._config_file_is_written() or not self._config_file_content_matches(
+            content=content
+        ):
+            return True
+        return False
+
+    def _config_file_is_written(self) -> bool:
+        """Returns whether the config file was written to the workload container.
+
+        Returns:
+            bool: Whether the config file was written.
+        """
+        return bool(self._amf_container.exists(f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"))
+
+    def _is_certificate_update_required(self, provider_certificate) -> bool:
+        """Checks the provided certificate and existing certificate.
+
+        Returns True if update is required.
+
+        Args:
+            provider_certificate: str
+        Returns:
+            True if update is required else False
+        """
+        return self._get_existing_certificate() != provider_certificate
+
+    def _get_existing_certificate(self) -> str:
+        """Returns the existing certificate if present else empty string."""
+        return self._get_stored_certificate() if self._certificate_is_stored() else ""
+
+    def _configure_pebble(self, restart=False) -> None:
+        """Configures the Pebble layer.
+
+        Args:
+            restart (bool): Whether to restart the AMF container.
+        """
+        self._amf_container.add_layer(
+            self._amf_container_name, self._amf_pebble_layer, combine=True
+        )
+        if restart:
+            self._amf_container.restart(self._amf_service_name)
+            logger.info("Restarted container %s", self._amf_service_name)
+            return
+        self._amf_container.replan()
 
     def _on_certificates_relation_broken(self, event: RelationBrokenEvent) -> None:
         """Deletes TLS related artifacts and reconfigures AMF."""
@@ -291,22 +386,6 @@ class AMFOperatorCharm(CharmBase):
             logger.debug("Expiring certificate is not the one stored")
             return
         self._request_new_certificate()
-
-    def _on_nrf_broken(self, event: RelationBrokenEvent) -> None:
-        """Event handler for NRF relation broken.
-
-        Args:
-            event (NRFBrokenEvent): Juju event
-        """
-        logger.info("Waiting for fiveg_nrf relation")
-
-    def _on_database_relation_broken(self, event: RelationBrokenEvent) -> None:
-        """Event handler for database relation broken.
-
-        Args:
-            event: Juju event
-        """
-        logger.info("Waiting for database relation")
 
     def _get_current_provider_certificate(self) -> str | None:
         """Compares the current certificate request to what is in the interface.
@@ -487,17 +566,16 @@ class AMFOperatorCharm(CharmBase):
             amf_port=NGAPP_PORT,
         )
 
-    def _generate_config_file(self) -> None:
-        """Handles creation of the AMF config file.
+    def _generate_amf_config_file(self) -> str:
+        """Handles creation of the AMF config file based on a given template.
 
-        Generates AMF config file based on a given template.
-        Pushes AMF config file to the workload.
-        Calls `_configure_amf_workload` function to forcibly restart the AMF service in order
-        to fetch new config.
+        Returns:
+            content (str): desired config file content
         """
         if not (dnn := self._get_dnn_config()):
             raise ValueError("DNN configuration value is empty")
-        content = self._render_config_file(
+
+        return self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
             sbi_port=SBI_PORT,
@@ -510,11 +588,6 @@ class AMFOperatorCharm(CharmBase):
             dnn=dnn,
             scheme="https",
         )
-        if not self._config_file_content_matches(content=content):
-            self._push_config_file(
-                content=content,
-            )
-            self._configure_amf_workload(restart=True)
 
     @staticmethod
     def _render_config_file(
@@ -588,18 +661,6 @@ class AMFOperatorCharm(CharmBase):
             bool: True if the relation is created, False otherwise.
         """
         return bool(self.model.relations.get(relation_name))
-
-    def _configure_amf_workload(self, restart: bool = False) -> None:
-        """Configures pebble layer for the amf container.
-
-        Args:
-            restart (bool): Whether to restart the amf container.
-        """
-        plan = self._amf_container.get_plan()
-        layer = self._amf_pebble_layer
-        if plan.services != layer.services or restart:
-            self._amf_container.add_layer("amf", layer, combine=True)
-            self._amf_container.restart(self._amf_service_name)
 
     def _config_file_content_matches(self, content: str) -> bool:
         """Returns whether the amfcfg config file content matches the provided content.
