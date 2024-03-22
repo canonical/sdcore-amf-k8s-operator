@@ -8,7 +8,7 @@ asttokens==2.4.1
     # via stack-data
 bcrypt==4.1.2
     # via paramiko
-black==24.2.0
+black==24.3.0
     # via -r test-requirements.in
 cachetools==5.3.3
     # via google-auth
@@ -24,7 +24,7 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via black
-coverage[toml]==7.4.3
+coverage[toml]==7.4.4
     # via -r test-requirements.in
 cryptography==42.0.5
     # via paramiko
@@ -78,7 +78,7 @@ matplotlib-inline==0.1.6
     # via ipython
 mccabe==0.7.0
     # via flake8
-mypy==1.8.0
+mypy==1.9.0
     # via -r test-requirements.in
 mypy-extensions==1.0.0
     # via
@@ -146,7 +146,7 @@ pyrfc3339==1.1
     # via
     #   juju
     #   macaroonbakery
-pytest==8.0.2
+pytest==8.1.1
     # via
     #   -r test-requirements.in
     #   pytest-asyncio
@@ -191,11 +191,11 @@ traitlets==5.14.1
     # via
     #   ipython
     #   matplotlib-inline
-types-pyyaml==6.0.12.12
+types-pyyaml==6.0.12.20240311
     # via -r test-requirements.in
-types-setuptools==69.1.0.20240301
+types-setuptools==69.2.0.20240317
     # via -r test-requirements.in
-types-toml==0.10.8.7
+types-toml==0.10.8.20240310
     # via -r test-requirements.in
 typing-extensions==4.9.0
     # via
