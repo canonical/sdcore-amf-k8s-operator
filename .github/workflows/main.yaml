@@ -19,8 +19,8 @@ jobs:
       - name: Sanitize the branch variable
         id: sanitize
         run: |
-          sanitized=$(echo "/this-is-a-test | sed 's/\//-/2g'")
-          echo "::set-output name=sanitized::${sanitized}"
+          echo name=sanitized::$(echo "/this-is-a-test | sed 's/\//-/2g'")
+          echo "::set-output name=sanitized::$(echo "/this-is-a-test | sed 's/\//-/2g'")"
       - name: Check
         run: |
           echo Branch name is . ${{ steps.sanitize.outputs.sanitized }} .
