@@ -19,10 +19,11 @@ jobs:
       - name: Sanitize the branch variable
         id: sanitize
         run: |
-          echo "/this-is-a-test | sed 's/\//-/2g'"
+          sanitized=$(echo "/this-is-a-test | sed 's/\//-/2g'")
+          echo "::set-output name=sanitized::${sanitized}"
       - name: Check
         run: |
-          echo Branch name is . ${{ steps.sanitize.outputs.stdout }} .
+          echo Branch name is . ${{ steps.sanitize.outputs.sanitized }} .
 
 #  check-libraries:
 #    uses: canonical/sdcore-github-workflows/.github/workflows/check-libraries.yaml@main
