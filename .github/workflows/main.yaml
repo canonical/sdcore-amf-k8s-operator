@@ -24,7 +24,7 @@ jobs:
     needs:
       - sanitize-branch-name
     env:
-      BRANCH_NAME: "${{ needs.sanitize-branch.otuputs.BRANCH_NAME}}"
+      BRANCH_NAME: "${{ needs.sanitize-branch.outputs.BRANCH_NAME}}"
     if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
     steps:
       - name: Check
