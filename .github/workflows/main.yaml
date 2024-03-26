@@ -10,19 +10,9 @@ on:
 
 jobs:
 
-  sanitize-branch-name:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Sanitize the branch variable
-        id: sanitize
-        run: |
-          echo "BRANCH_NAME=/this-is-a-test | sed 's/\//-/2g'"
-
   check:
     runs-on: ubuntu-22.04
     name: Publish Developer Charm To Branch
-    needs:
-      - sanitize-branch-name
     if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
 
     steps:
