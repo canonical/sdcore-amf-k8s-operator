@@ -16,20 +16,23 @@ jobs:
       - name: Sanitize the branch variable
         id: sanitize
         run: |
-          echo "BRANCH_NAME=/this-is-a-test | sed 's/\//-/2g'" >> $GITHUB_OUTPUT
+          echo "BRANCH_NAME=/this-is-a-test | sed 's/\//-/2g'"
 
   check:
     runs-on: ubuntu-22.04
     name: Publish Developer Charm To Branch
     needs:
       - sanitize-branch-name
-    env:
-      BRANCH_NAME: "${{ needs.sanitize-branch.outputs.BRANCH_NAME}}"
     if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
+
     steps:
+      - name: Sanitize the branch variable
+        id: sanitize
+        run: |
+          echo "/this-is-a-test | sed 's/\//-/2g'"
       - name: Check
         run: |
-          echo ${{ env.BRANCH_NAME }}
+          echo Branch name is . ${{ steps.sanitize.outputs.stdout }} .
 
 #  check-libraries:
 #    uses: canonical/sdcore-github-workflows/.github/workflows/check-libraries.yaml@main
