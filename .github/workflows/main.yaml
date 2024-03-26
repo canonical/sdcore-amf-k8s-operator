@@ -20,7 +20,7 @@ jobs:
         id: sanitize
         run: |
           echo sanitized=$(echo /this-is-a-test/sub | sed 's/\//-/2g') >> $GITHUB_OUTPUT
-          if: ${{ github.ref_name == 'main' }}
+        if: ${{ github.ref_name == 'main' }}
       - name: Check
         run: |
           echo Branch name is . ${{ steps.sanitize.outputs.sanitized }} .
