@@ -55,7 +55,7 @@ jobs:
       - unit-tests-with-coverage
       - integration-test
     if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@TELCO-1082_sanitize-branch-name
+    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@main
     with:
       branch-name: ${{ github.ref_name }}
       charm-file-name: "sdcore-amf-k8s_ubuntu-22.04-amd64.charm"
