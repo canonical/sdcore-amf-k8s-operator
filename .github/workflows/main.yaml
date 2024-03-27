@@ -9,7 +9,6 @@ on:
     - cron: '0 6 * * 0'
 
 jobs:
-
   check-libraries:
     uses: canonical/sdcore-github-workflows/.github/workflows/check-libraries.yaml@main
     secrets:
