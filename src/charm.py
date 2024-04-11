@@ -7,7 +7,7 @@
 import logging
 from ipaddress import IPv4Address
 from subprocess import check_output
-from typing import Optional
+from typing import Optional, cast
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
 from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
@@ -503,13 +503,13 @@ class AMFOperatorCharm(CharmBase):
         return invalid_configs
 
     def _get_dnn_config(self) -> Optional[str]:
-        return self.model.config.get("dnn")
+        return cast(Optional[str], self.model.config.get("dnn"))
 
     def _get_external_amf_ip_config(self) -> Optional[str]:
-        return self.model.config.get("external-amf-ip")
+        return cast(Optional[str], self.model.config.get("external-amf-ip"))
 
     def _get_external_amf_hostname_config(self) -> Optional[str]:
-        return self.model.config.get("external-amf-hostname")
+        return cast(Optional[str], self.model.config.get("external-amf-hostname"))
 
     def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
         """Handles N2 relation joined event.
