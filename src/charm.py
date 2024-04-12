@@ -78,7 +78,7 @@ class AMFOperatorCharm(CharmBase):
             # NOTE: In cases where leader status is lost before the charm is
             # finished processing all teardown events, this prevents teardown
             # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to preform if we're removing the
+            # teardown code is necessary to perform if we're removing the
             # charm.
             return
         self._amf_container_name = self._amf_service_name = "amf"
@@ -129,7 +129,7 @@ class AMFOperatorCharm(CharmBase):
             # NOTE: In cases where leader status is lost before the charm is
             # finished processing all teardown events, this prevents teardown
             # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to preform if we're removing the
+            # teardown code is necessary to perform if we're removing the
             # charm.
             event.add_status(BlockedStatus("Scaling is not implemented for this charm"))
             logger.info("Scaling is not implemented for this charm")
@@ -197,7 +197,7 @@ class AMFOperatorCharm(CharmBase):
         event.add_status(ActiveStatus())
 
     def ready_to_configure(self) -> bool:
-        """Returns whether the preconditions are met to proceed with the configuration.
+        """Return whether the preconditions are met to proceed with the configuration.
 
         Returns:
             ready_to_configure: True if all conditions are met else False
@@ -252,7 +252,7 @@ class AMFOperatorCharm(CharmBase):
         logger.info("Created/asserted existence of external AMF service")
 
     def _on_remove(self, event: RemoveEvent) -> None:
-        # NOTE: We want to preform this removal only if the last remaining unit
+        # NOTE: We want to perform this removal only if the last remaining unit
         # is removed. This charm does not support scaling, so it *should* be
         # the only unit.
         #
@@ -313,7 +313,7 @@ class AMFOperatorCharm(CharmBase):
             return
 
     def _is_config_update_required(self, content: str) -> bool:
-        """Decides whether config update is required by checking existence and config content.
+        """Decide whether config update is required by checking existence and config content.
 
         Args:
             content (str): desired config file content
@@ -328,7 +328,7 @@ class AMFOperatorCharm(CharmBase):
         return False
 
     def _config_file_is_written(self) -> bool:
-        """Returns whether the config file was written to the workload container.
+        """Return whether the config file was written to the workload container.
 
         Returns:
             bool: Whether the config file was written.
@@ -336,9 +336,9 @@ class AMFOperatorCharm(CharmBase):
         return bool(self._amf_container.exists(f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"))
 
     def _is_certificate_update_required(self, provider_certificate) -> bool:
-        """Checks the provided certificate and existing certificate.
+        """Check the provided certificate and existing certificate.
 
-        Returns True if update is required.
+        Return True if update is required.
 
         Args:
             provider_certificate: str
@@ -348,11 +348,11 @@ class AMFOperatorCharm(CharmBase):
         return self._get_existing_certificate() != provider_certificate
 
     def _get_existing_certificate(self) -> str:
-        """Returns the existing certificate if present else empty string."""
+        """Return the existing certificate if present else empty string."""
         return self._get_stored_certificate() if self._certificate_is_stored() else ""
 
     def _configure_pebble(self, restart=False) -> None:
-        """Configures the Pebble layer.
+        """Configure the Pebble layer.
 
         Args:
             restart (bool): Whether to restart the AMF container.
@@ -367,7 +367,7 @@ class AMFOperatorCharm(CharmBase):
         self._amf_container.replan()
 
     def _on_certificates_relation_broken(self, event: RelationBrokenEvent) -> None:
-        """Deletes TLS related artifacts and reconfigures AMF."""
+        """Delete TLS related artifacts and reconfigures AMF."""
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -376,7 +376,7 @@ class AMFOperatorCharm(CharmBase):
         self._delete_certificate()
 
     def _on_certificate_expiring(self, event: CertificateExpiringEvent):
-        """Requests new certificate."""
+        """Request new certificate."""
         if not self._amf_container.can_connect():
             event.defer()
             return
@@ -386,7 +386,7 @@ class AMFOperatorCharm(CharmBase):
         self._request_new_certificate()
 
     def _get_current_provider_certificate(self) -> str | None:
-        """Compares the current certificate request to what is in the interface.
+        """Compare the current certificate request to what is in the interface.
 
         Returns The current valid provider certificate if present
         """
@@ -397,7 +397,7 @@ class AMFOperatorCharm(CharmBase):
         return None
 
     def _update_certificate(self, provider_certificate) -> bool:
-        """Compares the provided certificate to what is stored.
+        """Compare the provided certificate to what is stored.
 
         Returns True if the certificate was updated
         """
@@ -411,12 +411,12 @@ class AMFOperatorCharm(CharmBase):
         return False
 
     def _generate_private_key(self) -> None:
-        """Generates and stores private key."""
+        """Generate and stores private key."""
         private_key = generate_private_key()
         self._store_private_key(private_key)
 
     def _request_new_certificate(self) -> None:
-        """Generates and stores CSR, and uses it to request a new certificate."""
+        """Generate and stores CSR, and uses it to request a new certificate."""
         private_key = self._get_stored_private_key()
         csr = generate_csr(
             private_key=private_key,
@@ -427,59 +427,59 @@ class AMFOperatorCharm(CharmBase):
         self._certificates.request_certificate_creation(certificate_signing_request=csr)
 
     def _delete_private_key(self):
-        """Removes private key from workload."""
+        """Remove private key from workload."""
         if not self._private_key_is_stored():
             return
         self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
         logger.info("Removed private key from workload")
 
     def _delete_csr(self):
-        """Deletes CSR from workload."""
+        """Delete CSR from workload."""
         if not self._csr_is_stored():
             return
         self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
         logger.info("Removed CSR from workload")
 
     def _delete_certificate(self):
-        """Deletes certificate from workload."""
+        """Delete certificate from workload."""
         if not self._certificate_is_stored():
             return
         self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
         logger.info("Removed certificate from workload")
 
     def _private_key_is_stored(self) -> bool:
-        """Returns whether private key is stored in workload."""
+        """Return whether private key is stored in workload."""
         return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
 
     def _csr_is_stored(self) -> bool:
-        """Returns whether CSR is stored in workload."""
+        """Return whether CSR is stored in workload."""
         return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
 
     def _get_stored_certificate(self) -> str:
-        """Returns stored certificate."""
+        """Return stored certificate."""
         return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read())
 
     def _get_stored_csr(self) -> str:
-        """Returns stored CSR."""
+        """Return stored CSR."""
         return self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read()
 
     def _get_stored_private_key(self) -> bytes:
-        """Returns stored private key."""
+        """Return stored private key."""
         return str(
             self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read()
         ).encode()
 
     def _certificate_is_stored(self) -> bool:
-        """Returns whether certificate is stored in workload."""
+        """Return whether certificate is stored in workload."""
         return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
 
     def _store_certificate(self, certificate: str) -> None:
-        """Stores certificate in workload."""
+        """Store certificate in workload."""
         self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=certificate)
         logger.info("Pushed certificate pushed to workload")
 
     def _store_private_key(self, private_key: bytes) -> None:
-        """Stores private key in workload."""
+        """Store private key in workload."""
         self._amf_container.push(
             path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
             source=private_key.decode(),
@@ -487,12 +487,12 @@ class AMFOperatorCharm(CharmBase):
         logger.info("Pushed private key to workload")
 
     def _store_csr(self, csr: bytes) -> None:
-        """Stores CSR in workload."""
+        """Store CSR in workload."""
         self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode().strip())
         logger.info("Pushed CSR to workload")
 
     def _get_invalid_configs(self) -> list[str]:
-        """Returns list of invalid configurations.
+        """Return list of invalid configurations.
 
         Returns:
             list: List of strings matching config keys.
@@ -512,7 +512,7 @@ class AMFOperatorCharm(CharmBase):
         return cast(Optional[str], self.model.config.get("external-amf-hostname"))
 
     def _on_n2_relation_joined(self, event: RelationJoinedEvent) -> None:
-        """Handles N2 relation joined event.
+        """Handle N2 relation joined event.
 
         Args:
             event (RelationJoinedEvent): Juju event
@@ -523,7 +523,7 @@ class AMFOperatorCharm(CharmBase):
             return
 
     def _get_n2_amf_ip(self) -> Optional[str]:
-        """Returns the IP to send for the N2 interface.
+        """Return the IP to send for the N2 interface.
 
         If a configuration is provided, it is returned, otherwise
         returns the IP of the external LoadBalancer Service.
@@ -536,7 +536,7 @@ class AMFOperatorCharm(CharmBase):
         return self._amf_external_service_ip()
 
     def _get_n2_amf_hostname(self) -> str:
-        """Returns the hostname to send for the N2 interface.
+        """Return the hostname to send for the N2 interface.
 
         If a configuration is provided, it is returned. If that is
         not available, returns the hostname of the external LoadBalancer
@@ -553,7 +553,7 @@ class AMFOperatorCharm(CharmBase):
         return self._amf_hostname()
 
     def _set_n2_information(self) -> None:
-        """Sets N2 information for the N2 relation."""
+        """Set N2 information for the N2 relation."""
         if not self._relation_created(N2_RELATION_NAME):
             return
         if not self._amf_service_is_running():
@@ -565,7 +565,7 @@ class AMFOperatorCharm(CharmBase):
         )
 
     def _generate_amf_config_file(self) -> str:
-        """Handles creation of the AMF config file based on a given template.
+        """Handle creation of the AMF config file based on a given template.
 
         Returns:
             content (str): desired config file content
@@ -602,7 +602,7 @@ class AMFOperatorCharm(CharmBase):
         dnn: str,
         scheme: str,
     ) -> str:
-        """Renders the AMF config file.
+        """Render the AMF config file.
 
         Args:
             database_name (str): Name of the AMF database.
@@ -638,7 +638,7 @@ class AMFOperatorCharm(CharmBase):
         return content
 
     def _push_config_file(self, content: str) -> None:
-        """Writes the AMF config file and pushes it to the container.
+        """Write the AMF config file and pushes it to the container.
 
         Args:
             content (str): Content of the config file.
@@ -650,7 +650,7 @@ class AMFOperatorCharm(CharmBase):
         logger.info("Pushed %s config file", CONFIG_FILE_NAME)
 
     def _relation_created(self, relation_name: str) -> bool:
-        """Returns True if the relation is created, False otherwise.
+        """Return True if the relation is created, False otherwise.
 
         Args:
             relation_name (str): Name of the relation.
@@ -661,7 +661,7 @@ class AMFOperatorCharm(CharmBase):
         return bool(self.model.relations.get(relation_name))
 
     def _config_file_content_matches(self, content: str) -> bool:
-        """Returns whether the amfcfg config file content matches the provided content.
+        """Return whether the amfcfg config file content matches the provided content.
 
         Returns:
             bool: Whether the amfcfg config file content matches
@@ -675,7 +675,7 @@ class AMFOperatorCharm(CharmBase):
 
     @property
     def _amf_pebble_layer(self) -> Layer:
-        """Returns pebble layer for the amf container.
+        """Return pebble layer for the amf container.
 
         Returns:
             Layer: Pebble Layer
@@ -694,7 +694,7 @@ class AMFOperatorCharm(CharmBase):
         )
 
     def _get_database_info(self) -> dict:
-        """Returns the database data.
+        """Return the database data.
 
         Returns:
             Dict: The database data.
@@ -704,7 +704,7 @@ class AMFOperatorCharm(CharmBase):
         return self._database.fetch_relation_data()[self._database.relations[0].id]
 
     def _database_is_available(self) -> bool:
-        """Returns True if the database is available.
+        """Return True if the database is available.
 
         Returns:
             bool: True if the database is available.
@@ -713,7 +713,7 @@ class AMFOperatorCharm(CharmBase):
 
     @property
     def _amf_environment_variables(self) -> dict:
-        """Returns environment variables for the amf container.
+        """Return environment variables for the amf container.
 
         Returns:
             dict: Environment variables.
@@ -729,7 +729,7 @@ class AMFOperatorCharm(CharmBase):
         }
 
     def _amf_hostname(self) -> str:
-        """Builds and returns the AMF hostname in the cluster.
+        """Build and returns the AMF hostname in the cluster.
 
         Returns:
             str: The AMF hostname.
@@ -737,7 +737,7 @@ class AMFOperatorCharm(CharmBase):
         return f"{self.model.app.name}-external.{self.model.name}.svc.cluster.local"
 
     def _amf_service_is_running(self) -> bool:
-        """Returns whether the AMF service is running.
+        """Return whether the AMF service is running.
 
         Returns:
             bool: Whether the AMF service is running.
@@ -751,7 +751,7 @@ class AMFOperatorCharm(CharmBase):
         return service.is_running()
 
     def _amf_external_service_ip(self) -> Optional[str]:
-        """Returns the external service IP.
+        """Return the external service IP.
 
         Returns:
             str/None: External Service IP if available else None
@@ -771,7 +771,7 @@ class AMFOperatorCharm(CharmBase):
             return None
 
     def _amf_external_service_hostname(self) -> Optional[str]:
-        """Returns the external service hostname.
+        """Return the external service hostname.
 
         Returns:
             str: External Service hostname if available else None
@@ -792,7 +792,7 @@ class AMFOperatorCharm(CharmBase):
 
 
 def _get_pod_ip() -> Optional[str]:
-    """Returns the pod IP using juju client.
+    """Return the pod IP using juju client.
 
     Returns:
         str: The pod IP.
