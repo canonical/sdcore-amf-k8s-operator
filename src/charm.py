@@ -357,9 +357,13 @@ class AMFOperatorCharm(CharmBase):
         Args:
             restart (bool): Whether to restart the AMF container.
         """
-        self._amf_container.add_layer(
-            self._amf_container_name, self._amf_pebble_layer, combine=True
-        )
+        plan = self._amf_container.get_plan()
+        if plan.services != self._amf_pebble_layer.services:
+            self._amf_container.add_layer(
+                self._amf_container_name, self._amf_pebble_layer, combine=True
+            )
+            self._amf_container.replan()
+            logger.info("New layer added: %s", self._amf_pebble_layer)
         if restart:
             self._amf_container.restart(self._amf_service_name)
             logger.info("Restarted container %s", self._amf_service_name)
