@@ -44,7 +44,7 @@ async def build_and_deploy(ops_test: OpsTest):
     await ops_test.model.deploy(
         NRF_CHARM_NAME,
         application_name=NRF_CHARM_NAME,
-        channel="edge",
+        channel="1.4/edge",
         trust=True,
     )
     await ops_test.model.deploy(
