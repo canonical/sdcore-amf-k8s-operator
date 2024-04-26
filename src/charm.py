@@ -99,7 +99,6 @@ class AMFOperatorCharm(CharmBase):
             self, relation_name="database", database_name=DATABASE_NAME
         )
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
-        self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
