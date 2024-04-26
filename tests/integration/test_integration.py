@@ -28,7 +28,7 @@ TIMEOUT = 15 * 60
 @pytest.fixture(scope="module")
 @pytest.mark.abort_on_fail
 async def deploy(ops_test: OpsTest, request):
-    """Build the charm-under-test and deploy it."""
+    """Deploy the charm-under-test."""
     assert ops_test.model
     charm = Path(request.config.getoption("--charm_path")).resolve()
     resources = {
