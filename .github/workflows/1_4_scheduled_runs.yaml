@@ -36,3 +36,10 @@ jobs:
     with:
       branch-name: "v1.4"
       charm-file-name: "sdcore-amf-k8s_ubuntu-22.04-amd64.charm"
+
+  update-libs:
+    name: Update libs
+    uses: canonical/sdcore-github-workflows/.github/workflows/update-libs.yaml@v0.0.1
+    with:
+      branch-name: "v1.4"
+    secrets: inherit
