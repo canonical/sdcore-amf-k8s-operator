@@ -7,6 +7,11 @@ on:
   push:
 
 jobs:
+  check-libraries:
+    uses: canonical/sdcore-github-workflows/.github/workflows/check-libraries.yaml@v0.0.1
+    secrets:
+      CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
+
   codeql:
     name: CodeQL Analysis
     uses: canonical/sdcore-github-workflows/.github/workflows/codeql-analysis.yml@v0.0.1
