@@ -1,4 +1,4 @@
-name: Main branch CI
+name: Release 1.4 CI
 
 on:
   pull_request:
