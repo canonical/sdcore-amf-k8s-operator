@@ -39,7 +39,7 @@ jobs:
 
   update-libs:
     name: Update libs
-    uses: canonical/sdcore-github-workflows/.github/workflows/update-libs.yaml@v0.0.1
+    uses: canonical/sdcore-github-workflows/.github/workflows/update-libs.yaml@v1.0.0
     with:
       branch-name: "v1.4"
     secrets: inherit
