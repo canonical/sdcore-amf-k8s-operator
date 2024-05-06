@@ -16,32 +16,32 @@ jobs:
     name: CodeQL Analysis
     uses: canonical/sdcore-github-workflows/.github/workflows/codeql-analysis.yml@v0.0.1
     with:
-      branch-name: ${{ github.ref_name }}
+      branch-name: ${{ env.GITHUB_REF }}
 
   lint-report:
     uses: canonical/sdcore-github-workflows/.github/workflows/lint-report.yaml@v0.0.1
     with:
-      branch-name: ${{ github.ref_name }}
+      branch-name: ${{ env.GITHUB_REF }}
 
   terraform-check:
     uses: canonical/sdcore-github-workflows/.github/workflows/terraform.yaml@v0.0.1
     with:
-      branch-name: ${{ github.ref_name }}
+      branch-name: ${{ env.GITHUB_REF }}
 
   static-analysis:
     uses: canonical/sdcore-github-workflows/.github/workflows/static-analysis.yaml@v0.0.1
     with:
-      branch-name: ${{ github.ref_name }}
+      branch-name: ${{ env.GITHUB_REF }}
 
   unit-tests-with-coverage:
     uses: canonical/sdcore-github-workflows/.github/workflows/unit-test.yaml@v0.0.1
     with:
-      branch-name: ${{ github.ref_name }}
+      branch-name: ${{ env.GITHUB_REF }}
 
   integration-test:
     uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@v0.0.1
     with:
-      branch-name: ${{ github.ref_name }}
+      branch-name: ${{ env.GITHUB_REF }}
       charm-file-name: "sdcore-amf-k8s_ubuntu-22.04-amd64.charm"
 
   publish-charm:
