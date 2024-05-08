@@ -594,6 +594,7 @@ class AMFOperatorCharm(CharmBase):
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
             scheme="https",
+            enable_database=bool(database_url),
         )
 
     @staticmethod
@@ -610,6 +611,7 @@ class AMFOperatorCharm(CharmBase):
         short_network_name: str,
         dnn: str,
         scheme: str,
+        enable_database: bool,
     ) -> str:
         """Render the AMF config file.
 
@@ -625,6 +627,7 @@ class AMFOperatorCharm(CharmBase):
             short_network_name (str): Short name of the network.
             dnn (str): Data Network name.
             scheme (str): SBI interface scheme ("http" or "https")
+            enable_database (bool): Enable database.
 
         Returns:
             str: Content of the rendered config file.
@@ -643,6 +646,7 @@ class AMFOperatorCharm(CharmBase):
             short_network_name=short_network_name,
             dnn=dnn,
             scheme=scheme,
+            enable_database="true" if enable_database else "false",
         )
         return content
 
