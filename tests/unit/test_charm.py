@@ -64,16 +64,48 @@ class TestCharm(unittest.TestCase):
             BlockedStatus("Waiting for fiveg_nrf relation"),
         )
 
-    def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
+    @patch("charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates")
+    @patch("charm.generate_csr")
+    @patch("charm.check_output")
+    @patch("charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_database_relation_not_created_when_pebble_ready_then_status_is_active(
         self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_check_output,
+        patch_generate_csr,
+        patch_get_assigned_certificates,
     ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        patch_check_output.return_value = b"1.1.1.1"
+        certificate = "Whatever certificate content"
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        provider_certificate = Mock(ProviderCertificate)
+        provider_certificate.certificate = certificate
+        provider_certificate.csr = csr.decode()
+        patch_get_assigned_certificates.return_value = [
+            provider_certificate,
+        ]
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "free5gc/config/amfcfg.conf").write_text(
+            self._read_file("tests/unit/expected_config/config.conf").strip()
+        )
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
         self.harness.container_pebble_ready("amf")
         self.harness.evaluate_status()
         self.assertEqual(
             self.harness.model.unit.status,
-            BlockedStatus("Waiting for database relation"),
+            ActiveStatus(),
         )
 
     def test_given_certificates_relation_not_created_when_pebble_ready_then_status_is_blocked(
@@ -112,34 +144,6 @@ class TestCharm(unittest.TestCase):
         self.assertEqual(
             self.harness.model.unit.status,
             BlockedStatus("Waiting for fiveg_nrf relation"),
-        )
-
-    @patch("charm.check_output")
-    @patch("charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
-    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
-    def test_given_amf_charm_in_active_state_when_database_relation_breaks_then_status_is_blocked(
-        self,
-        patch_is_resource_created,
-        patch_nrf_url,
-        patch_check_output,
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        patch_check_output.return_value = b"1.1.1.1"
-        patch_is_resource_created.return_value = True
-        patch_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        database_relation_id = self._create_database_relation_and_populate_data()
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
-
-        self.harness.remove_relation(database_relation_id)
-        self.harness.evaluate_status()
-        self.assertEqual(
-            self.harness.model.unit.status,
-            BlockedStatus("Waiting for database relation"),
         )
 
     @patch("charm.generate_private_key")
@@ -314,6 +318,52 @@ class TestCharm(unittest.TestCase):
             expected_content = expected_config_file.read()
         self.assertEqual((root / "support/TLS/amf.key").read_text(), private_key.decode())
         self.assertEqual((root / "support/TLS/amf.pem").read_text(), certificate)
+        self.assertEqual(
+            (root / "free5gc/config/amfcfg.conf").read_text(), expected_content.strip()
+        )
+
+    @patch("charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates")  # noqa: E501
+    @patch("charm.generate_csr")
+    @patch("charm.check_output")
+    @patch("charm.generate_private_key")
+    @patch("charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock)
+    @patch("charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created")
+    def test_given_relations_created_no_mongodb_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
+        self,
+        patch_is_resource_created,
+        patch_nrf_url,
+        patch_generate_private_key,
+        patch_check_output,
+        patch_generate_csr,
+        patch_get_assigned_certificates,
+    ):
+        self.harness.add_storage(storage_name="certs", attach=True)
+        self.harness.add_storage(storage_name="config", attach=True)
+        private_key = b"whatever key content"
+        patch_generate_private_key.return_value = private_key
+        patch_check_output.return_value = b"1.1.1.1"
+        certificate = "Whatever certificate content"
+        csr = b"whatever csr content"
+        patch_generate_csr.return_value = csr
+        provider_certificate = Mock(ProviderCertificate)
+        provider_certificate.certificate = certificate
+        provider_certificate.csr = csr.decode()
+        patch_get_assigned_certificates.return_value = [
+            provider_certificate,
+        ]
+        patch_is_resource_created.return_value = True
+        patch_nrf_url.return_value = "http://nrf:8081"
+        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.add_relation(
+            relation_name="certificates", remote_app="tls-certificates-operator"
+        )
+        root = self.harness.get_filesystem_root("amf")
+        (root / "support/TLS/amf.pem").write_text(certificate)
+
+        self.harness.container_pebble_ready("amf")
+        with open("tests/unit/expected_config/config_no_mongo.conf") as expected_config_file:
+            expected_content = expected_config_file.read()
         self.assertEqual(
             (root / "free5gc/config/amfcfg.conf").read_text(), expected_content.strip()
         )
