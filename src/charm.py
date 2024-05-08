@@ -146,21 +146,22 @@ class AMFOperatorCharm(CharmBase):
             logger.info("The following configurations are not valid: %s", invalid_configs)
             return
 
-        for relation in ["fiveg_nrf", "database", "certificates"]:
+        for relation in ["fiveg_nrf", "certificates"]:
             if not self.model.relations[relation]:
                 event.add_status(BlockedStatus(f"Waiting for {relation} relation"))
                 logger.info("Waiting for %s relation", relation)
                 return
 
-        if not self._database_is_available():
-            event.add_status(WaitingStatus("Waiting for the amf database to be available"))
-            logger.info("Waiting for the amf database to be available")
-            return
+        if self.model.relations["database"]:
+            if not self._database_is_available():
+                event.add_status(WaitingStatus("Waiting for the amf database to be available"))
+                logger.info("Waiting for the amf database to be available")
+                return
 
-        if not self._get_database_info():
-            event.add_status(WaitingStatus("Waiting for AMF database info to be available"))
-            logger.info("Waiting for AMF database info to be available")
-            return
+            if not self._get_database_info():
+                event.add_status(WaitingStatus("Waiting for AMF database info to be available"))
+                logger.info("Waiting for AMF database info to be available")
+                return
 
         if not self._nrf_requires.nrf_url:
             event.add_status(WaitingStatus("Waiting for NRF data to be available"))
@@ -195,7 +196,7 @@ class AMFOperatorCharm(CharmBase):
 
         event.add_status(ActiveStatus())
 
-    def ready_to_configure(self) -> bool:
+    def ready_to_configure(self) -> bool:  # noqa C901
         """Return whether the preconditions are met to proceed with the configuration.
 
         Returns:
@@ -207,15 +208,16 @@ class AMFOperatorCharm(CharmBase):
         if self._get_invalid_configs():
             return False
 
-        for relation in ["fiveg_nrf", "database", "certificates"]:
+        for relation in ["fiveg_nrf", "certificates"]:
             if not self._relation_created(relation):
                 return False
 
-        if not self._database_is_available():
-            return False
+        if self._relation_created("database"):
+            if not self._database_is_available():
+                return False
 
-        if not self._get_database_info():
-            return False
+            if not self._get_database_info():
+                return False
 
         if not self._nrf_requires.nrf_url:
             return False
@@ -576,6 +578,10 @@ class AMFOperatorCharm(CharmBase):
         if not (dnn := self._get_dnn_config()):
             raise ValueError("DNN configuration value is empty")
 
+        database_url = ""
+        if self._relation_created("database"):
+            database_url = self._get_database_info()["uris"].split(",")[0]
+
         return self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
@@ -583,7 +589,7 @@ class AMFOperatorCharm(CharmBase):
             nrf_url=self._nrf_requires.nrf_url,
             amf_ip=_get_pod_ip(),  # type: ignore[arg-type]
             database_name=DATABASE_NAME,
-            database_url=self._get_database_info()["uris"].split(",")[0],
+            database_url=database_url,
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
