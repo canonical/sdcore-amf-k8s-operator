@@ -255,7 +255,7 @@ class AMFOperatorCharm(CharmBase):
         """Handle pebble ready event for AMF container.
 
         Args:
-            event (PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent): Juju event
+            event (PebbleReadyEvent, NRFAvailableEvent): Juju event
         """
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
