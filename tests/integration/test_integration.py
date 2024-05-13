@@ -40,6 +40,7 @@ async def deploy(ops_test: OpsTest, request):
         application_name=APP_NAME,
         trust=True,
     )
+    await _deploy_mongodb(ops_test)
     await _deploy_nrf(ops_test)
     await _deploy_self_signed_certificates(ops_test)
     await _deploy_grafana_agent(ops_test)
@@ -105,14 +106,6 @@ async def test_restore_tls_and_wait_for_active_status(ops_test: OpsTest, deploy)
     assert ops_test.model
     await _deploy_self_signed_certificates(ops_test)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
-    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
-
-
-@pytest.mark.abort_on_fail
-async def test_integrate_database_and_wait_for_active_status(ops_test: OpsTest, deploy):
-    assert ops_test.model
-    await _deploy_mongodb(ops_test)
-    await ops_test.model.integrate(relation1=f"{APP_NAME}:database", relation2=f"{DB_CHARM_NAME}")
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
 
