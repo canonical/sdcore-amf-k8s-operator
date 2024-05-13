@@ -40,7 +40,6 @@ async def deploy(ops_test: OpsTest, request):
         application_name=APP_NAME,
         trust=True,
     )
-    await _deploy_mongodb(ops_test)
     await _deploy_nrf(ops_test)
     await _deploy_self_signed_certificates(ops_test)
     await _deploy_grafana_agent(ops_test)
@@ -109,9 +108,6 @@ async def test_restore_tls_and_wait_for_active_status(ops_test: OpsTest, deploy)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
 
-@pytest.mark.skip(
-    reason="Bug in MongoDB: https://github.com/canonical/mongodb-k8s-operator/issues/218"
-)
 @pytest.mark.abort_on_fail
 async def test_integrate_database_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
