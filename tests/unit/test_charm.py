@@ -79,6 +79,7 @@ class TestCharm(unittest.TestCase):
             self.harness.model.unit.status,
             BlockedStatus("Waiting for fiveg_nrf relation"),
         )
+
     @patch("charm.generate_private_key")
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
         self,
