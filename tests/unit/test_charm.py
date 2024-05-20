@@ -33,6 +33,7 @@ class TestCharm:
     patcher_generate_private_key = patch("charm.generate_private_key")
     patcher_get_assigned_certificates = patch("charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates")  # noqa: E501
     patcher_request_certificate_creation = patch("charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_creation")  # noqa: E501
+    patcher_client = patch("lightkube.core.client.GenericSyncClient", new=Mock)
     patcher_get = patch("lightkube.core.client.Client.get")
     patcher_apply = patch("lightkube.core.client.Client.apply")
     patcher_delete = patch("lightkube.core.client.Client.delete")
@@ -46,6 +47,7 @@ class TestCharm:
         self.mock_is_resource_created = TestCharm.patcher_is_resource_created.start()
         self.mock_nrf_url = TestCharm.patcher_nrf_url.start()
         self.mock_check_output = TestCharm.patcher_check_output.start()
+        TestCharm.patcher_client.start()
         self.mock_get = TestCharm.patcher_get.start()
         self.mock_apply = TestCharm.patcher_apply.start()
         self.mock_delete = TestCharm.patcher_delete.start()
