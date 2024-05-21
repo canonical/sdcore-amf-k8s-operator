@@ -66,7 +66,8 @@ class TestCharm:
         self.harness.cleanup()
         request.addfinalizer(self.teardown)
 
-    def _create_database_relation_and_populate_data(self) -> int:
+    @pytest.fixture()
+    def database_relation_id(self) -> int:
         database_relation_id = self.harness.add_relation(DB_RELATION_NAME, DB_APPLICATION_NAME)
         self.harness.add_relation_unit(
             relation_id=database_relation_id, remote_unit_name=f"{DB_APPLICATION_NAME}/0"
@@ -125,14 +126,13 @@ class TestCharm:
         assert self.harness.model.unit.status == BlockedStatus("Waiting for certificates relation")
 
     def test_given_amf_charm_in_active_state_when_nrf_relation_breaks_then_status_is_blocked(
-        self
+        self, database_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         nrf_relation_id = self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         self.harness.remove_relation(nrf_relation_id)
@@ -141,7 +141,7 @@ class TestCharm:
         assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation")
 
     def test_given_amf_charm_in_active_state_when_database_relation_breaks_then_status_is_blocked(
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_check_output.return_value = b"1.1.1.1"
@@ -149,7 +149,6 @@ class TestCharm:
         self.mock_nrf_url.return_value = "http://nrf:8081"
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        database_relation_id = self._create_database_relation_and_populate_data()
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
@@ -192,7 +191,7 @@ class TestCharm:
         assert self.harness.model.unit.status == WaitingStatus("Waiting for AMF database info to be available")  # noqa: E501
 
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
@@ -203,13 +202,12 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for NRF data to be available")  # noqa: E501
 
     def test_given_storage_not_attached_when_pebble_ready_then_status_is_waiting(
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
@@ -220,13 +218,12 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for storage to be attached")  # noqa: E501
 
     def test_given_certificates_not_stored_when_pebble_ready_then_status_is_waiting(
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -239,14 +236,13 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.container_pebble_ready("amf")
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for certificates to be stored")  # noqa: E501
 
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -269,7 +265,6 @@ class TestCharm:
         )
         root = self.harness.get_filesystem_root("amf")
         (root / "support/TLS/amf.pem").write_text(certificate)
-        self._create_database_relation_and_populate_data()
 
         self.harness.container_pebble_ready("amf")
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
@@ -279,7 +274,7 @@ class TestCharm:
         assert (root / "free5gc/config/amfcfg.conf").read_text() == expected_content.strip()
 
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -306,12 +301,11 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         assert (root / "free5gc/config/amfcfg.conf").stat().st_mtime == config_modification_time
 
     def test_given_relations_available_and_config_pushed_when_pebble_ready_then_pebble_is_applied_correctly(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -336,7 +330,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         expected_plan = {
             "services": {
@@ -360,7 +353,7 @@ class TestCharm:
         assert expected_plan == updated_plan
 
     def test_relations_available_and_config_pushed_and_pebble_updated_when_pebble_ready_then_status_is_active(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -386,13 +379,12 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == ActiveStatus()
 
     def test_given_empty_ip_address_when_pebble_ready_then_status_is_waiting(
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="config", attach=True)
         self.mock_check_output.return_value = b""
@@ -401,7 +393,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
 
         self.harness.container_pebble_ready(container_name="amf")
         self.harness.evaluate_status()
@@ -423,7 +414,7 @@ class TestCharm:
         assert relation_data == {}
 
     def test_given_n2_information_and_service_is_running_when_fiveg_n2_relation_joined_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -452,7 +443,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -465,7 +455,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_n2_config_is_overriden_when_fiveg_n2_relation_joined_then_custom_n2_information_is_in_relation_databag(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -497,7 +487,6 @@ class TestCharm:
         self.harness.update_config(
             {"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"}
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -510,7 +499,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_lb_service_has_no_hostname_when_fiveg_n2_relation_joined_then_internal_service_hostname_is_used(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -538,7 +527,6 @@ class TestCharm:
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
         self.harness.update_config({"external-amf-ip": "2.2.2.2"})
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
@@ -551,7 +539,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_metallb_service_is_not_available_when_fiveg_n2_relation_joined_then_amf_goes_in_blocked_state(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -578,7 +566,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
@@ -586,7 +573,7 @@ class TestCharm:
         assert self.harness.charm.unit.status == BlockedStatus("Waiting for MetalLB to be enabled")
 
     def test_given_service_starts_running_after_n2_relation_joined_when_pebble_ready_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -622,7 +609,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_data = self.harness.get_relation_data(
@@ -633,7 +619,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_more_than_one_n2_requirers_join_n2_relation_when_service_starts_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -663,7 +649,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         relation_1_id = self.harness.add_relation(
@@ -686,7 +671,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_can_connect_when_on_pebble_ready_then_private_key_is_generated(
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -710,7 +695,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
         self.harness.evaluate_status()
         assert (root / "support/TLS/amf.key").read_text() == private_key.decode()
@@ -737,7 +721,7 @@ class TestCharm:
             (root / "support/TLS/amf.csr").read_text()
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_status_is_blocked(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -753,13 +737,12 @@ class TestCharm:
         cert_rel_id = self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.remove_relation(cert_rel_id)
         self.harness.evaluate_status()
         assert self.harness.charm.unit.status == BlockedStatus("Waiting for certificates relation")
 
     def test_given_private_key_exists_when_pebble_ready_then_csr_is_generated(
-        self
+        self, database_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -775,13 +758,12 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.container_pebble_ready("amf")
 
         assert (root / "support/TLS/amf.csr").read_text() == CSR.decode()
 
     def test_given_private_key_exists_and_cert_not_yet_requested_when_pebble_ready_then_cert_is_requested(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -795,14 +777,13 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.container_pebble_ready("amf")
 
         self.mock_request_certificate_creation.assert_called_with(certificate_signing_request=CSR)
 
     def test_given_cert_already_stored_when_pebble_ready_then_cert_is_not_requested(  # noqa: E501
-        self
+        self, database_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -823,14 +804,13 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.container_pebble_ready("amf")
 
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_csr_matches_stored_one_when_pebble_ready_then_certificate_is_pushed(
-        self
+        self, database_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -853,14 +833,13 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.container_pebble_ready("amf")
 
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
     def test_given_certificate_matches_stored_one_when_pebble_ready_then_certificate_is_not_pushed(
-        self
+        self, database_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -883,7 +862,6 @@ class TestCharm:
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self._create_database_relation_and_populate_data()
         self.harness.set_can_connect(container="amf", val=True)
         self.harness.container_pebble_ready("amf")
 
