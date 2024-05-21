@@ -87,18 +87,18 @@ class TestCharm:
                 "uris": "http://dummy",
             },
         )
-        return database_relation_id
+        yield database_relation_id
 
     @pytest.fixture()
     def nrf_relation_id(self) -> int:
-        return self.harness.add_relation(
+        yield self.harness.add_relation(
             relation_name=NRF_RELATION_NAME,
             remote_app=DB_APPLICATION_NAME,
         )
 
     @pytest.fixture()
     def certificates_relation_id(self) -> int:
-        return self.harness.add_relation(
+        yield self.harness.add_relation(
             relation_name=TLS_RELATION_NAME,
             remote_app=TLS_APPLICATION_NAME,
         )
