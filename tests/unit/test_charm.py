@@ -12,8 +12,14 @@ from ops import ActiveStatus, BlockedStatus, WaitingStatus, testing
 
 from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
 
+CONTAINER_NAME = "amf"
 DB_APPLICATION_NAME = "mongodb-k8s"
 DB_RELATION_NAME = "database"
+NRF_APPLICATION_NAME = "nrf"
+NRF_RELATION_NAME = "fiveg_nrf"
+NRF_URL = "http://nrf:8081"
+TLS_APPLICATION_NAME = "tls-certificates-operator"
+TLS_RELATION_NAME = "certificates"
 NAMESPACE = "whatever"
 PRIVATE_KEY = b"whatever key content"
 CSR = b"whatever csr content"
@@ -83,6 +89,20 @@ class TestCharm:
         )
         return database_relation_id
 
+    @pytest.fixture()
+    def nrf_relation_id(self) -> int:
+        return self.harness.add_relation(
+            relation_name=NRF_RELATION_NAME,
+            remote_app=DB_APPLICATION_NAME,
+        )
+
+    @pytest.fixture()
+    def certificates_relation_id(self) -> int:
+        return self.harness.add_relation(
+            relation_name=TLS_RELATION_NAME,
+            remote_app=TLS_APPLICATION_NAME,
+        )
+
     @staticmethod
     def _read_file(path: str) -> str:
         """Read a file and returns as a string.
@@ -100,40 +120,37 @@ class TestCharm:
     def test_given_fiveg_nrf_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self
     ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="database", remote_app="mongodb")
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation")
 
     def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self
+        self, nrf_relation_id
     ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation")
 
     def test_given_certificates_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self
+        self, nrf_relation_id
     ):
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(relation_name="database", remote_app="mongodb")
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus("Waiting for certificates relation")
 
     def test_given_amf_charm_in_active_state_when_nrf_relation_breaks_then_status_is_blocked(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        nrf_relation_id = self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         self.harness.remove_relation(nrf_relation_id)
         self.harness.evaluate_status()
@@ -141,89 +158,69 @@ class TestCharm:
         assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation")
 
     def test_given_amf_charm_in_active_state_when_database_relation_breaks_then_status_is_blocked(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         self.harness.remove_relation(database_relation_id)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation")
 
     def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
-        self
+        self, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.mock_is_resource_created.return_value = False
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for the amf database to be available")  # noqa: E501
 
     def test_given_database_info_not_available_when_pebble_ready_then_status_is_waiting(
-        self
+        self, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(relation_name="database", remote_app="mongodb")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for AMF database info to be available")  # noqa: E501
 
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = ""
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for NRF data to be available")  # noqa: E501
 
     def test_given_storage_not_attached_when_pebble_ready_then_status_is_waiting(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for storage to be attached")  # noqa: E501
 
     def test_given_certificates_not_stored_when_pebble_ready_then_status_is_waiting(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -231,18 +228,14 @@ class TestCharm:
         self.mock_generate_csr.return_value = CSR
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus("Waiting for certificates to be stored")  # noqa: E501
 
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -257,16 +250,11 @@ class TestCharm:
             provider_certificate,
         ]
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        root = self.harness.get_filesystem_root("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(certificate)
 
-        self.harness.container_pebble_ready("amf")
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
         assert (root / "support/TLS/amf.key").read_text() == PRIVATE_KEY.decode()
@@ -274,7 +262,7 @@ class TestCharm:
         assert (root / "free5gc/config/amfcfg.conf").read_text() == expected_content.strip()
 
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -286,26 +274,22 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         config_modification_time = (root / "free5gc/config/amfcfg.conf").stat().st_mtime
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         assert (root / "free5gc/config/amfcfg.conf").stat().st_mtime == config_modification_time
 
     def test_given_relations_available_and_config_pushed_when_pebble_ready_then_pebble_is_applied_correctly(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -317,23 +301,19 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         expected_plan = {
             "services": {
-                "amf": {
+                CONTAINER_NAME: {
                     "startup": "enabled",
                     "override": "replace",
                     "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
@@ -349,11 +329,11 @@ class TestCharm:
                 }
             }
         }
-        updated_plan = self.harness.get_container_pebble_plan("amf").to_dict()
+        updated_plan = self.harness.get_container_pebble_plan(CONTAINER_NAME).to_dict()
         assert expected_plan == updated_plan
 
     def test_relations_available_and_config_pushed_and_pebble_updated_when_pebble_ready_then_status_is_active(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -366,35 +346,27 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == ActiveStatus()
 
     def test_given_empty_ip_address_when_pebble_ready_then_status_is_waiting(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="config", attach=True)
         self.mock_check_output.return_value = b""
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
+        self.mock_nrf_url.return_value = NRF_URL
 
-        self.harness.container_pebble_ready(container_name="amf")
+        self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.charm.unit.status == WaitingStatus("Waiting for pod IP address to be available")  # noqa: E501
 
@@ -414,7 +386,7 @@ class TestCharm:
         assert relation_data == {}
 
     def test_given_n2_information_and_service_is_running_when_fiveg_n2_relation_joined_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -426,7 +398,7 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -437,13 +409,9 @@ class TestCharm:
         )
         self.mock_get.return_value = service
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
@@ -455,7 +423,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_n2_config_is_overriden_when_fiveg_n2_relation_joined_then_custom_n2_information_is_in_relation_databag(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -467,7 +435,7 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -478,16 +446,12 @@ class TestCharm:
         )
         self.mock_get.return_value = service
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.update_config(
             {"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"}
         )
-        self.harness.container_pebble_ready("amf")
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
@@ -499,7 +463,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_lb_service_has_no_hostname_when_fiveg_n2_relation_joined_then_internal_service_hostname_is_used(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -511,7 +475,7 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -520,14 +484,10 @@ class TestCharm:
         service = Mock(status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
         self.mock_get.return_value = service
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.update_config({"external-amf-ip": "2.2.2.2"})
-        self.harness.container_pebble_ready("amf")
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
@@ -539,7 +499,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_metallb_service_is_not_available_when_fiveg_n2_relation_joined_then_amf_goes_in_blocked_state(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -551,7 +511,7 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -560,20 +520,16 @@ class TestCharm:
         service = Mock(status=Mock(loadBalancer=Mock(ingress=None)))
         self.mock_get.return_value = service
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         self.harness.evaluate_status()
         assert self.harness.charm.unit.status == BlockedStatus("Waiting for MetalLB to be enabled")
 
     def test_given_service_starts_running_after_n2_relation_joined_when_pebble_ready_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -585,7 +541,7 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -603,13 +559,9 @@ class TestCharm:
         )
         self.mock_get.return_value = service
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         relation_data = self.harness.get_relation_data(
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
@@ -619,7 +571,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_more_than_one_n2_requirers_join_n2_relation_when_service_starts_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -631,7 +583,7 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(certificate)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -642,14 +594,10 @@ class TestCharm:
         )
         self.mock_get.return_value = service
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
+        self.mock_nrf_url.return_value = NRF_URL
         self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         relation_1_id = self.harness.add_relation(
             relation_name="fiveg-n2", remote_app="n2-requirer-1"
@@ -671,7 +619,7 @@ class TestCharm:
         assert relation_data["amf_port"] == "38412"
 
     def test_given_can_connect_when_on_pebble_ready_then_private_key_is_generated(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
@@ -685,17 +633,13 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(certificate)
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="nrf")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert (root / "support/TLS/amf.key").read_text() == private_key.decode()
 
@@ -704,12 +648,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         certificate = "Whatever certificate content"
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.key").write_text(PRIVATE_KEY.decode())
         (root / "support/TLS/amf.csr").write_text(CSR.decode())
         (root / "support/TLS/amf.pem").write_text(certificate)
 
-        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
 
         self.harness.charm._on_certificates_relation_broken(event=Mock)
 
@@ -721,75 +665,63 @@ class TestCharm:
             (root / "support/TLS/amf.csr").read_text()
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_status_is_blocked(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_generate_csr.return_value = CSR
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = "http://nrf:8081"
+        self.mock_nrf_url.return_value = NRF_URL
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        cert_rel_id = self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.remove_relation(cert_rel_id)
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.remove_relation(certificates_relation_id)
         self.harness.evaluate_status()
         assert self.harness.charm.unit.status == BlockedStatus("Waiting for certificates relation")
 
     def test_given_private_key_exists_when_pebble_ready_then_csr_is_generated(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = "http://nrf:8081"
+        self.mock_nrf_url.return_value = NRF_URL
         self.mock_generate_csr.return_value = CSR
         private_key = "private key content"
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.key").write_text(private_key)
-        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
 
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.container_pebble_ready("amf")
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         assert (root / "support/TLS/amf.csr").read_text() == CSR.decode()
 
     def test_given_private_key_exists_and_cert_not_yet_requested_when_pebble_ready_then_cert_is_requested(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = "http://nrf:8081"
+        self.mock_nrf_url.return_value = NRF_URL
         self.mock_generate_csr.return_value = CSR
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.key").write_text(PRIVATE_KEY.decode())
 
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         self.mock_request_certificate_creation.assert_called_with(certificate_signing_request=CSR)
 
     def test_given_cert_already_stored_when_pebble_ready_then_cert_is_not_requested(  # noqa: E501
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = "http://nrf:8081"
-        root = self.harness.get_filesystem_root("amf")
+        self.mock_nrf_url.return_value = NRF_URL
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.key").write_text(PRIVATE_KEY.decode())
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
         (root / "support/TLS/amf.csr").write_text(CSR.decode())
@@ -800,24 +732,20 @@ class TestCharm:
             provider_certificate,
         ]
 
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_csr_matches_stored_one_when_pebble_ready_then_certificate_is_pushed(
-        self, database_relation_id
+        self, database_relation_id, nrf_relation_id, certificates_relation_id
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = "http://nrf:8081"
+        self.mock_nrf_url.return_value = NRF_URL
         private_key = "whatever key content"
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.key").write_text(private_key)
         (root / "support/TLS/amf.csr").write_text(CSR.decode())
         certificate = "Whatever certificate content"
@@ -829,12 +757,8 @@ class TestCharm:
             provider_certificate,
         ]
 
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
-        self.harness.add_relation(
-            relation_name="certificates", remote_app="tls-certificates-operator"
-        )
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
@@ -844,9 +768,9 @@ class TestCharm:
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = "http://nrf:8081"
+        self.mock_nrf_url.return_value = NRF_URL
         private_key = "whatever key content"
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.key").write_text(private_key)
         (root / "support/TLS/amf.csr").write_text(CSR.decode())
         certificate = "Whatever certificate content"
@@ -858,12 +782,12 @@ class TestCharm:
             provider_certificate,
         ]
 
-        self.harness.add_relation(relation_name="fiveg_nrf", remote_app="mongodb")
+        self.harness.add_relation(relation_name=NRF_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.harness.add_relation(
             relation_name="certificates", remote_app="tls-certificates-operator"
         )
-        self.harness.set_can_connect(container="amf", val=True)
-        self.harness.container_pebble_ready("amf")
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
@@ -872,12 +796,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         certificate = "Stored certificate content"
         (root / "support/TLS/amf.pem").write_text(certificate)
         event.certificate = "Relation certificate content (different from stored)"
         self.mock_generate_csr.return_value = CSR
-        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
 
         self.harness.charm._on_certificate_expiring(event=event)
 
@@ -888,12 +812,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         certificate = "Stored certificate content"
         (root / "support/TLS/amf.pem").write_text(certificate)
         event.certificate = certificate
         self.mock_generate_csr.return_value = CSR
-        self.harness.set_can_connect(container="amf", val=False)
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=False)
 
         self.harness.charm._on_certificate_expiring(event=event)
 
@@ -903,7 +827,7 @@ class TestCharm:
         self
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root("amf")
+        root = self.harness.get_filesystem_root(CONTAINER_NAME)
         private_key = "whatever key content"
         certificate = "whatever certificate content"
         (root / "support/TLS/amf.key").write_text(private_key)
@@ -911,7 +835,7 @@ class TestCharm:
         event = Mock()
         event.certificate = certificate
         self.mock_generate_csr.return_value = CSR
-        self.harness.set_can_connect(container="amf", val=True)
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
 
         self.harness.charm._on_certificate_expiring(event=event)
 
