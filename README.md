@@ -15,11 +15,13 @@ juju deploy sdcore-amf-k8s --trust --channel=edge
 juju deploy mongodb-k8s --trust --channel=6/beta
 juju deploy sdcore-nrf-k8s --channel=edge
 juju deploy self-signed-certificates --channel=stable
+juju deploy sdcore-webui-k8s --channel=1.5/edge
 juju integrate sdcore-nrf-k8s:database mongodb-k8s
 juju integrate sdcore-nrf-k8s:certificates self-signed-certificates:certificates
 juju integrate sdcore-amf-k8s:database mongodb-k8s
 juju integrate sdcore-amf-k8s:fiveg_nrf sdcore-nrf-k8s:fiveg_nrf
 juju integrate sdcore-amf-k8s:certificates self-signed-certificates:certificates
+juju integrate sdcore-amf-k8s:sdcore-config sdcore-webui-k8s:sdcore-config
 ```
 
 ### Overriding external access information for N2 interface

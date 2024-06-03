@@ -20,13 +20,14 @@ NRF_CHARM_NAME = "sdcore-nrf-k8s"
 NRF_CHARM_CHANNEL = "1.5/edge"
 TLS_PROVIDER_CHARM_NAME = "self-signed-certificates"
 TLS_PROVIDER_CHARM_CHANNEL = "latest/stable"
+WEBUI_CHARM_NAME = "sdcore-webui-k8s"
+WEBUI_CHARM_CHANNEL = "1.5/edge"
 GRAFANA_AGENT_CHARM_NAME = "grafana-agent-k8s"
 GRAFANA_AGENT_CHARM_CHANNEL = "latest/stable"
 TIMEOUT = 15 * 60
 
 
 @pytest.fixture(scope="module")
-@pytest.mark.abort_on_fail
 async def deploy(ops_test: OpsTest, request):
     """Deploy the charm-under-test."""
     assert ops_test.model
@@ -43,6 +44,7 @@ async def deploy(ops_test: OpsTest, request):
     await _deploy_mongodb(ops_test)
     await _deploy_nrf(ops_test)
     await _deploy_self_signed_certificates(ops_test)
+    await _deploy_webui(ops_test)
     await _deploy_grafana_agent(ops_test)
 
 
@@ -65,6 +67,7 @@ async def test_relate_and_wait_for_active_status(ops_test: OpsTest, deploy):
     await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
     await ops_test.model.integrate(relation1=f"{APP_NAME}:database", relation2=f"{DB_CHARM_NAME}")
     await ops_test.model.integrate(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
+    await ops_test.model.integrate(relation1=f"{APP_NAME}:sdcore-config", relation2=f"{WEBUI_CHARM_NAME}:sdcore-config")
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
     await ops_test.model.integrate(
         relation1=f"{APP_NAME}:logging", relation2=GRAFANA_AGENT_CHARM_NAME
@@ -131,6 +134,21 @@ async def test_restore_database_and_wait_for_active_status(ops_test: OpsTest, de
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
 
+@pytest.mark.abort_on_fail
+async def test_remove_webui_and_wait_for_blocked_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    await ops_test.model.remove_application(WEBUI_CHARM_NAME, block_until_done=True)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="blocked", timeout=TIMEOUT)
+
+
+@pytest.mark.abort_on_fail
+async def test_restore_webui_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    await _deploy_webui(ops_test)
+    await ops_test.model.integrate(relation1=APP_NAME, relation2=WEBUI_CHARM_NAME)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+
+
 async def _deploy_mongodb(ops_test: OpsTest):
     assert ops_test.model
     await ops_test.model.deploy(
@@ -164,4 +182,13 @@ async def _deploy_nrf(ops_test: OpsTest):
         NRF_CHARM_NAME,
         application_name=NRF_CHARM_NAME,
         channel=NRF_CHARM_CHANNEL,
+    )
+
+
+async def _deploy_webui(ops_test: OpsTest):
+    assert ops_test.model
+    await ops_test.model.deploy(
+        WEBUI_CHARM_NAME,
+        application_name=WEBUI_CHARM_NAME,
+        channel=WEBUI_CHARM_CHANNEL,
     )
