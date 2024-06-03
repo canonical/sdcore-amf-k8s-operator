@@ -16,6 +16,9 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
 )
 from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
+from charms.sdcore_webui_k8s.v0.sdcore_config import (  # type: ignore[import]
+    SdcoreConfigRequires,
+)
 from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ignore[import]
     CertificateExpiringEvent,
     TLSCertificatesRequiresV3,
@@ -46,10 +49,6 @@ from ops.charm import (
 from ops.main import main
 from ops.pebble import Layer
 
-from charms.sdcore_webui_k8s.v0.sdcore_config import (
-    SdcoreConfigRequires,
-)
-
 logger = logging.getLogger(__name__)
 
 PROMETHEUS_PORT = 9089
@@ -71,7 +70,7 @@ CORE_NETWORK_SHORT_NAME = "SDCORE"
 N2_RELATION_NAME = "fiveg-n2"
 LOGGING_RELATION_NAME = "logging"
 FIVEG_NRF_RELATION_NAME = "fiveg_nrf"
-SDCORE_CONFIG_RELATION_NAME = "sdcore-config"
+SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
 
 
