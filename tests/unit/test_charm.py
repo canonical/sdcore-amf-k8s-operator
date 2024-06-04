@@ -144,30 +144,32 @@ class TestCharm:
         return content
 
     def test_given_fiveg_nrf_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self
+        self, certificates_relation_id, sdcore_config_relation_id, database_relation_id
     ):
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation")
+        assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation(s)")
 
     def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self, nrf_relation_id
+        self, nrf_relation_id, sdcore_config_relation_id, certificates_relation_id
     ):
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation")
+        assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation(s)")
 
     def test_given_certificates_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self, nrf_relation_id
+        self, nrf_relation_id, sdcore_config_relation_id
     ):
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for certificates relation")
+        assert self.harness.model.unit.status == BlockedStatus(
+            "Waiting for certificates relation(s)"
+        )
 
     def test_given_sdcore_config_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self, nrf_relation_id, certificates_relation_id
@@ -177,11 +179,15 @@ class TestCharm:
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus(
-            "Waiting for sdcore_config relation"
+            "Waiting for sdcore_config relation(s)"
         )
 
     def test_given_amf_charm_in_active_state_when_nrf_relation_breaks_then_status_is_blocked(
-        self, database_relation_id, nrf_relation_id, sdcore_config_relation_id
+        self,
+        database_relation_id,
+        nrf_relation_id,
+        certificates_relation_id,
+        sdcore_config_relation_id,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
@@ -192,10 +198,14 @@ class TestCharm:
         self.harness.remove_relation(nrf_relation_id)
         self.harness.evaluate_status()
 
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation")
+        assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation(s)")
 
     def test_given_amf_charm_in_active_state_when_database_relation_breaks_then_status_is_blocked(
-        self, database_relation_id, nrf_relation_id, certificates_relation_id
+        self,
+        database_relation_id,
+        nrf_relation_id,
+        certificates_relation_id,
+        sdcore_config_relation_id,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_check_output.return_value = b"1.1.1.1"
@@ -206,7 +216,7 @@ class TestCharm:
 
         self.harness.remove_relation(database_relation_id)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation")
+        assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation(s)")
 
     def test_given_amf_charm_in_active_state_when_sdcore_config_relation_breaks_then_status_is_blocked(  # noqa: E501
         self,
@@ -225,7 +235,7 @@ class TestCharm:
         self.harness.evaluate_status()
 
         assert self.harness.model.unit.status == BlockedStatus(
-            "Waiting for sdcore_config relation"
+            "Waiting for sdcore_config relation(s)"
         )
 
     def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
@@ -819,7 +829,9 @@ class TestCharm:
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.remove_relation(certificates_relation_id)
         self.harness.evaluate_status()
-        assert self.harness.charm.unit.status == BlockedStatus("Waiting for certificates relation")
+        assert self.harness.charm.unit.status == BlockedStatus(
+            "Waiting for certificates relation(s)"
+        )
 
     def test_given_private_key_exists_when_pebble_ready_then_csr_is_generated(
         self,

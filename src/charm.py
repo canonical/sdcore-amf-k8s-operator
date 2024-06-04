@@ -7,7 +7,7 @@
 import logging
 from ipaddress import IPv4Address
 from subprocess import check_output
-from typing import Optional, cast
+from typing import List, Optional, cast
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
 from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
@@ -204,9 +204,11 @@ class AMFOperatorCharm(CharmBase):
             logger.info("The following configurations are not valid: %s", invalid_configs)
             return
 
-        if relation := self._relation_not_created():
-            event.add_status(BlockedStatus(f"Waiting for {relation} relation"))
-            logger.info("Waiting for %s relation", relation)
+        if missing_relations := self._missing_relations():
+            event.add_status(
+                BlockedStatus(f"Waiting for {', '.join(missing_relations)} relation(s)")
+            )
+            logger.info("Waiting for %s  relation(s)", ', '.join(missing_relations))
             return
 
         if not self._database_is_available():
@@ -257,23 +259,22 @@ class AMFOperatorCharm(CharmBase):
 
         event.add_status(ActiveStatus())
 
-    def _relation_not_created(self) -> Optional[str]:
-        """Return name of not created relation.
+    def _missing_relations(self) -> List[str]:
+        """Return list of missing relations.
 
-        If all the relations are created, it returns None.
+        If all the relations are created, it returns an empty list.
 
         Returns:
-            str: The relation name.
+            list: missing relation names.
         """
-        for relation in [
-            FIVEG_NRF_RELATION_NAME,
-            DATABASE_RELATION_NAME,
-            TLS_RELATION_NAME,
-            SDCORE_CONFIG_RELATION_NAME
-        ]:
-            if not self.model.relations[relation]:
-                return relation
-        return None
+        missing_relations = []
+        for relation in [FIVEG_NRF_RELATION_NAME,
+                         DATABASE_RELATION_NAME,
+                         TLS_RELATION_NAME,
+                         SDCORE_CONFIG_RELATION_NAME]:
+            if not self._relation_created(relation):
+                missing_relations.append(relation)
+        return missing_relations
 
     def ready_to_configure(self) -> bool:
         """Return whether the preconditions are met to proceed with the configuration.
@@ -287,7 +288,7 @@ class AMFOperatorCharm(CharmBase):
         if self._get_invalid_configs():
             return False
 
-        if self._relation_not_created():
+        if self._missing_relations():
             return False
 
         if not self._database_is_available():
