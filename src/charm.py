@@ -258,6 +258,13 @@ class AMFOperatorCharm(CharmBase):
         event.add_status(ActiveStatus())
 
     def _relation_not_created(self) -> Optional[str]:
+        """Return name of not created relation.
+
+        If all the relations are created, it returns None.
+
+        Returns:
+            str: The relation name.
+        """
         for relation in [
             FIVEG_NRF_RELATION_NAME,
             DATABASE_RELATION_NAME,
