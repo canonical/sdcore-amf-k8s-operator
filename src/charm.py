@@ -113,16 +113,13 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
-        self.framework.observe(self.on.database_relation_joined, self._configure_amf)
         self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
-        self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
         self.framework.observe(
             self._webui_requires.on.webui_url_available,
             self._configure_amf
         )
-        self.framework.observe(self.on.sdcore_config_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(self.on.certificates_relation_joined, self._configure_amf)
         self.framework.observe(
