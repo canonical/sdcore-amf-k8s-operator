@@ -72,6 +72,7 @@ LOGGING_RELATION_NAME = "logging"
 FIVEG_NRF_RELATION_NAME = "fiveg_nrf"
 SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
+DATABASE_RELATION_NAME = "database"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -105,7 +106,7 @@ class AMFOperatorCharm(CharmBase):
         )
         self.unit.set_ports(PROMETHEUS_PORT, SBI_PORT, SCTP_GRPC_PORT)
         self._database = DatabaseRequires(
-            self, relation_name="database", database_name=DATABASE_NAME
+            self, relation_name=DATABASE_RELATION_NAME, database_name=DATABASE_NAME
         )
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
         self.framework.observe(self.on.install, self._on_install)
@@ -135,9 +136,11 @@ class AMFOperatorCharm(CharmBase):
     def _configure_amf(self, _ : EventBase) -> None:
         """Handle Juju events.
 
-        Whenever a Juju event is emitted, this method performs a couple of checks to make sure that
-        the workload is ready to be started. Then, it configures the AMF workload,
-        runs the Pebble services and expose the service information through charm's interface.
+        This event handler is called for every event that affects the charm state
+        (ex. configuration files, relation data). This method performs a couple of checks
+        to make sure that the workload is ready to be started. Then, it configures the AMF
+        workload, runs the Pebble services and expose the service information through
+        charm's interface.
 
         Args:
             _ (EventBase): Juju event
@@ -203,7 +206,7 @@ class AMFOperatorCharm(CharmBase):
 
         for relation in [
             FIVEG_NRF_RELATION_NAME,
-            "database",
+            DATABASE_RELATION_NAME,
             TLS_RELATION_NAME,
             SDCORE_CONFIG_RELATION_NAME
         ]:
@@ -274,7 +277,7 @@ class AMFOperatorCharm(CharmBase):
 
         for relation in [
             FIVEG_NRF_RELATION_NAME,
-            "database",
+            DATABASE_RELATION_NAME,
             TLS_RELATION_NAME,
             SDCORE_CONFIG_RELATION_NAME
         ]:
