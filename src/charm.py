@@ -7,7 +7,7 @@
 import logging
 from ipaddress import IPv4Address
 from subprocess import check_output
-from typing import Optional, cast
+from typing import List, Optional, cast
 
 from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
 from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
@@ -16,6 +16,9 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
 )
 from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
 from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
+from charms.sdcore_webui_k8s.v0.sdcore_config import (  # type: ignore[import]
+    SdcoreConfigRequires,
+)
 from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ignore[import]
     CertificateExpiringEvent,
     TLSCertificatesRequiresV3,
@@ -66,6 +69,10 @@ CORE_NETWORK_FULL_NAME = "SDCORE5G"
 CORE_NETWORK_SHORT_NAME = "SDCORE"
 N2_RELATION_NAME = "fiveg-n2"
 LOGGING_RELATION_NAME = "logging"
+FIVEG_NRF_RELATION_NAME = "fiveg_nrf"
+SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
+TLS_RELATION_NAME = "certificates"
+DATABASE_RELATION_NAME = "database"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -83,9 +90,12 @@ class AMFOperatorCharm(CharmBase):
             return
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
-        self._nrf_requires = NRFRequires(charm=self, relation_name="fiveg_nrf")
+        self._nrf_requires = NRFRequires(charm=self, relation_name=FIVEG_NRF_RELATION_NAME)
+        self._webui_requires = SdcoreConfigRequires(
+            charm=self, relation_name=SDCORE_CONFIG_RELATION_NAME
+        )
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
-        self._certificates = TLSCertificatesRequiresV3(self, "certificates")
+        self._certificates = TLSCertificatesRequiresV3(self, TLS_RELATION_NAME)
         self._amf_metrics_endpoint = MetricsEndpointProvider(
             self,
             jobs=[
@@ -96,7 +106,7 @@ class AMFOperatorCharm(CharmBase):
         )
         self.unit.set_ports(PROMETHEUS_PORT, SBI_PORT, SCTP_GRPC_PORT)
         self._database = DatabaseRequires(
-            self, relation_name="database", database_name=DATABASE_NAME
+            self, relation_name=DATABASE_RELATION_NAME, database_name=DATABASE_NAME
         )
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
         self.framework.observe(self.on.install, self._on_install)
@@ -108,8 +118,13 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
+        self.framework.observe(
+            self._webui_requires.on.webui_url_available,
+            self._configure_amf
+        )
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(self.on.certificates_relation_joined, self._configure_amf)
+        self.framework.observe(self.on.sdcore_config_relation_joined, self._configure_amf)
         self.framework.observe(
             self.on.certificates_relation_broken, self._on_certificates_relation_broken
         )
@@ -117,6 +132,49 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(
             self._certificates.on.certificate_expiring, self._on_certificate_expiring
         )
+
+    def _configure_amf(self, _: EventBase) -> None:
+        """Handle Juju events.
+
+        This event handler is called for every event that affects the charm state
+        (ex. configuration files, relation data). This method performs a couple of checks
+        to make sure that the workload is ready to be started. Then, it configures the AMF
+        workload, runs the Pebble services and expose the service information through
+        charm's interface.
+
+        Args:
+            _ (EventBase): Juju event
+        """
+        if not self.ready_to_configure():
+            logger.info("The preconditions for the configuration are not met yet.")
+            return
+
+        if not self._private_key_is_stored():
+            self._generate_private_key()
+
+        if not self._csr_is_stored():
+            self._request_new_certificate()
+
+        provider_certificate = self._get_current_provider_certificate()
+        if not provider_certificate:
+            return
+
+        if certificate_update_required := self._is_certificate_update_required(
+            provider_certificate
+        ):
+            self._store_certificate(certificate=provider_certificate)
+
+        desired_config_file = self._generate_amf_config_file()
+        if config_update_required := self._is_config_update_required(desired_config_file):
+            self._push_config_file(content=desired_config_file)
+
+        should_restart = config_update_required or certificate_update_required
+        self._configure_pebble(restart=should_restart)
+
+        try:
+            self._set_n2_information()
+        except ValueError:
+            return
 
     def _on_collect_unit_status(self, event: CollectStatusEvent):  # noqa C901
         """Check the unit status and set to Unit when CollectStatusEvent is fired.
@@ -146,11 +204,12 @@ class AMFOperatorCharm(CharmBase):
             logger.info("The following configurations are not valid: %s", invalid_configs)
             return
 
-        for relation in ["fiveg_nrf", "database", "certificates"]:
-            if not self.model.relations[relation]:
-                event.add_status(BlockedStatus(f"Waiting for {relation} relation"))
-                logger.info("Waiting for %s relation", relation)
-                return
+        if missing_relations := self._missing_relations():
+            event.add_status(
+                BlockedStatus(f"Waiting for {', '.join(missing_relations)} relation(s)")
+            )
+            logger.info("Waiting for %s  relation(s)", ', '.join(missing_relations))
+            return
 
         if not self._database_is_available():
             event.add_status(WaitingStatus("Waiting for the amf database to be available"))
@@ -165,6 +224,11 @@ class AMFOperatorCharm(CharmBase):
         if not self._nrf_requires.nrf_url:
             event.add_status(WaitingStatus("Waiting for NRF data to be available"))
             logger.info("Waiting for NRF data to be available")
+            return
+
+        if not self._webui_requires.webui_url:
+            event.add_status(WaitingStatus("Waiting for Webui data to be available"))
+            logger.info("Waiting for Webui data to be available")
             return
 
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
@@ -195,6 +259,23 @@ class AMFOperatorCharm(CharmBase):
 
         event.add_status(ActiveStatus())
 
+    def _missing_relations(self) -> List[str]:
+        """Return list of missing relations.
+
+        If all the relations are created, it returns an empty list.
+
+        Returns:
+            list: missing relation names.
+        """
+        missing_relations = []
+        for relation in [FIVEG_NRF_RELATION_NAME,
+                         DATABASE_RELATION_NAME,
+                         TLS_RELATION_NAME,
+                         SDCORE_CONFIG_RELATION_NAME]:
+            if not self._relation_created(relation):
+                missing_relations.append(relation)
+        return missing_relations
+
     def ready_to_configure(self) -> bool:
         """Return whether the preconditions are met to proceed with the configuration.
 
@@ -207,9 +288,8 @@ class AMFOperatorCharm(CharmBase):
         if self._get_invalid_configs():
             return False
 
-        for relation in ["fiveg_nrf", "database", "certificates"]:
-            if not self._relation_created(relation):
-                return False
+        if self._missing_relations():
+            return False
 
         if not self._database_is_available():
             return False
@@ -218,6 +298,9 @@ class AMFOperatorCharm(CharmBase):
             return False
 
         if not self._nrf_requires.nrf_url:
+            return False
+
+        if not self._webui_requires.webui_url:
             return False
 
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
@@ -273,43 +356,6 @@ class AMFOperatorCharm(CharmBase):
             name=f"{self.app.name}-external",
         )
         logger.info("Removed external AMF service")
-
-    def _configure_amf(self, event: EventBase) -> None:
-        """Handle pebble ready event for AMF container.
-
-        Args:
-            event (PebbleReadyEvent, DatabaseCreatedEvent, NRFAvailableEvent): Juju event
-        """
-        if not self.ready_to_configure():
-            logger.info("The preconditions for the configuration are not met yet.")
-            return
-
-        if not self._private_key_is_stored():
-            self._generate_private_key()
-
-        if not self._csr_is_stored():
-            self._request_new_certificate()
-
-        provider_certificate = self._get_current_provider_certificate()
-        if not provider_certificate:
-            return
-
-        if certificate_update_required := self._is_certificate_update_required(
-            provider_certificate
-        ):
-            self._store_certificate(certificate=provider_certificate)
-
-        desired_config_file = self._generate_amf_config_file()
-        if config_update_required := self._is_config_update_required(desired_config_file):
-            self._push_config_file(content=desired_config_file)
-
-        should_restart = config_update_required or certificate_update_required
-        self._configure_pebble(restart=should_restart)
-
-        try:
-            self._set_n2_information()
-        except ValueError:
-            return
 
     def _is_config_update_required(self, content: str) -> bool:
         """Decide whether config update is required by checking existence and config content.
@@ -588,6 +634,7 @@ class AMFOperatorCharm(CharmBase):
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
             scheme="https",
+            webui_uri=self._webui_requires.webui_url,
         )
 
     @staticmethod
@@ -604,6 +651,7 @@ class AMFOperatorCharm(CharmBase):
         short_network_name: str,
         dnn: str,
         scheme: str,
+        webui_uri: str,
     ) -> str:
         """Render the AMF config file.
 
@@ -619,6 +667,7 @@ class AMFOperatorCharm(CharmBase):
             short_network_name (str): Short name of the network.
             dnn (str): Data Network name.
             scheme (str): SBI interface scheme ("http" or "https")
+            webui_uri (str) : URL of the Webui.
 
         Returns:
             str: Content of the rendered config file.
@@ -637,6 +686,7 @@ class AMFOperatorCharm(CharmBase):
             short_network_name=short_network_name,
             dnn=dnn,
             scheme=scheme,
+            webui_uri=webui_uri,
         )
         return content
 
