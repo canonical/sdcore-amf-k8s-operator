@@ -122,9 +122,9 @@ class AMFOperatorCharm(CharmBase):
             self._webui_requires.on.webui_url_available,
             self._configure_amf
         )
-        self.framework.observe(self.on.sdcore_config_relation_joined, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(self.on.certificates_relation_joined, self._configure_amf)
+        self.framework.observe(self.on.sdcore_config_relation_joined, self._configure_amf)
         self.framework.observe(
             self.on.certificates_relation_broken, self._on_certificates_relation_broken
         )
