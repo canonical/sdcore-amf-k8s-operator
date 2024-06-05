@@ -41,10 +41,10 @@ async def deploy(ops_test: OpsTest, request):
         application_name=APP_NAME,
         trust=True,
     )
-    await _deploy_mongodb(ops_test)
-    await _deploy_nrf(ops_test)
     await _deploy_self_signed_certificates(ops_test)
+    await _deploy_mongodb(ops_test)
     await _deploy_webui(ops_test)
+    await _deploy_nrf(ops_test)
     await _deploy_grafana_agent(ops_test)
 
 
@@ -61,24 +61,13 @@ async def test_deploy_charm_and_wait_for_blocked_status(ops_test: OpsTest, deplo
 @pytest.mark.abort_on_fail
 async def test_relate_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
-    await ops_test.model.integrate(
-        relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
-    )
-    await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
+
     await ops_test.model.integrate(relation1=f"{APP_NAME}:database", relation2=f"{DB_CHARM_NAME}")
-    await ops_test.model.integrate(
-        relation1=f"{WEBUI_CHARM_NAME}:common_database", relation2=f"{DB_CHARM_NAME}"
-    )
-    await ops_test.model.integrate(
-        relation1=f"{WEBUI_CHARM_NAME}:auth_database", relation2=f"{DB_CHARM_NAME}"
-    )
     await ops_test.model.integrate(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
-    await ops_test.model.integrate(
-        relation1=f"{APP_NAME}:sdcore_config", relation2=f"{WEBUI_CHARM_NAME}:sdcore-config"
-    )
+    await ops_test.model.integrate(relation1=APP_NAME, relation2=WEBUI_CHARM_NAME)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
     await ops_test.model.integrate(
-        relation1=f"{APP_NAME}:logging", relation2=GRAFANA_AGENT_CHARM_NAME
+        relation1=f"{APP_NAME}:logging", relation2=f"{GRAFANA_AGENT_CHARM_NAME}:logging-provider"
     )
     await ops_test.model.wait_for_idle(
         apps=[APP_NAME],
@@ -98,10 +87,6 @@ async def test_remove_nrf_and_wait_for_blocked_status(ops_test: OpsTest, deploy)
 async def test_restore_nrf_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
     await _deploy_nrf(ops_test)
-    await ops_test.model.integrate(
-        relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
-    )
-    await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
@@ -154,12 +139,6 @@ async def test_restore_webui_and_wait_for_active_status(ops_test: OpsTest, deplo
     assert ops_test.model
     await _deploy_webui(ops_test)
     await ops_test.model.integrate(
-        relation1=f"{WEBUI_CHARM_NAME}:common_database", relation2=f"{DB_CHARM_NAME}"
-    )
-    await ops_test.model.integrate(
-        relation1=f"{WEBUI_CHARM_NAME}:auth_database", relation2=f"{DB_CHARM_NAME}"
-    )
-    await ops_test.model.integrate(
         relation1=f"{APP_NAME}:sdcore_config", relation2=f"{WEBUI_CHARM_NAME}:sdcore-config"
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
@@ -199,6 +178,11 @@ async def _deploy_nrf(ops_test: OpsTest):
         application_name=NRF_CHARM_NAME,
         channel=NRF_CHARM_CHANNEL,
     )
+    await ops_test.model.integrate(
+        relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
+    await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=WEBUI_CHARM_NAME)
 
 
 async def _deploy_webui(ops_test: OpsTest):
@@ -207,4 +191,10 @@ async def _deploy_webui(ops_test: OpsTest):
         WEBUI_CHARM_NAME,
         application_name=WEBUI_CHARM_NAME,
         channel=WEBUI_CHARM_CHANNEL,
+    )
+    await ops_test.model.integrate(
+        relation1=f"{WEBUI_CHARM_NAME}:common_database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.integrate(
+        relation1=f"{WEBUI_CHARM_NAME}:auth_database", relation2=f"{DB_CHARM_NAME}"
     )
