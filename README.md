@@ -39,4 +39,4 @@ juju config sdcore-amf-k8s external-amf-ip=192.168.0.4 external-amf-hostname=amf
 
 ## Image
 
-**amf**: ghcr.io/canonical/sdcore-amf:1.4.0
+**amf**: ghcr.io/canonical/sdcore-amf:1.4.2
