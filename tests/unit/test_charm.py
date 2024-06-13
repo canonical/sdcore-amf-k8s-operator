@@ -31,17 +31,20 @@ CERTIFICATE = "Whatever certificate content"
 class TestCharm:
     patcher_check_output = patch("charm.check_output")
     patcher_nrf_url = patch(
-        "charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url",
-        new_callable=PropertyMock
+        "charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock
     )
     patcher_webui_url = patch(
         "charms.sdcore_webui_k8s.v0.sdcore_config.SdcoreConfigRequires.webui_url",
-        new_callable=PropertyMock
+        new_callable=PropertyMock,
     )
     patcher_generate_csr = patch("charm.generate_csr")
     patcher_generate_private_key = patch("charm.generate_private_key")
-    patcher_get_assigned_certificates = patch("charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates")  # noqa: E501
-    patcher_request_certificate_creation = patch("charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_creation")  # noqa: E501
+    patcher_get_assigned_certificates = patch(
+        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates"
+    )  # noqa: E501
+    patcher_request_certificate_creation = patch(
+        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_creation"
+    )  # noqa: E501
     patcher_client = patch("lightkube.core.client.GenericSyncClient", new=Mock)
     patcher_get = patch("lightkube.core.client.Client.get")
     patcher_apply = patch("lightkube.core.client.Client.apply")
@@ -52,7 +55,9 @@ class TestCharm:
         self.mock_generate_csr = TestCharm.patcher_generate_csr.start()
         self.mock_generate_private_key = TestCharm.patcher_generate_private_key.start()
         self.mock_get_assigned_certificates = TestCharm.patcher_get_assigned_certificates.start()
-        self.mock_request_certificate_creation = TestCharm.patcher_request_certificate_creation.start()  # noqa: E501
+        self.mock_request_certificate_creation = (
+            TestCharm.patcher_request_certificate_creation.start()
+        )  # noqa: E501
         self.mock_nrf_url = TestCharm.patcher_nrf_url.start()
         self.mock_webui_url = TestCharm.patcher_webui_url.start()
         self.mock_check_output = TestCharm.patcher_check_output.start()
@@ -195,7 +200,9 @@ class TestCharm:
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == WaitingStatus("Waiting for NRF data to be available")  # noqa: E501
+        assert self.harness.model.unit.status == WaitingStatus(
+            "Waiting for NRF data to be available"
+        )  # noqa: E501
 
     def test_given_webui_data_not_available_when_pebble_ready_then_status_is_waiting(
         self, nrf_relation_id, certificates_relation_id
@@ -212,7 +219,9 @@ class TestCharm:
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == WaitingStatus("Waiting for Webui data to be available")  # noqa: E501
+        assert self.harness.model.unit.status == WaitingStatus(
+            "Waiting for Webui data to be available"
+        )  # noqa: E501
 
     def test_given_storage_not_attached_when_pebble_ready_then_status_is_waiting(
         self,
@@ -226,7 +235,9 @@ class TestCharm:
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == WaitingStatus("Waiting for storage to be attached")  # noqa: E501
+        assert self.harness.model.unit.status == WaitingStatus(
+            "Waiting for storage to be attached"
+        )  # noqa: E501
 
     def test_given_certificates_not_stored_when_pebble_ready_then_status_is_waiting(
         self,
@@ -243,7 +254,9 @@ class TestCharm:
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.model.unit.status == WaitingStatus("Waiting for certificates to be stored")  # noqa: E501
+        assert self.harness.model.unit.status == WaitingStatus(
+            "Waiting for certificates to be stored"
+        )  # noqa: E501
 
     def test_given_relations_created_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
         self,
@@ -391,10 +404,25 @@ class TestCharm:
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert self.harness.charm.unit.status == WaitingStatus("Waiting for pod IP address to be available")  # noqa: E501
+        assert self.harness.charm.unit.status == WaitingStatus(
+            "Waiting for pod IP address to be available"
+        )  # noqa: E501
+
+    #    def test_given_no_workload_version_file_when_pebble_ready_then_workload_version_not_set(
+    #        self,
+    #        nrf_relation_id,
+    #        certificates_relation_id,
+    #        sdcore_config_relation_id,
+    #    ):
+    #        self.harness.add_storage(storage_name="config", attach=True)
+    #        self.mock_check_output.return_value = b""
+    #        self.mock_nrf_url.return_value = NRF_URL
+    #        self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
+    #        self.harness.evaluate_status()
+    #        assert self.harness.charm.unit.workload_version is None
 
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
-        self
+        self,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         service = Mock(
@@ -524,7 +552,9 @@ class TestCharm:
             relation_id=relation_id, app_or_unit=self.harness.charm.app.name
         )
         assert relation_data["amf_ip_address"] == "2.2.2.2"
-        assert relation_data["amf_hostname"] == "sdcore-amf-k8s-external.whatever.svc.cluster.local"  # noqa: E501
+        assert (
+            relation_data["amf_hostname"] == "sdcore-amf-k8s-external.whatever.svc.cluster.local"
+        )  # noqa: E501
         assert relation_data["amf_port"] == "38412"
 
     def test_given_n2_information_and_service_is_running_and_metallb_service_is_not_available_when_fiveg_n2_relation_joined_then_amf_goes_in_blocked_state(  # noqa: E501
@@ -681,7 +711,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.key").read_text() == private_key.decode()
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         certificate = "Whatever certificate content"
@@ -816,7 +846,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
     def test_given_certificate_matches_stored_one_when_pebble_ready_then_certificate_is_not_pushed(
-        self
+        self,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -845,7 +875,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
     def test_given_certificate_does_not_match_stored_one_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
@@ -861,7 +891,7 @@ class TestCharm:
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_amf_cannot_connect_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
@@ -877,7 +907,7 @@ class TestCharm:
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_certificate_matches_stored_one_when_certificate_expiring_then_certificate_is_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
