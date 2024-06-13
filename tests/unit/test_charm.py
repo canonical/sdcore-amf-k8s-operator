@@ -408,18 +408,35 @@ class TestCharm:
             "Waiting for pod IP address to be available"
         )  # noqa: E501
 
-    #    def test_given_no_workload_version_file_when_pebble_ready_then_workload_version_not_set(
+    def test_given_no_workload_version_file_when_pebble_ready_then_workload_version_not_set(
+        self,
+        nrf_relation_id,
+        certificates_relation_id,
+        sdcore_config_relation_id,
+    ):
+        self.mock_check_output.return_value = b""
+        self.mock_nrf_url.return_value = NRF_URL
+        self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
+        self.harness.evaluate_status()
+        version = self.harness.get_workload_version()
+        assert version is None
+
+    # Need to figure out if the file_exists and pull need to be patched, or if harness can do this
+    #    def test_given_workload_version_file_when_pebble_ready_then_workload_version_set(
     #        self,
     #        nrf_relation_id,
     #        certificates_relation_id,
     #        sdcore_config_relation_id,
     #    ):
     #        self.harness.add_storage(storage_name="config", attach=True)
+    #        expected_version = "1.4.2"
+    #        root = self.harness.get_filesystem_root(CONTAINER_NAME)
     #        self.mock_check_output.return_value = b""
     #        self.mock_nrf_url.return_value = NRF_URL
     #        self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
     #        self.harness.evaluate_status()
-    #        assert self.harness.charm.unit.workload_version is None
+    #        version = self.harness.get_workload_version()
+    #        assert version == expected_version
 
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
         self,
