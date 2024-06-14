@@ -526,7 +526,7 @@ class AMFOperatorCharm(CharmBase):
                 path=f"{WORKLOAD_VERSION_FILE_NAME}"
             ).read()
             return version_file_content
-        return None
+        return ""
 
     def _get_invalid_configs(self) -> list[str]:
         """Return list of invalid configurations.
