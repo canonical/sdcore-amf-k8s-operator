@@ -194,6 +194,9 @@ class AMFOperatorCharm(CharmBase):
             logger.info("The following configurations are not valid: %s", invalid_configs)
             return
 
+        if version := self._get_workload_version():
+            self.unit.set_workload_version(version)
+
         if missing_relations := self._missing_relations():
             event.add_status(
                 BlockedStatus(f"Waiting for {', '.join(missing_relations)} relation(s)")
@@ -215,9 +218,6 @@ class AMFOperatorCharm(CharmBase):
             event.add_status(WaitingStatus("Waiting for storage to be attached"))
             logger.info("Waiting for storage to be attached")
             return
-
-        if version := self._get_workload_version():
-            self.unit.set_workload_version(version)
 
         if not _get_pod_ip():
             event.add_status(WaitingStatus("Waiting for pod IP address to be available"))
@@ -515,11 +515,15 @@ class AMFOperatorCharm(CharmBase):
         logger.info("Pushed CSR to workload")
 
     def _get_workload_version(self) -> str:
-        """Return the workload verion.
+        """Return the workload version.
+
+        Checks for the presence of /etc/workload-version file
+        and if present, returns the contents of that file. If
+        the file is not present, an empty string is returned.
 
         Returns:
             string: A human readable string representing the
-            version of the workload.
+            version of the workload
         """
         if self._amf_container.exists(path=f"{WORKLOAD_VERSION_FILE_NAME}"):
             version_file_content = self._amf_container.pull(

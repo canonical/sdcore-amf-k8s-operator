@@ -415,29 +415,21 @@ class TestCharm:
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
-        self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_check_output.return_value = b""
-        self.mock_nrf_url.return_value = NRF_URL
         self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
         self.harness.evaluate_status()
         version = self.harness.get_workload_version()
         assert version is None
 
-    ###################################################################
-    # Need to figure out if the file_exists and pull need to be patched, or if harness can do this
     def test_given_workload_version_file_when_pebble_ready_then_workload_version_set(
         self,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
-        self.harness.add_storage(storage_name="config", attach=True)
         expected_version = "1.2.3"
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
         os.mkdir(f"{root}/etc")
         (root / "etc/workload-version").write_text(expected_version)
-        self.mock_check_output.return_value = b""
-        self.mock_nrf_url.return_value = NRF_URL
         self.harness.container_pebble_ready(container_name=CONTAINER_NAME)
         self.harness.evaluate_status()
         version = self.harness.get_workload_version()
