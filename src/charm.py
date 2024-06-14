@@ -58,6 +58,7 @@ CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
+WORKLOAD_VERSION_FILE_NAME = "/etc/workload-version"
 CERTS_DIR_PATH = "/support/TLS"  # Certificate paths are hardcoded in AMF code
 PRIVATE_KEY_NAME = "amf.key"
 CSR_NAME = "amf.csr"
@@ -110,10 +111,7 @@ class AMFOperatorCharm(CharmBase):
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
-        self.framework.observe(
-            self._webui_requires.on.webui_url_available,
-            self._configure_amf
-        )
+        self.framework.observe(self._webui_requires.on.webui_url_available, self._configure_amf)
         self.framework.observe(self.on.fiveg_n2_relation_joined, self._on_n2_relation_joined)
         self.framework.observe(self.on.certificates_relation_joined, self._configure_amf)
         self.framework.observe(self.on.sdcore_config_relation_joined, self._configure_amf)
@@ -196,11 +194,14 @@ class AMFOperatorCharm(CharmBase):
             logger.info("The following configurations are not valid: %s", invalid_configs)
             return
 
+        if version := self._get_workload_version():
+            self.unit.set_workload_version(version)
+
         if missing_relations := self._missing_relations():
             event.add_status(
                 BlockedStatus(f"Waiting for {', '.join(missing_relations)} relation(s)")
             )
-            logger.info("Waiting for %s  relation(s)", ', '.join(missing_relations))
+            logger.info("Waiting for %s  relation(s)", ", ".join(missing_relations))
             return
 
         if not self._nrf_requires.nrf_url:
@@ -250,9 +251,7 @@ class AMFOperatorCharm(CharmBase):
             list: missing relation names.
         """
         missing_relations = []
-        for relation in [FIVEG_NRF_RELATION_NAME,
-                         TLS_RELATION_NAME,
-                         SDCORE_CONFIG_RELATION_NAME]:
+        for relation in [FIVEG_NRF_RELATION_NAME, TLS_RELATION_NAME, SDCORE_CONFIG_RELATION_NAME]:
             if not self._relation_created(relation):
                 missing_relations.append(relation)
         return missing_relations
@@ -514,6 +513,24 @@ class AMFOperatorCharm(CharmBase):
         """Store CSR in workload."""
         self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode().strip())
         logger.info("Pushed CSR to workload")
+
+    def _get_workload_version(self) -> str:
+        """Return the workload version.
+
+        Checks for the presence of /etc/workload-version file
+        and if present, returns the contents of that file. If
+        the file is not present, an empty string is returned.
+
+        Returns:
+            string: A human readable string representing the
+            version of the workload
+        """
+        if self._amf_container.exists(path=f"{WORKLOAD_VERSION_FILE_NAME}"):
+            version_file_content = self._amf_container.pull(
+                path=f"{WORKLOAD_VERSION_FILE_NAME}"
+            ).read()
+            return version_file_content
+        return ""
 
     def _get_invalid_configs(self) -> list[str]:
         """Return list of invalid configurations.
