@@ -1,9 +1,12 @@
 configuration:
+  amfDBName: {{ database_name }}
   amfName: AMF
   webuiUri: {{ webui_uri }}
   debugProfilePort: 5001
   enableDBStore: false
   enableSctpLb: false
+  mongodb:
+    url: {{ database_url }}
   networkFeatureSupport5GS:
     emc: 0
     emcN3: 0

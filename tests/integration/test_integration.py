@@ -62,6 +62,7 @@ async def test_deploy_charm_and_wait_for_blocked_status(ops_test: OpsTest, deplo
 async def test_relate_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
 
+    await ops_test.model.integrate(relation1=f"{APP_NAME}:database", relation2=f"{DB_CHARM_NAME}")
     await ops_test.model.integrate(relation1=APP_NAME, relation2=NRF_CHARM_NAME)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=WEBUI_CHARM_NAME)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
@@ -102,6 +103,27 @@ async def test_restore_tls_and_wait_for_active_status(ops_test: OpsTest, deploy)
     assert ops_test.model
     await _deploy_self_signed_certificates(ops_test)
     await ops_test.model.integrate(relation1=APP_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+
+
+@pytest.mark.skip(
+    reason="Bug in MongoDB: https://github.com/canonical/mongodb-k8s-operator/issues/218"
+)
+@pytest.mark.abort_on_fail
+async def test_remove_database_and_wait_for_blocked_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    await ops_test.model.remove_application(DB_CHARM_NAME, block_until_done=True)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="blocked", timeout=TIMEOUT)
+
+
+@pytest.mark.skip(
+    reason="Bug in MongoDB: https://github.com/canonical/mongodb-k8s-operator/issues/218"
+)
+@pytest.mark.abort_on_fail
+async def test_restore_database_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    await _deploy_mongodb(ops_test)
+    await ops_test.model.integrate(relation1=APP_NAME, relation2=DB_CHARM_NAME)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
 

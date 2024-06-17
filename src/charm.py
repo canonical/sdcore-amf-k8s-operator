@@ -9,6 +9,7 @@ from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import List, Optional, cast
 
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
 from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
 from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
     MetricsEndpointProvider,
@@ -54,6 +55,7 @@ PROMETHEUS_PORT = 9089
 SBI_PORT = 29518
 NGAPP_PORT = 38412
 SCTP_GRPC_PORT = 9000
+DATABASE_NAME = "sdcore_amf"
 CONFIG_DIR_PATH = "/free5gc/config"
 CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
@@ -71,6 +73,7 @@ LOGGING_RELATION_NAME = "logging"
 FIVEG_NRF_RELATION_NAME = "fiveg_nrf"
 SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
+DATABASE_RELATION_NAME = "database"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -103,11 +106,16 @@ class AMFOperatorCharm(CharmBase):
             ],
         )
         self.unit.set_ports(PROMETHEUS_PORT, SBI_PORT, SCTP_GRPC_PORT)
+        self._database = DatabaseRequires(
+            self, relation_name=DATABASE_RELATION_NAME, database_name=DATABASE_NAME
+        )
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
+        self.framework.observe(self.on.database_relation_joined, self._configure_amf)
+        self.framework.observe(self._database.on.database_created, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
         self.framework.observe(self._nrf_requires.on.nrf_available, self._configure_amf)
         self.framework.observe(self.on.fiveg_nrf_relation_joined, self._configure_amf)
@@ -204,6 +212,16 @@ class AMFOperatorCharm(CharmBase):
             logger.info("Waiting for %s  relation(s)", ", ".join(missing_relations))
             return
 
+        if not self._database_is_available():
+            event.add_status(WaitingStatus("Waiting for the amf database to be available"))
+            logger.info("Waiting for the amf database to be available")
+            return
+
+        if not self._get_database_info():
+            event.add_status(WaitingStatus("Waiting for AMF database info to be available"))
+            logger.info("Waiting for AMF database info to be available")
+            return
+
         if not self._nrf_requires.nrf_url:
             event.add_status(WaitingStatus("Waiting for NRF data to be available"))
             logger.info("Waiting for NRF data to be available")
@@ -251,7 +269,10 @@ class AMFOperatorCharm(CharmBase):
             list: missing relation names.
         """
         missing_relations = []
-        for relation in [FIVEG_NRF_RELATION_NAME, TLS_RELATION_NAME, SDCORE_CONFIG_RELATION_NAME]:
+        for relation in [FIVEG_NRF_RELATION_NAME,
+                         DATABASE_RELATION_NAME,
+                         TLS_RELATION_NAME,
+                         SDCORE_CONFIG_RELATION_NAME]:
             if not self._relation_created(relation):
                 missing_relations.append(relation)
         return missing_relations
@@ -269,6 +290,12 @@ class AMFOperatorCharm(CharmBase):
             return False
 
         if self._missing_relations():
+            return False
+
+        if not self._database_is_available():
+            return False
+
+        if not self._get_database_info():
             return False
 
         if not self._nrf_requires.nrf_url:
@@ -620,6 +647,8 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
             amf_ip=_get_pod_ip(),  # type: ignore[arg-type]
+            database_name=DATABASE_NAME,
+            database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
             dnn=dnn,
@@ -630,11 +659,13 @@ class AMFOperatorCharm(CharmBase):
     @staticmethod
     def _render_config_file(
         *,
+        database_name: str,
         amf_ip: str,
         ngapp_port: int,
         sctp_grpc_port: int,
         sbi_port: int,
         nrf_url: str,
+        database_url: str,
         full_network_name: str,
         short_network_name: str,
         dnn: str,
@@ -644,11 +675,13 @@ class AMFOperatorCharm(CharmBase):
         """Render the AMF config file.
 
         Args:
+            database_name (str): Name of the AMF database.
             amf_ip (str): IP address of the AMF.
             ngapp_port (int): AMF NGAP port.
             sctp_grpc_port (int): AMF SCTP port.
             sbi_port (int): AMF SBi port.
             nrf_url (str): URL of the NRF.
+            database_url (str): URL of the AMF database.
             full_network_name (str): Full name of the network.
             short_network_name (str): Short name of the network.
             dnn (str): Data Network name.
@@ -666,6 +699,8 @@ class AMFOperatorCharm(CharmBase):
             sbi_port=sbi_port,
             nrf_url=nrf_url,
             amf_ip=amf_ip,
+            database_name=database_name,
+            database_url=database_url,
             full_network_name=full_network_name,
             short_network_name=short_network_name,
             dnn=dnn,
@@ -729,6 +764,24 @@ class AMFOperatorCharm(CharmBase):
                 },
             }
         )
+
+    def _get_database_info(self) -> dict:
+        """Return the database data.
+
+        Returns:
+            Dict: The database data.
+        """
+        if not self._database_is_available():
+            raise RuntimeError(f"Database `{DATABASE_NAME}` is not available")
+        return self._database.fetch_relation_data()[self._database.relations[0].id]
+
+    def _database_is_available(self) -> bool:
+        """Return True if the database is available.
+
+        Returns:
+            bool: True if the database is available.
+        """
+        return self._database.is_resource_created()
 
     @property
     def _amf_environment_variables(self) -> dict:
