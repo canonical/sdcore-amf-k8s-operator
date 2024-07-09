@@ -15,7 +15,6 @@ from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCe
 
 CONTAINER_NAME = "amf"
 DB_APPLICATION_NAME = "mongodb-k8s"
-DB_RELATION_NAME = "database"
 NRF_APPLICATION_NAME = "nrf"
 NRF_RELATION_NAME = "fiveg_nrf"
 NRF_URL = "http://nrf:8081"
@@ -39,9 +38,6 @@ class TestCharm:
         "charms.sdcore_webui_k8s.v0.sdcore_config.SdcoreConfigRequires.webui_url",
         new_callable=PropertyMock,
     )
-    patcher_is_resource_created = patch(
-        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created"
-    )
     patcher_generate_csr = patch("charm.generate_csr")
     patcher_generate_private_key = patch("charm.generate_private_key")
     patcher_get_assigned_certificates = patch(
@@ -63,7 +59,6 @@ class TestCharm:
         self.mock_request_certificate_creation = (
             TestCharm.patcher_request_certificate_creation.start()
         )
-        self.mock_is_resource_created = TestCharm.patcher_is_resource_created.start()
         self.mock_nrf_url = TestCharm.patcher_nrf_url.start()
         self.mock_webui_url = TestCharm.patcher_webui_url.start()
         self.mock_check_output = TestCharm.patcher_check_output.start()
@@ -85,23 +80,6 @@ class TestCharm:
         yield self.harness
         self.harness.cleanup()
         request.addfinalizer(self.teardown)
-
-    @pytest.fixture()
-    def database_relation_id(self) -> int:
-        database_relation_id = self.harness.add_relation(DB_RELATION_NAME, DB_APPLICATION_NAME)
-        self.harness.add_relation_unit(
-            relation_id=database_relation_id, remote_unit_name=f"{DB_APPLICATION_NAME}/0"
-        )
-        self.harness.update_relation_data(
-            relation_id=database_relation_id,
-            app_or_unit=DB_APPLICATION_NAME,
-            key_values={
-                "username": "dummy",
-                "password": "dummy",
-                "uris": "http://dummy",
-            },
-        )
-        yield database_relation_id
 
     @pytest.fixture()
     def nrf_relation_id(self) -> int:
@@ -150,26 +128,17 @@ class TestCharm:
         return content
 
     def test_given_fiveg_nrf_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self, certificates_relation_id, sdcore_config_relation_id, database_relation_id
+        self, certificates_relation_id, sdcore_config_relation_id
     ):
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation(s)")
 
-    def test_given_database_relation_not_created_when_pebble_ready_then_status_is_blocked(
-        self, nrf_relation_id, sdcore_config_relation_id, certificates_relation_id
-    ):
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-        self.harness.evaluate_status()
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation(s)")
-
     def test_given_certificates_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self, nrf_relation_id, sdcore_config_relation_id
     ):
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus(
@@ -180,7 +149,6 @@ class TestCharm:
         self, nrf_relation_id, certificates_relation_id
     ):
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == BlockedStatus(
@@ -189,13 +157,11 @@ class TestCharm:
 
     def test_given_amf_charm_in_active_state_when_nrf_relation_breaks_then_status_is_blocked(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -205,33 +171,13 @@ class TestCharm:
 
         assert self.harness.model.unit.status == BlockedStatus("Waiting for fiveg_nrf relation(s)")
 
-    def test_given_amf_charm_in_active_state_when_database_relation_breaks_then_status_is_blocked(
-        self,
-        database_relation_id,
-        nrf_relation_id,
-        certificates_relation_id,
-        sdcore_config_relation_id,
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
-        self.mock_nrf_url.return_value = NRF_URL
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-
-        self.harness.remove_relation(database_relation_id)
-        self.harness.evaluate_status()
-        assert self.harness.model.unit.status == BlockedStatus("Waiting for database relation(s)")
-
     def test_given_amf_charm_in_active_state_when_sdcore_config_relation_breaks_then_status_is_blocked(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -243,42 +189,14 @@ class TestCharm:
             "Waiting for sdcore_config relation(s)"
         )
 
-    def test_given_relations_created_and_database_not_available_when_pebble_ready_then_status_is_waiting(  # noqa: E501
-        self, nrf_relation_id, certificates_relation_id, sdcore_config_relation_id
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
-        self.mock_is_resource_created.return_value = False
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-        self.harness.evaluate_status()
-        assert self.harness.model.unit.status == WaitingStatus(
-            "Waiting for the amf database to be available")
-
-    def test_given_database_info_not_available_when_pebble_ready_then_status_is_waiting(
-        self, nrf_relation_id, certificates_relation_id, sdcore_config_relation_id
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_is_resource_created.return_value = True
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-        self.harness.evaluate_status()
-        assert self.harness.model.unit.status == WaitingStatus(
-            "Waiting for AMF database info to be available")
-
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = ""
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -288,12 +206,11 @@ class TestCharm:
         )
 
     def test_given_webui_data_not_available_when_pebble_ready_then_status_is_waiting(
-        self, database_relation_id, nrf_relation_id, certificates_relation_id
+        self, nrf_relation_id, certificates_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.add_relation(
             relation_name=SDCORE_CONFIG_RELATION_NAME,
@@ -309,14 +226,12 @@ class TestCharm:
 
     def test_given_storage_not_attached_when_pebble_ready_then_status_is_waiting(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -327,7 +242,6 @@ class TestCharm:
 
     def test_given_certificates_not_stored_when_pebble_ready_then_status_is_waiting(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -337,7 +251,6 @@ class TestCharm:
         self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_generate_csr.return_value = CSR
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -346,9 +259,8 @@ class TestCharm:
             "Waiting for certificates to be stored"
         )
 
-    def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
+    def test_given_relations_created_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -365,7 +277,6 @@ class TestCharm:
         self.mock_get_assigned_certificates.return_value = [
             provider_certificate,
         ]
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_webui_url.return_value = WEBUI_URL
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
@@ -380,7 +291,6 @@ class TestCharm:
 
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -403,7 +313,6 @@ class TestCharm:
         )
         config_modification_time = (root / "free5gc/config/amfcfg.conf").stat().st_mtime
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_webui_url.return_value = WEBUI_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -412,7 +321,6 @@ class TestCharm:
 
     def test_given_relations_available_and_config_pushed_when_pebble_ready_then_pebble_is_applied_correctly(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -433,7 +341,6 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -460,7 +367,6 @@ class TestCharm:
 
     def test_relations_available_and_config_pushed_and_pebble_updated_when_pebble_ready_then_status_is_active(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -482,7 +388,6 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -491,7 +396,6 @@ class TestCharm:
 
     def test_given_empty_ip_address_when_pebble_ready_then_status_is_waiting(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -532,7 +436,7 @@ class TestCharm:
         assert version == expected_version
 
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
-        self
+        self,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         service = Mock(
@@ -548,7 +452,6 @@ class TestCharm:
 
     def test_given_n2_information_and_service_is_running_when_fiveg_n2_relation_joined_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -573,7 +476,6 @@ class TestCharm:
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         self.mock_get.return_value = service
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -589,7 +491,6 @@ class TestCharm:
 
     def test_given_n2_information_and_service_is_running_and_n2_config_is_overriden_when_fiveg_n2_relation_joined_then_custom_n2_information_is_in_relation_databag(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -614,7 +515,6 @@ class TestCharm:
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         self.mock_get.return_value = service
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.update_config(
@@ -633,7 +533,6 @@ class TestCharm:
 
     def test_given_n2_information_and_service_is_running_and_lb_service_has_no_hostname_when_fiveg_n2_relation_joined_then_internal_service_hostname_is_used(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -656,7 +555,6 @@ class TestCharm:
         self.mock_check_output.return_value = b"1.1.1.1"
         service = Mock(status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
         self.mock_get.return_value = service
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.update_config({"external-amf-ip": "2.2.2.2"})
@@ -675,7 +573,6 @@ class TestCharm:
 
     def test_given_n2_information_and_service_is_running_and_metallb_service_is_not_available_when_fiveg_n2_relation_joined_then_amf_goes_in_blocked_state(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -698,7 +595,6 @@ class TestCharm:
         self.mock_check_output.return_value = b"1.1.1.1"
         service = Mock(status=Mock(loadBalancer=Mock(ingress=None)))
         self.mock_get.return_value = service
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -709,7 +605,6 @@ class TestCharm:
 
     def test_given_service_starts_running_after_n2_relation_joined_when_pebble_ready_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -741,7 +636,6 @@ class TestCharm:
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         self.mock_get.return_value = service
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -755,7 +649,6 @@ class TestCharm:
 
     def test_given_more_than_one_n2_requirers_join_n2_relation_when_service_starts_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -780,7 +673,6 @@ class TestCharm:
             status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
         )
         self.mock_get.return_value = service
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -807,7 +699,6 @@ class TestCharm:
 
     def test_given_can_connect_when_on_pebble_ready_then_private_key_is_generated(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -827,7 +718,6 @@ class TestCharm:
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(certificate)
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
@@ -835,7 +725,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.key").read_text() == private_key.decode()
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         certificate = "Whatever certificate content"
@@ -857,7 +747,6 @@ class TestCharm:
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_status_is_blocked(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -868,7 +757,6 @@ class TestCharm:
         self.mock_generate_csr.return_value = CSR
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -880,7 +768,6 @@ class TestCharm:
 
     def test_given_private_key_exists_when_pebble_ready_then_csr_is_generated(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -901,7 +788,6 @@ class TestCharm:
 
     def test_given_private_key_exists_and_cert_not_yet_requested_when_pebble_ready_then_cert_is_requested(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -921,7 +807,6 @@ class TestCharm:
 
     def test_given_cert_already_stored_when_pebble_ready_then_cert_is_not_requested(  # noqa: E501
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -948,7 +833,6 @@ class TestCharm:
 
     def test_given_csr_matches_stored_one_when_pebble_ready_then_certificate_is_pushed(
         self,
-        database_relation_id,
         nrf_relation_id,
         certificates_relation_id,
         sdcore_config_relation_id,
@@ -976,7 +860,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
     def test_given_certificate_matches_stored_one_when_pebble_ready_then_certificate_is_not_pushed(
-        self, database_relation_id
+        self,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.harness.add_storage(storage_name="certs", attach=True)
@@ -1005,7 +889,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
     def test_given_certificate_does_not_match_stored_one_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
@@ -1021,7 +905,7 @@ class TestCharm:
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_amf_cannot_connect_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
@@ -1037,7 +921,7 @@ class TestCharm:
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_certificate_matches_stored_one_when_certificate_expiring_then_certificate_is_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         root = self.harness.get_filesystem_root(CONTAINER_NAME)

@@ -43,8 +43,6 @@ provides:
 requires:
   fiveg_nrf:
     interface: fiveg_nrf
-  database:
-    interface: mongodb_client
   certificates:
     interface: tls-certificates
   logging:
