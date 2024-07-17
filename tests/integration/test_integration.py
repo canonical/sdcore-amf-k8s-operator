@@ -20,8 +20,6 @@ NRF_CHARM_NAME = "sdcore-nrf-k8s"
 NRF_CHARM_CHANNEL = "1.5/edge"
 TLS_PROVIDER_CHARM_NAME = "self-signed-certificates"
 TLS_PROVIDER_CHARM_CHANNEL = "latest/stable"
-WEBUI_CHARM_NAME = "sdcore-webui-k8s"
-WEBUI_CHARM_CHANNEL = "1.5/edge"
 NMS_CHARM_NAME = "sdcore-nms-k8s"
 NMS_CHARM_CHANNEL = "1.5/edge"
 GRAFANA_AGENT_CHARM_NAME = "grafana-agent-k8s"
@@ -45,7 +43,6 @@ async def deploy(ops_test: OpsTest, request):
     )
     await _deploy_self_signed_certificates(ops_test)
     await _deploy_mongodb(ops_test)
-    await _deploy_webui(ops_test)
     await _deploy_nrf(ops_test)
     await _deploy_grafana_agent(ops_test)
     await _deploy_nms(ops_test)
@@ -140,7 +137,7 @@ async def test_remove_nms_and_wait_for_blocked_status(ops_test: OpsTest, deploy)
 @pytest.mark.abort_on_fail
 async def test_restore_nms_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
-    await _deploy_webui(ops_test)
+    await _deploy_nms(ops_test)
     await ops_test.model.integrate(
         relation1=f"{APP_NAME}:sdcore_config", relation2=f"{NMS_CHARM_NAME}:sdcore-config"
     )
@@ -185,22 +182,7 @@ async def _deploy_nrf(ops_test: OpsTest):
         relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
     )
     await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
-    await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=WEBUI_CHARM_NAME)
 
-
-async def _deploy_webui(ops_test: OpsTest):
-    assert ops_test.model
-    await ops_test.model.deploy(
-        WEBUI_CHARM_NAME,
-        application_name=WEBUI_CHARM_NAME,
-        channel=WEBUI_CHARM_CHANNEL,
-    )
-    await ops_test.model.integrate(
-        relation1=f"{WEBUI_CHARM_NAME}:common_database", relation2=f"{DB_CHARM_NAME}"
-    )
-    await ops_test.model.integrate(
-        relation1=f"{WEBUI_CHARM_NAME}:auth_database", relation2=f"{DB_CHARM_NAME}"
-    )
 
 async def _deploy_nms(ops_test: OpsTest):
     assert ops_test.model
