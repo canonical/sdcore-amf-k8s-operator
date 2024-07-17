@@ -191,3 +191,9 @@ async def _deploy_nms(ops_test: OpsTest):
         application_name=NMS_CHARM_NAME,
         channel=NMS_CHARM_CHANNEL,
     )
+    await ops_test.model.integrate(
+        relation1=f"{NMS_CHARM_NAME}:common_database", relation2=f"{DB_CHARM_NAME}"
+    )
+    await ops_test.model.integrate(
+        relation1=f"{NMS_CHARM_NAME}:auth_database", relation2=f"{DB_CHARM_NAME}"
+    )
