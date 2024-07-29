@@ -1,7 +1,7 @@
-# SD-Core AMF Operator (k8s)
+# Aether SD-Core AMF Operator (k8s)
 [![CharmHub Badge](https://charmhub.io/sdcore-amf-k8s/badge.svg)](https://charmhub.io/sdcore-amf-k8s)
 
-Charmed Operator for SD-Core's Access and Mobility Management Function (AMF) for K8s.
+Charmed Operator for Aether SD-Core's Access and Mobility Management Function (AMF) for K8s.
 
 
 ## Pre-requisites
@@ -23,7 +23,7 @@ juju integrate sdcore-nrf-k8s:certificates self-signed-certificates:certificates
 juju integrate sdcore-amf-k8s:database mongodb-k8s:database
 juju integrate sdcore-amf-k8s:fiveg_nrf sdcore-nrf-k8s:fiveg_nrf
 juju integrate sdcore-amf-k8s:certificates self-signed-certificates:certificates
-juju integrate sdcore-amf-k8s:sdcore_config sdcore-nms-k8s:sdcore-config
+juju integrate sdcore-amf-k8s:sdcore-config sdcore-nms-k8s:sdcore-config
 ```
 
 ### Overriding external access information for N2 interface
