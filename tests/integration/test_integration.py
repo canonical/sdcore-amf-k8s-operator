@@ -139,7 +139,7 @@ async def test_restore_nms_and_wait_for_active_status(ops_test: OpsTest, deploy)
     assert ops_test.model
     await _deploy_nms(ops_test)
     await ops_test.model.integrate(
-        relation1=f"{APP_NAME}:sdcore-config", relation2=f"{NMS_CHARM_NAME}:sdcore-config"
+        relation1=f"{APP_NAME}:sdcore_config", relation2=f"{NMS_CHARM_NAME}:sdcore_config"
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
