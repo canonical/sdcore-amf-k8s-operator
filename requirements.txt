@@ -20,9 +20,9 @@ cffi==1.16.0
     # via cryptography
 click==8.1.7
     # via typer
-cosl==0.0.12
+cosl==0.0.17
     # via -r requirements.in
-cryptography==42.0.8
+cryptography==43.0.0
     # via -r requirements.in
 h11==0.14.0
     # via httpcore
@@ -50,7 +50,7 @@ lightkube-models==1.30.0.8
     #   lightkube
 markupsafe==2.1.5
     # via jinja2
-ops==2.14.1
+ops==2.15.0
     # via
     #   -r requirements.in
     #   cosl
@@ -66,10 +66,11 @@ pycparser==2.21
 pydantic==2.8.2
     # via
     #   -r requirements.in
+    #   cosl
     #   pytest-interface-tester
 pydantic-core==2.20.1
     # via pydantic
-pytest==8.2.2
+pytest==8.3.2
     # via pytest-interface-tester
 pytest-interface-tester==2.0.1
     # via -r requirements.in
