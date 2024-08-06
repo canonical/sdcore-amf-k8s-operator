@@ -96,9 +96,9 @@ if __name__ == "__main__":
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
-from interface_tester.schema_base import DataBagSchema  # type: ignore[import]
+from interface_tester.schema_base import DataBagSchema
 from ops.charm import CharmBase, CharmEvents, RelationChangedEvent
 from ops.framework import EventBase, EventSource, Handle, Object
 from ops.model import Relation
@@ -108,7 +108,7 @@ from pydantic import BaseModel, Field, IPvAnyAddress, ValidationError
 LIBID = "396917943b9b4b6989166b77c97a9fb8"
 
 # Increment this major API version when introducing breaking changes
-LIBAPI = 0
+LIBAPI = 1
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
@@ -148,10 +148,10 @@ class ProviderAppData(BaseModel):
 class ProviderSchema(DataBagSchema):
     """Provider schema for fiveg_n2."""
 
-    app: ProviderAppData
+    app_data: ProviderAppData
 
 
-def data_is_valid(data: dict) -> bool:
+def data_is_valid(data: Dict[str, Any]) -> bool:
     """Return whether data is valid.
 
     Args:
@@ -161,7 +161,7 @@ def data_is_valid(data: dict) -> bool:
         bool: True if data is valid, False otherwise.
     """
     try:
-        ProviderSchema(app=data)
+        ProviderSchema(app_data=ProviderAppData(**data))
         return True
     except ValidationError as e:
         logger.error("Invalid data: %s", e)
@@ -202,7 +202,7 @@ class N2RequirerCharmEvents(CharmEvents):
 class N2Requires(Object):
     """Class to be instantiated by the N2 requirer charm."""
 
-    on = N2RequirerCharmEvents()
+    on = N2RequirerCharmEvents()  # type: ignore
 
     def __init__(self, charm: CharmBase, relation_name: str):
         """Init."""
