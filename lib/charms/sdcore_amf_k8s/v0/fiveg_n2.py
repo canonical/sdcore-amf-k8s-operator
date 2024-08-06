@@ -108,11 +108,11 @@ from pydantic import BaseModel, Field, IPvAnyAddress, ValidationError
 LIBID = "396917943b9b4b6989166b77c97a9fb8"
 
 # Increment this major API version when introducing breaking changes
-LIBAPI = 1
+LIBAPI = 0
 
 # Increment this PATCH version before using `charmcraft publish-lib` or reset
 # to 0 if you are raising the major API version
-LIBPATCH = 2
+LIBPATCH = 3
 
 logger = logging.getLogger(__name__)
 """Schemas definition for the provider and requirer sides of the `fiveg_n2` interface.
