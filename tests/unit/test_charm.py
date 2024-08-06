@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import os
+from typing import Any, Generator
 from unittest.mock import Mock, PropertyMock, call, patch
 
 import pytest
@@ -77,7 +78,7 @@ class TestCharm:
         patch.stopall()
 
     @pytest.fixture(autouse=True)
-    def harness(self, setup, request):
+    def harnesser(self, setup, request):
         self.harness = testing.Harness(AMFOperatorCharm)
         self.harness.set_model_name(name=NAMESPACE)
         self.harness.set_leader(is_leader=True)
@@ -87,7 +88,7 @@ class TestCharm:
         request.addfinalizer(self.teardown)
 
     @pytest.fixture()
-    def database_relation_id(self) -> int:
+    def database_relation_id(self) -> Generator[int, Any, Any]:
         database_relation_id = self.harness.add_relation(DB_RELATION_NAME, DB_APPLICATION_NAME)
         self.harness.add_relation_unit(
             relation_id=database_relation_id, remote_unit_name=f"{DB_APPLICATION_NAME}/0"
@@ -104,21 +105,21 @@ class TestCharm:
         yield database_relation_id
 
     @pytest.fixture()
-    def nrf_relation_id(self) -> int:
+    def nrf_relation_id(self) -> Generator[int, Any, Any]:
         yield self.harness.add_relation(
             relation_name=NRF_RELATION_NAME,
             remote_app=DB_APPLICATION_NAME,
         )
 
     @pytest.fixture()
-    def certificates_relation_id(self) -> int:
+    def certificates_relation_id(self) -> Generator[int, Any, Any]:
         yield self.harness.add_relation(
             relation_name=TLS_RELATION_NAME,
             remote_app=TLS_APPLICATION_NAME,
         )
 
     @pytest.fixture()
-    def sdcore_config_relation_id(self) -> int:
+    def sdcore_config_relation_id(self) -> Generator[int, Any, Any]:
         sdcore_config_relation_id = self.harness.add_relation(
             relation_name=SDCORE_CONFIG_RELATION_NAME,
             remote_app=WEBUI_APPLICATION_NAME,

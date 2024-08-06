@@ -9,24 +9,24 @@ from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import List, Optional, cast
 
-from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
-from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
-from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
+from charms.loki_k8s.v1.loki_push_api import LogForwarder
+from charms.prometheus_k8s.v0.prometheus_scrape import (
     MetricsEndpointProvider,
 )
-from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
-from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
-from charms.sdcore_webui_k8s.v0.sdcore_config import (  # type: ignore[import]
+from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
+from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
+from charms.sdcore_webui_k8s.v0.sdcore_config import (
     SdcoreConfigRequires,
 )
-from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ignore[import]
+from charms.tls_certificates_interface.v3.tls_certificates import (
     CertificateExpiringEvent,
     TLSCertificatesRequiresV3,
     generate_csr,
     generate_private_key,
 )
 from jinja2 import Environment, FileSystemLoader
-from lightkube import Client
+from lightkube.core.client import Client
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
@@ -40,12 +40,12 @@ from ops import (
 )
 from ops.charm import (
     CharmBase,
-    EventBase,
     InstallEvent,
     RelationBrokenEvent,
     RelationJoinedEvent,
     RemoveEvent,
 )
+from ops.framework import EventBase
 from ops.main import main
 from ops.pebble import Layer
 
@@ -242,11 +242,10 @@ class AMFOperatorCharm(CharmBase):
             logger.info("Waiting for pod IP address to be available")
             return
 
-        try:
-            self._set_n2_information()
-        except ValueError:
+        if not self._amf_external_service_is_ready():
             event.add_status(BlockedStatus("Waiting for MetalLB to be enabled"))
             logger.info("Waiting for MetalLB to be enabled")
+            return
 
         if self._csr_is_stored() and not self._get_current_provider_certificate():
             event.add_status(WaitingStatus("Waiting for certificates to be stored"))
@@ -269,10 +268,12 @@ class AMFOperatorCharm(CharmBase):
             list: missing relation names.
         """
         missing_relations = []
-        for relation in [FIVEG_NRF_RELATION_NAME,
-                         DATABASE_RELATION_NAME,
-                         TLS_RELATION_NAME,
-                         SDCORE_CONFIG_RELATION_NAME]:
+        for relation in [
+            FIVEG_NRF_RELATION_NAME,
+            DATABASE_RELATION_NAME,
+            TLS_RELATION_NAME,
+            SDCORE_CONFIG_RELATION_NAME,
+        ]:
             if not self._relation_created(relation):
                 missing_relations.append(relation)
         return missing_relations
@@ -626,8 +627,10 @@ class AMFOperatorCharm(CharmBase):
             return
         if not self._amf_service_is_running():
             return
+        if not (amf_ip := self._get_n2_amf_ip()):
+            return
         self.n2_provider.set_n2_information(
-            amf_ip_address=self._get_n2_amf_ip(),
+            amf_ip_address=amf_ip,
             amf_hostname=self._get_n2_amf_hostname(),
             amf_port=NGAPP_PORT,
         )
@@ -641,12 +644,21 @@ class AMFOperatorCharm(CharmBase):
         if not (dnn := self._get_dnn_config()):
             raise ValueError("DNN configuration value is empty")
 
+        if not self._nrf_requires.nrf_url:
+            raise ValueError("NRF URL is not available")
+
+        if not self._webui_requires.webui_url:
+            raise ValueError("Webui URL is not available")
+
+        if not (amf_ip := _get_pod_ip()):
+            raise ValueError("AMF IP is not available")
+
         return self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
-            amf_ip=_get_pod_ip(),  # type: ignore[arg-type]
+            amf_ip=amf_ip,
             database_name=DATABASE_NAME,
             database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
@@ -821,6 +833,11 @@ class AMFOperatorCharm(CharmBase):
         except ModelError:
             return False
         return service.is_running()
+
+    def _amf_external_service_is_ready(self) -> bool:
+        if not self._amf_external_service_ip() and not self._amf_external_service_hostname():
+            return False
+        return True
 
     def _amf_external_service_ip(self) -> Optional[str]:
         """Return the external service IP.
