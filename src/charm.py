@@ -26,10 +26,7 @@ from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ign
     generate_private_key,
 )
 from jinja2 import Environment, FileSystemLoader
-from lightkube import Client
-from lightkube.models.core_v1 import ServicePort, ServiceSpec
-from lightkube.models.meta_v1 import ObjectMeta
-from lightkube.resources.core_v1 import Service
+from k8s_service import K8sService
 from ops import (
     ActiveStatus,
     BlockedStatus,
@@ -41,7 +38,6 @@ from ops import (
 from ops.charm import (
     CharmBase,
     EventBase,
-    InstallEvent,
     RelationBrokenEvent,
     RelationJoinedEvent,
     RemoveEvent,
@@ -110,7 +106,12 @@ class AMFOperatorCharm(CharmBase):
             self, relation_name=DATABASE_RELATION_NAME, database_name=DATABASE_NAME
         )
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
-        self.framework.observe(self.on.install, self._on_install)
+        self.k8s_service = K8sService(
+            namespace=self.model.name,
+            service_name=f"{self.app.name}-external",
+            service_port=NGAPP_PORT,
+            app_name=self.app.name,
+        )
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
@@ -143,6 +144,9 @@ class AMFOperatorCharm(CharmBase):
         Args:
             _ (EventBase): Juju event
         """
+        if not self.k8s_service.is_created():
+            self.k8s_service.create()
+
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
             return
@@ -269,10 +273,12 @@ class AMFOperatorCharm(CharmBase):
             list: missing relation names.
         """
         missing_relations = []
-        for relation in [FIVEG_NRF_RELATION_NAME,
-                         DATABASE_RELATION_NAME,
-                         TLS_RELATION_NAME,
-                         SDCORE_CONFIG_RELATION_NAME]:
+        for relation in [
+            FIVEG_NRF_RELATION_NAME,
+            DATABASE_RELATION_NAME,
+            TLS_RELATION_NAME,
+            SDCORE_CONFIG_RELATION_NAME,
+        ]:
             if not self._relation_created(relation):
                 missing_relations.append(relation)
         return missing_relations
@@ -312,28 +318,6 @@ class AMFOperatorCharm(CharmBase):
 
         return True
 
-    def _on_install(self, event: InstallEvent) -> None:
-        client = Client()
-        client.apply(
-            Service(
-                apiVersion="v1",
-                kind="Service",
-                metadata=ObjectMeta(
-                    namespace=self.model.name,
-                    name=f"{self.app.name}-external",
-                ),
-                spec=ServiceSpec(
-                    selector={"app.kubernetes.io/name": self.app.name},
-                    ports=[
-                        ServicePort(name="ngapp", port=NGAPP_PORT, protocol="SCTP"),
-                    ],
-                    type="LoadBalancer",
-                ),
-            ),
-            field_manager=self.model.app.name,
-        )
-        logger.info("Created/asserted existence of external AMF service")
-
     def _on_remove(self, event: RemoveEvent) -> None:
         # NOTE: We want to perform this removal only if the last remaining unit
         # is removed. This charm does not support scaling, so it *should* be
@@ -350,13 +334,8 @@ class AMFOperatorCharm(CharmBase):
         # hooks are finished running. In this case, we will leave behind a
         # dirty state in k8s, but it will be cleaned up when the juju model is
         # destroyed. It will be re-used if the charm is re-deployed.
-        client = Client()
-        client.delete(
-            Service,
-            namespace=self.model.name,
-            name=f"{self.app.name}-external",
-        )
-        logger.info("Removed external AMF service")
+        if self.k8s_service.is_created():
+            self.k8s_service.remove()
 
     def _is_config_update_required(self, content: str) -> bool:
         """Decide whether config update is required by checking existence and config content.
@@ -601,7 +580,7 @@ class AMFOperatorCharm(CharmBase):
         """
         if configured_ip := self._get_external_amf_ip_config():
             return configured_ip
-        return self._amf_external_service_ip()
+        return self.k8s_service.get_ip()
 
     def _get_n2_amf_hostname(self) -> str:
         """Return the hostname to send for the N2 interface.
@@ -616,7 +595,7 @@ class AMFOperatorCharm(CharmBase):
         """
         if configured_hostname := self._get_external_amf_hostname_config():
             return configured_hostname
-        elif lb_hostname := self._amf_external_service_hostname():
+        elif lb_hostname := self.k8s_service.get_hostname():
             return lb_hostname
         return self._amf_hostname()
 
@@ -821,46 +800,6 @@ class AMFOperatorCharm(CharmBase):
         except ModelError:
             return False
         return service.is_running()
-
-    def _amf_external_service_ip(self) -> Optional[str]:
-        """Return the external service IP.
-
-        Returns:
-            str/None: External Service IP if available else None
-        """
-        client = Client()
-        service = client.get(
-            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
-        )
-        try:
-            return service.status.loadBalancer.ingress[0].ip  # type: ignore[union-attr, index]
-        except (AttributeError, TypeError):
-            logger.error(
-                "Service '%s-external' does not have an IP address:\n%s",
-                self.model.app.name,
-                service,
-            )
-            return None
-
-    def _amf_external_service_hostname(self) -> Optional[str]:
-        """Return the external service hostname.
-
-        Returns:
-            str: External Service hostname if available else None
-        """
-        client = Client()
-        service = client.get(
-            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
-        )
-        try:
-            return service.status.loadBalancer.ingress[0].hostname  # type: ignore[union-attr, index]
-        except (AttributeError, TypeError):
-            logger.error(
-                "Service '%s-external' does not have a hostname:\n%s",
-                self.model.app.name,
-                service,
-            )
-            return None
 
 
 def _get_pod_ip() -> Optional[str]:

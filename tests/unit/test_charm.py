@@ -2,13 +2,10 @@
 # See LICENSE file for licensing details.
 
 import os
-from unittest.mock import Mock, PropertyMock, call, patch
+from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 from charm import AMFOperatorCharm
-from lightkube.models.core_v1 import ServicePort, ServiceSpec
-from lightkube.models.meta_v1 import ObjectMeta
-from lightkube.resources.core_v1 import Service
 from ops import ActiveStatus, BlockedStatus, WaitingStatus, testing
 
 from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
@@ -32,6 +29,11 @@ CERTIFICATE = "Whatever certificate content"
 
 class TestCharm:
     patcher_check_output = patch("charm.check_output")
+    patcher_k8s_service_is_created = patch("charm.K8sService.is_created")
+    patcher_k8s_service_create = patch("charm.K8sService.create")
+    patcher_k8s_service_remove = patch("charm.K8sService.remove")
+    patcher_k8s_service_get_hostname = patch("charm.K8sService.get_hostname")
+    patcher_k8s_service_get_ip = patch("charm.K8sService.get_ip")
     patcher_nrf_url = patch(
         "charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock
     )
@@ -50,10 +52,6 @@ class TestCharm:
     patcher_request_certificate_creation = patch(
         "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_creation"
     )
-    patcher_client = patch("lightkube.core.client.GenericSyncClient", new=Mock)
-    patcher_get = patch("lightkube.core.client.Client.get")
-    patcher_apply = patch("lightkube.core.client.Client.apply")
-    patcher_delete = patch("lightkube.core.client.Client.delete")
 
     @pytest.fixture()
     def setup(self):
@@ -67,10 +65,11 @@ class TestCharm:
         self.mock_nrf_url = TestCharm.patcher_nrf_url.start()
         self.mock_webui_url = TestCharm.patcher_webui_url.start()
         self.mock_check_output = TestCharm.patcher_check_output.start()
-        TestCharm.patcher_client.start()
-        self.mock_get = TestCharm.patcher_get.start()
-        self.mock_apply = TestCharm.patcher_apply.start()
-        self.mock_delete = TestCharm.patcher_delete.start()
+        self.mock_k8s_service_is_created = TestCharm.patcher_k8s_service_is_created.start()
+        self.mock_k8s_service_create = TestCharm.patcher_k8s_service_create.start()
+        self.mock_k8s_service_remove = TestCharm.patcher_k8s_service_remove.start()
+        self.mock_k8s_service_get_hostname = TestCharm.patcher_k8s_service_get_hostname.start()
+        self.mock_k8s_service_get_ip = TestCharm.patcher_k8s_service_get_ip.start()
 
     @staticmethod
     def teardown() -> None:
@@ -254,7 +253,8 @@ class TestCharm:
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus(
-            "Waiting for the amf database to be available")
+            "Waiting for the amf database to be available"
+        )
 
     def test_given_database_info_not_available_when_pebble_ready_then_status_is_waiting(
         self, nrf_relation_id, certificates_relation_id, sdcore_config_relation_id
@@ -267,7 +267,8 @@ class TestCharm:
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus(
-            "Waiting for AMF database info to be available")
+            "Waiting for AMF database info to be available"
+        )
 
     def test_given_nrf_data_not_available_when_pebble_ready_then_status_is_waiting(
         self,
@@ -532,13 +533,11 @@ class TestCharm:
         assert version == expected_version
 
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
-        self
+        self,
     ):
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(
-            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
-        )
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_hostname.return_value = "amf.pizza.com"
+        self.mock_k8s_service_get_ip.return_value = "1.1.1.1"
         relation_id = self.harness.add_relation(relation_name="fiveg-n2", remote_app="n2-requirer")
         self.harness.add_relation_unit(relation_id=relation_id, remote_unit_name="n2-requirer/0")
         relation_data = self.harness.get_relation_data(
@@ -569,10 +568,8 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(
-            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
-        )
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_hostname.return_value = "amf.pizza.com"
+        self.mock_k8s_service_get_ip.return_value = "1.1.1.1"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -610,10 +607,8 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(
-            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
-        )
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_hostname.return_value = "amf.pizza.com"
+        self.mock_k8s_service_get_ip.return_value = "1.1.1.1"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -654,8 +649,8 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", spec=["ip"])])))
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_hostname.return_value = None
+        self.mock_k8s_service_get_ip.return_value = "1.1.1.1"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -696,8 +691,8 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(status=Mock(loadBalancer=Mock(ingress=None)))
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_hostname.return_value = None
+        self.mock_k8s_service_get_ip.return_value = None
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -737,10 +732,8 @@ class TestCharm:
         )
         assert relation_data == {}
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(
-            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
-        )
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_ip.return_value = "1.1.1.1"
+        self.mock_k8s_service_get_hostname.return_value = "amf.pizza.com"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -776,10 +769,8 @@ class TestCharm:
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
         self.mock_check_output.return_value = b"1.1.1.1"
-        service = Mock(
-            status=Mock(loadBalancer=Mock(ingress=[Mock(ip="1.1.1.1", hostname="amf.pizza.com")]))
-        )
-        self.mock_get.return_value = service
+        self.mock_k8s_service_get_ip.return_value = "1.1.1.1"
+        self.mock_k8s_service_get_hostname.return_value = "amf.pizza.com"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_generate_private_key.return_value = PRIVATE_KEY
@@ -835,7 +826,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.key").read_text() == private_key.decode()
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         certificate = "Whatever certificate content"
@@ -1005,7 +996,7 @@ class TestCharm:
         assert (root / "support/TLS/amf.pem").read_text() == certificate
 
     def test_given_certificate_does_not_match_stored_one_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
@@ -1021,7 +1012,7 @@ class TestCharm:
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_amf_cannot_connect_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         event = Mock()
@@ -1037,7 +1028,7 @@ class TestCharm:
         self.mock_request_certificate_creation.assert_not_called()
 
     def test_given_certificate_matches_stored_one_when_certificate_expiring_then_certificate_is_requested(  # noqa: E501
-        self
+        self,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
@@ -1054,45 +1045,16 @@ class TestCharm:
 
         self.mock_request_certificate_creation.assert_called_with(certificate_signing_request=CSR)
 
-    def test_when_install_then_external_service_is_created(self):
-        self.harness.charm.on.install.emit()
+    def test_given_k8s_service_not_created_when_pebble_ready_then_service_is_created(self):
+        self.mock_k8s_service_is_created.return_value = False
+        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
 
-        calls = [
-            call(
-                Service(
-                    apiVersion="v1",
-                    kind="Service",
-                    metadata=ObjectMeta(
-                        namespace=NAMESPACE,
-                        name=f"{self.harness.charm.app.name}-external",
-                    ),
-                    spec=ServiceSpec(
-                        selector={"app.kubernetes.io/name": self.harness.charm.app.name},
-                        ports=[
-                            ServicePort(
-                                name="ngapp",
-                                port=38412,
-                                protocol="SCTP",
-                            ),
-                        ],
-                        type="LoadBalancer",
-                    ),
-                ),
-                field_manager="sdcore-amf-k8s",
-            ),
-        ]
+        self.harness.container_pebble_ready(CONTAINER_NAME)
 
-        self.mock_apply.assert_has_calls(calls=calls)
+        self.mock_k8s_service_create.assert_called_once()
 
-    def test_when_remove_then_external_service_is_deleted(self):
+    def test_given_k8s_service_created_when_remove_then_external_service_is_deleted(self):
+        self.mock_k8s_service_is_created.return_value = True
         self.harness.charm.on.remove.emit()
 
-        calls = [
-            call(
-                Service,
-                namespace=NAMESPACE,
-                name=f"{self.harness.charm.app.name}-external",
-            ),
-        ]
-
-        self.mock_delete.assert_has_calls(calls=calls)
+        self.mock_k8s_service_remove.assert_called_once()
