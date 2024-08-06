@@ -42,6 +42,8 @@ jobs:
     needs:
       - build
     uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@v1.0.0
+    with:
+      enable-metallb: true
 
   publish-charm:
     name: Publish Charm
