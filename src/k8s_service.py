@@ -11,6 +11,7 @@ from lightkube.core.client import Client
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
+from lightkube.core.exceptions import ApiError
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,11 @@ class K8sService:
         self.service_name = service_name
         self.service_port = service_port
         self.app_name = app_name
+        self.client = Client()
 
     def create(self) -> None:
         """Create the external AMF service."""
-        client = Client()
-        client.apply(
+        self.client.apply(
             Service(
                 apiVersion="v1",
                 kind="Service",
@@ -49,9 +50,8 @@ class K8sService:
 
     def is_created(self) -> bool:
         """Check if the external AMF service is created."""
-        client = Client()
         try:
-            client.get(Service, name=self.service_name, namespace=self.namespace)
+            self.client.get(Service, name=self.service_name, namespace=self.namespace)
             return True
         except Exception:
             return False
@@ -68,8 +68,10 @@ class K8sService:
 
     def get_ip(self) -> Optional[str]:
         """Return the external service IP."""
-        client = Client()
-        service = client.get(Service, name=self.service_name, namespace=self.namespace)
+        try:
+            service = self.client.get(Service, name=self.service_name, namespace=self.namespace)
+        except ApiError:
+            return None
         if not service.status:
             return None
         if not service.status.loadBalancer:
@@ -80,8 +82,10 @@ class K8sService:
 
     def get_hostname(self) -> Optional[str]:
         """Return the external service hostname."""
-        client = Client()
-        service = client.get(Service, name=self.service_name, namespace=self.namespace)
+        try:
+            service = self.client.get(Service, name=self.service_name, namespace=self.namespace)
+        except ApiError:
+            return None
         if not service.status:
             return None
         if not service.status.loadBalancer:
