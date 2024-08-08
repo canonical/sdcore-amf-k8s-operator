@@ -8,10 +8,10 @@ import logging
 from typing import Optional
 
 from lightkube.core.client import Client
+from lightkube.core.exceptions import ApiError
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
-from lightkube.core.exceptions import ApiError
 
 logger = logging.getLogger(__name__)
 
