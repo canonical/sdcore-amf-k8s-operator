@@ -43,9 +43,9 @@ async def deploy(ops_test: OpsTest, request):
     )
     await _deploy_self_signed_certificates(ops_test)
     await _deploy_mongodb(ops_test)
+    await _deploy_nms(ops_test)
     await _deploy_nrf(ops_test)
     await _deploy_grafana_agent(ops_test)
-    await _deploy_nms(ops_test)
 
 
 @pytest.mark.abort_on_fail
@@ -182,6 +182,7 @@ async def _deploy_nrf(ops_test: OpsTest):
         relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
     )
     await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=TLS_PROVIDER_CHARM_NAME)
+    await ops_test.model.integrate(relation1=NRF_CHARM_NAME, relation2=NMS_CHARM_NAME)
 
 
 async def _deploy_nms(ops_test: OpsTest):
