@@ -9,27 +9,24 @@ from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import List, Optional, cast
 
-from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires  # type: ignore[import]
-from charms.loki_k8s.v1.loki_push_api import LogForwarder  # type: ignore[import]
-from charms.prometheus_k8s.v0.prometheus_scrape import (  # type: ignore[import]
+from charms.data_platform_libs.v0.data_interfaces import DatabaseRequires
+from charms.loki_k8s.v1.loki_push_api import LogForwarder
+from charms.prometheus_k8s.v0.prometheus_scrape import (
     MetricsEndpointProvider,
 )
-from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides  # type: ignore[import]
-from charms.sdcore_nms_k8s.v0.sdcore_config import (  # type: ignore[import]
+from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
+from charms.sdcore_nms_k8s.v0.sdcore_config import (
     SdcoreConfigRequires,
 )
-from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires  # type: ignore[import]
-from charms.tls_certificates_interface.v3.tls_certificates import (  # type: ignore[import]
+from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
+from charms.tls_certificates_interface.v3.tls_certificates import (
     CertificateExpiringEvent,
     TLSCertificatesRequiresV3,
     generate_csr,
     generate_private_key,
 )
 from jinja2 import Environment, FileSystemLoader
-from lightkube import Client
-from lightkube.models.core_v1 import ServicePort, ServiceSpec
-from lightkube.models.meta_v1 import ObjectMeta
-from lightkube.resources.core_v1 import Service
+from k8s_service import K8sService
 from ops import (
     ActiveStatus,
     BlockedStatus,
@@ -40,12 +37,11 @@ from ops import (
 )
 from ops.charm import (
     CharmBase,
-    EventBase,
-    InstallEvent,
     RelationBrokenEvent,
     RelationJoinedEvent,
     RemoveEvent,
 )
+from ops.framework import EventBase
 from ops.main import main
 from ops.pebble import Layer
 
@@ -110,7 +106,12 @@ class AMFOperatorCharm(CharmBase):
             self, relation_name=DATABASE_RELATION_NAME, database_name=DATABASE_NAME
         )
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
-        self.framework.observe(self.on.install, self._on_install)
+        self.k8s_service = K8sService(
+            namespace=self.model.name,
+            service_name=f"{self.app.name}-external",
+            service_port=NGAPP_PORT,
+            app_name=self.app.name,
+        )
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
@@ -143,6 +144,9 @@ class AMFOperatorCharm(CharmBase):
         Args:
             _ (EventBase): Juju event
         """
+        if not self.k8s_service.is_created():
+            self.k8s_service.create()
+
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
             return
@@ -242,11 +246,10 @@ class AMFOperatorCharm(CharmBase):
             logger.info("Waiting for pod IP address to be available")
             return
 
-        try:
-            self._set_n2_information()
-        except ValueError:
+        if not self._get_n2_amf_ip() or not self._get_n2_amf_hostname():
             event.add_status(BlockedStatus("Waiting for MetalLB to be enabled"))
             logger.info("Waiting for MetalLB to be enabled")
+            return
 
         if self._csr_is_stored() and not self._get_current_provider_certificate():
             event.add_status(WaitingStatus("Waiting for certificates to be stored"))
@@ -269,10 +272,12 @@ class AMFOperatorCharm(CharmBase):
             list: missing relation names.
         """
         missing_relations = []
-        for relation in [FIVEG_NRF_RELATION_NAME,
-                         DATABASE_RELATION_NAME,
-                         TLS_RELATION_NAME,
-                         SDCORE_CONFIG_RELATION_NAME]:
+        for relation in [
+            FIVEG_NRF_RELATION_NAME,
+            DATABASE_RELATION_NAME,
+            TLS_RELATION_NAME,
+            SDCORE_CONFIG_RELATION_NAME,
+        ]:
             if not self._relation_created(relation):
                 missing_relations.append(relation)
         return missing_relations
@@ -312,28 +317,6 @@ class AMFOperatorCharm(CharmBase):
 
         return True
 
-    def _on_install(self, event: InstallEvent) -> None:
-        client = Client()
-        client.apply(
-            Service(
-                apiVersion="v1",
-                kind="Service",
-                metadata=ObjectMeta(
-                    namespace=self.model.name,
-                    name=f"{self.app.name}-external",
-                ),
-                spec=ServiceSpec(
-                    selector={"app.kubernetes.io/name": self.app.name},
-                    ports=[
-                        ServicePort(name="ngapp", port=NGAPP_PORT, protocol="SCTP"),
-                    ],
-                    type="LoadBalancer",
-                ),
-            ),
-            field_manager=self.model.app.name,
-        )
-        logger.info("Created/asserted existence of external AMF service")
-
     def _on_remove(self, event: RemoveEvent) -> None:
         # NOTE: We want to perform this removal only if the last remaining unit
         # is removed. This charm does not support scaling, so it *should* be
@@ -350,13 +333,8 @@ class AMFOperatorCharm(CharmBase):
         # hooks are finished running. In this case, we will leave behind a
         # dirty state in k8s, but it will be cleaned up when the juju model is
         # destroyed. It will be re-used if the charm is re-deployed.
-        client = Client()
-        client.delete(
-            Service,
-            namespace=self.model.name,
-            name=f"{self.app.name}-external",
-        )
-        logger.info("Removed external AMF service")
+        if self.k8s_service.is_created():
+            self.k8s_service.remove()
 
     def _is_config_update_required(self, content: str) -> bool:
         """Decide whether config update is required by checking existence and config content.
@@ -601,7 +579,7 @@ class AMFOperatorCharm(CharmBase):
         """
         if configured_ip := self._get_external_amf_ip_config():
             return configured_ip
-        return self._amf_external_service_ip()
+        return self.k8s_service.get_ip()
 
     def _get_n2_amf_hostname(self) -> str:
         """Return the hostname to send for the N2 interface.
@@ -616,7 +594,7 @@ class AMFOperatorCharm(CharmBase):
         """
         if configured_hostname := self._get_external_amf_hostname_config():
             return configured_hostname
-        elif lb_hostname := self._amf_external_service_hostname():
+        elif lb_hostname := self.k8s_service.get_hostname():
             return lb_hostname
         return self._amf_hostname()
 
@@ -626,9 +604,13 @@ class AMFOperatorCharm(CharmBase):
             return
         if not self._amf_service_is_running():
             return
+        n2_amf_ip = self._get_n2_amf_ip()
+        n2_amf_hostname = self._get_n2_amf_hostname()
+        if not n2_amf_ip or not n2_amf_hostname:
+            return
         self.n2_provider.set_n2_information(
-            amf_ip_address=self._get_n2_amf_ip(),
-            amf_hostname=self._get_n2_amf_hostname(),
+            amf_ip_address=n2_amf_ip,
+            amf_hostname=n2_amf_hostname,
             amf_port=NGAPP_PORT,
         )
 
@@ -640,13 +622,19 @@ class AMFOperatorCharm(CharmBase):
         """
         if not (dnn := self._get_dnn_config()):
             raise ValueError("DNN configuration value is empty")
+        if not (pod_ip := _get_pod_ip()):
+            raise ValueError("Pod IP is not available")
+        if not self._nrf_requires.nrf_url:
+            raise ValueError("NRF URL is not available")
+        if not self._webui_requires.webui_url:
+            raise ValueError("Webui URL is not available")
 
         return self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
             sbi_port=SBI_PORT,
             nrf_url=self._nrf_requires.nrf_url,
-            amf_ip=_get_pod_ip(),  # type: ignore[arg-type]
+            amf_ip=pod_ip,
             database_name=DATABASE_NAME,
             database_url=self._get_database_info()["uris"].split(",")[0],
             full_network_name=CORE_NETWORK_FULL_NAME,
@@ -821,46 +809,6 @@ class AMFOperatorCharm(CharmBase):
         except ModelError:
             return False
         return service.is_running()
-
-    def _amf_external_service_ip(self) -> Optional[str]:
-        """Return the external service IP.
-
-        Returns:
-            str/None: External Service IP if available else None
-        """
-        client = Client()
-        service = client.get(
-            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
-        )
-        try:
-            return service.status.loadBalancer.ingress[0].ip  # type: ignore[union-attr, index]
-        except (AttributeError, TypeError):
-            logger.error(
-                "Service '%s-external' does not have an IP address:\n%s",
-                self.model.app.name,
-                service,
-            )
-            return None
-
-    def _amf_external_service_hostname(self) -> Optional[str]:
-        """Return the external service hostname.
-
-        Returns:
-            str: External Service hostname if available else None
-        """
-        client = Client()
-        service = client.get(
-            Service, name=f"{self.model.app.name}-external", namespace=self.model.name
-        )
-        try:
-            return service.status.loadBalancer.ingress[0].hostname  # type: ignore[union-attr, index]
-        except (AttributeError, TypeError):
-            logger.error(
-                "Service '%s-external' does not have a hostname:\n%s",
-                self.model.app.name,
-                service,
-            )
-            return None
 
 
 def _get_pod_ip() -> Optional[str]:
