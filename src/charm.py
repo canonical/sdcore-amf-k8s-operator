@@ -413,6 +413,7 @@ class AMFOperatorCharm(CharmBase):
             event.defer()
             return
         self._delete_certificate()
+        self._delete_private_key()
 
     def _certificate_is_available(self) -> bool:
         cert, key = self._certificates.get_assigned_certificate(
@@ -420,25 +421,14 @@ class AMFOperatorCharm(CharmBase):
         )
         return bool(cert and key)
 
-    def _update_certificate(self, provider_certificate) -> bool:
-        """Compare the provided certificate to what is stored.
-
-        Returns True if the certificate was updated
-        """
-        existing_certificate = (
-            self._get_stored_certificate() if self._certificate_is_stored() else ""
-        )
-
-        if not existing_certificate == provider_certificate:
-            self._store_certificate(certificate=provider_certificate)
-            return True
-        return False
-
     def _delete_certificate(self):
         """Delete certificate from workload."""
         if self._certificate_is_stored():
             self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
             logger.info("Removed certificate from workload")
+
+    def _delete_private_key(self):
+        """Delete private key from workload."""
         if self._private_key_is_stored():
             self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
             logger.info("Removed private key from workload")
