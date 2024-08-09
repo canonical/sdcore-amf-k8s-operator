@@ -19,11 +19,11 @@ from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
 from charms.sdcore_webui_k8s.v0.sdcore_config import (
     SdcoreConfigRequires,
 )
-from charms.tls_certificates_interface.v3.tls_certificates import (
-    CertificateExpiringEvent,
-    TLSCertificatesRequiresV3,
-    generate_csr,
-    generate_private_key,
+from charms.tls_certificates_interface.v4.tls_certificates import (
+    Certificate,
+    CertificateRequest,
+    PrivateKey,
+    TLSCertificatesRequiresV4,
 )
 from jinja2 import Environment, FileSystemLoader
 from k8s_service import K8sService
@@ -92,7 +92,11 @@ class AMFOperatorCharm(CharmBase):
             charm=self, relation_name=SDCORE_CONFIG_RELATION_NAME
         )
         self.n2_provider = N2Provides(self, N2_RELATION_NAME)
-        self._certificates = TLSCertificatesRequiresV3(self, TLS_RELATION_NAME)
+        self._certificates = TLSCertificatesRequiresV4(
+            charm=self,
+            relationship_name=TLS_RELATION_NAME,
+            certificate_requests=[self._get_certificate_request()],
+        )
         self._amf_metrics_endpoint = MetricsEndpointProvider(
             self,
             jobs=[
@@ -128,9 +132,6 @@ class AMFOperatorCharm(CharmBase):
             self.on.certificates_relation_broken, self._on_certificates_relation_broken
         )
         self.framework.observe(self._certificates.on.certificate_available, self._configure_amf)
-        self.framework.observe(
-            self._certificates.on.certificate_expiring, self._on_certificate_expiring
-        )
 
     def _configure_amf(self, _: EventBase) -> None:
         """Handle Juju events.
@@ -150,21 +151,11 @@ class AMFOperatorCharm(CharmBase):
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
             return
-
-        if not self._private_key_is_stored():
-            self._generate_private_key()
-
-        if not self._csr_is_stored():
-            self._request_new_certificate()
-
-        provider_certificate = self._get_current_provider_certificate()
-        if not provider_certificate:
+        if not self._certificate_is_available():
+            logger.info("The certificate is not available yet.")
             return
 
-        if certificate_update_required := self._is_certificate_update_required(
-            provider_certificate
-        ):
-            self._store_certificate(certificate=provider_certificate)
+        certificate_update_required = self._store_certificate_and_key()
 
         desired_config_file = self._generate_amf_config_file()
         if config_update_required := self._is_config_update_required(desired_config_file):
@@ -177,6 +168,26 @@ class AMFOperatorCharm(CharmBase):
             self._set_n2_information()
         except ValueError:
             return
+
+    def _store_certificate_and_key(self) -> bool:
+        """Store certificate and private key in workload.
+
+        Returns:
+            bool: True if certificate or private key is updated
+        """
+        provider_certificate, private_key = self._certificates.get_assigned_certificate(
+            certificate_request=self._get_certificate_request()
+        )
+        if not provider_certificate or not private_key:
+            logger.debug("Certificate or private key is not available")
+            return False
+        if certificate_update_required := self._is_certificate_update_required(
+            provider_certificate.certificate
+        ):
+            self._store_certificate(certificate=provider_certificate.certificate)
+        if private_key_update_required := self._is_private_key_update_required(private_key):
+            self._store_private_key(private_key=private_key)
+        return certificate_update_required or private_key_update_required
 
     def _on_collect_unit_status(self, event: CollectStatusEvent):  # noqa C901
         """Check the unit status and set to Unit when CollectStatusEvent is fired.
@@ -251,9 +262,9 @@ class AMFOperatorCharm(CharmBase):
             logger.info("Waiting for MetalLB to be enabled")
             return
 
-        if self._csr_is_stored() and not self._get_current_provider_certificate():
-            event.add_status(WaitingStatus("Waiting for certificates to be stored"))
-            logger.info("Waiting for certificates to be stored")
+        if not self._certificate_is_available():
+            event.add_status(WaitingStatus("Waiting for certificates to be available"))
+            logger.info("Waiting for certificates to be available")
             return
 
         if not self._amf_service_is_running():
@@ -262,6 +273,12 @@ class AMFOperatorCharm(CharmBase):
             return
 
         event.add_status(ActiveStatus())
+
+    def _get_certificate_request(self) -> CertificateRequest:
+        return CertificateRequest(
+            common_name=CERTIFICATE_COMMON_NAME,
+            sans_dns=frozenset([CERTIFICATE_COMMON_NAME]),
+        )
 
     def _missing_relations(self) -> List[str]:
         """Return list of missing relations.
@@ -359,21 +376,17 @@ class AMFOperatorCharm(CharmBase):
         """
         return bool(self._amf_container.exists(f"{CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}"))
 
-    def _is_certificate_update_required(self, provider_certificate) -> bool:
-        """Check the provided certificate and existing certificate.
+    def _is_certificate_update_required(self, certificate: Certificate) -> bool:
+        return self._get_existing_certificate() != certificate
 
-        Return True if update is required.
+    def _is_private_key_update_required(self, private_key: PrivateKey) -> bool:
+        return self._get_existing_private_key() != private_key
 
-        Args:
-            provider_certificate: str
-        Returns:
-            True if update is required else False
-        """
-        return self._get_existing_certificate() != provider_certificate
+    def _get_existing_certificate(self) -> Optional[Certificate]:
+        return self._get_stored_certificate() if self._certificate_is_stored() else None
 
-    def _get_existing_certificate(self) -> str:
-        """Return the existing certificate if present else empty string."""
-        return self._get_stored_certificate() if self._certificate_is_stored() else ""
+    def _get_existing_private_key(self) -> Optional[PrivateKey]:
+        return self._get_stored_private_key() if self._private_key_is_stored() else None
 
     def _configure_pebble(self, restart=False) -> None:
         """Configure the Pebble layer.
@@ -399,30 +412,13 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_container.can_connect():
             event.defer()
             return
-        self._delete_private_key()
-        self._delete_csr()
         self._delete_certificate()
 
-    def _on_certificate_expiring(self, event: CertificateExpiringEvent):
-        """Request new certificate."""
-        if not self._amf_container.can_connect():
-            event.defer()
-            return
-        if event.certificate != self._get_stored_certificate():
-            logger.debug("Expiring certificate is not the one stored")
-            return
-        self._request_new_certificate()
-
-    def _get_current_provider_certificate(self) -> str | None:
-        """Compare the current certificate request to what is in the interface.
-
-        Returns The current valid provider certificate if present
-        """
-        csr = self._get_stored_csr()
-        for provider_certificate in self._certificates.get_assigned_certificates():
-            if provider_certificate.csr == csr:
-                return provider_certificate.certificate
-        return None
+    def _certificate_is_available(self) -> bool:
+        cert, key = self._certificates.get_assigned_certificate(
+            certificate_request=self._get_certificate_request()
+        )
+        return bool(cert and key)
 
     def _update_certificate(self, provider_certificate) -> bool:
         """Compare the provided certificate to what is stored.
@@ -438,86 +434,49 @@ class AMFOperatorCharm(CharmBase):
             return True
         return False
 
-    def _generate_private_key(self) -> None:
-        """Generate and stores private key."""
-        private_key = generate_private_key()
-        self._store_private_key(private_key)
-
-    def _request_new_certificate(self) -> None:
-        """Generate and stores CSR, and uses it to request a new certificate."""
-        private_key = self._get_stored_private_key()
-        csr = generate_csr(
-            private_key=private_key,
-            subject=CERTIFICATE_COMMON_NAME,
-            sans_dns=[CERTIFICATE_COMMON_NAME],
-        )
-        self._store_csr(csr)
-        self._certificates.request_certificate_creation(certificate_signing_request=csr)
-
-    def _delete_private_key(self):
-        """Remove private key from workload."""
-        if not self._private_key_is_stored():
-            return
-        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
-        logger.info("Removed private key from workload")
-
-    def _delete_csr(self):
-        """Delete CSR from workload."""
-        if not self._csr_is_stored():
-            return
-        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
-        logger.info("Removed CSR from workload")
-
     def _delete_certificate(self):
         """Delete certificate from workload."""
-        if not self._certificate_is_stored():
-            return
-        self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
-        logger.info("Removed certificate from workload")
+        if self._certificate_is_stored():
+            self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
+            logger.info("Removed certificate from workload")
+        if self._private_key_is_stored():
+            self._amf_container.remove_path(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+            logger.info("Removed private key from workload")
 
-    def _private_key_is_stored(self) -> bool:
-        """Return whether private key is stored in workload."""
-        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+    def _get_stored_certificate(self) -> Certificate:
+        cert_string = str(
+            self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read()
+        )
+        return Certificate.from_string(cert_string)
 
-    def _csr_is_stored(self) -> bool:
-        """Return whether CSR is stored in workload."""
-        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CSR_NAME}")
-
-    def _get_stored_certificate(self) -> str:
-        """Return stored certificate."""
-        return str(self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}").read())
-
-    def _get_stored_csr(self) -> str:
-        """Return stored CSR."""
-        return self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{CSR_NAME}").read()
-
-    def _get_stored_private_key(self) -> bytes:
-        """Return stored private key."""
-        return str(
+    def _get_stored_private_key(self) -> PrivateKey:
+        key_string = str(
             self._amf_container.pull(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}").read()
-        ).encode()
+        )
+        return PrivateKey.from_string(key_string)
 
     def _certificate_is_stored(self) -> bool:
         """Return whether certificate is stored in workload."""
         return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}")
 
-    def _store_certificate(self, certificate: str) -> None:
+    def _private_key_is_stored(self) -> bool:
+        """Return whether private key is stored in workload."""
+        return self._amf_container.exists(path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}")
+
+    def _store_certificate(self, certificate: Certificate) -> None:
         """Store certificate in workload."""
-        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=certificate)
+        self._amf_container.push(
+            path=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}", source=str(certificate)
+        )
         logger.info("Pushed certificate pushed to workload")
 
-    def _store_private_key(self, private_key: bytes) -> None:
+    def _store_private_key(self, private_key: PrivateKey) -> None:
         """Store private key in workload."""
         self._amf_container.push(
             path=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
-            source=private_key.decode(),
+            source=str(private_key),
         )
         logger.info("Pushed private key to workload")
-
-    def _store_csr(self, csr: bytes) -> None:
-        """Store CSR in workload."""
-        self._amf_container.push(path=f"{CERTS_DIR_PATH}/{CSR_NAME}", source=csr.decode().strip())
-        logger.info("Pushed CSR to workload")
 
     def _get_workload_version(self) -> str:
         """Return the workload version.
