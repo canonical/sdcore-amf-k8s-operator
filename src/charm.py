@@ -155,7 +155,7 @@ class AMFOperatorCharm(CharmBase):
             logger.info("The certificate is not available yet.")
             return
 
-        certificate_update_required = self._store_certificate_and_key()
+        certificate_update_required = self._check_and_update_certificate()
 
         desired_config_file = self._generate_amf_config_file()
         if config_update_required := self._is_config_update_required(desired_config_file):
@@ -169,11 +169,16 @@ class AMFOperatorCharm(CharmBase):
         except ValueError:
             return
 
-    def _store_certificate_and_key(self) -> bool:
-        """Store certificate and private key in workload.
+    def _check_and_update_certificate(self) -> bool:
+        """Check if the certificate or private key needs an update and perform the update.
+
+        This method retrieves the currently assigned certificate and private key associated with
+        the charm's TLS relation. It checks whether the certificate or private key has changed
+        or needs to be updated. If an update is necessary, the new certificate or private key is
+        stored.
 
         Returns:
-            bool: True if certificate or private key is updated
+            bool: True if either the certificate or the private key was updated, False otherwise.
         """
         provider_certificate, private_key = self._certificates.get_assigned_certificate(
             certificate_request=self._get_certificate_request()
