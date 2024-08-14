@@ -15,8 +15,7 @@ from charms.prometheus_k8s.v0.prometheus_scrape import (
     MetricsEndpointProvider,
 )
 from charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
-from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
-from charms.sdcore_webui_k8s.v0.sdcore_config import (
+from charms.sdcore_nms_k8s.v0.sdcore_config import (
     SdcoreConfigRequires,
 )
 from charms.tls_certificates_interface.v4.tls_certificates import (
@@ -24,6 +23,7 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     CertificateRequest,
     PrivateKey,
     TLSCertificatesRequiresV4,
+from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
 )
 from jinja2 import Environment, FileSystemLoader
 from k8s_service import K8sService
