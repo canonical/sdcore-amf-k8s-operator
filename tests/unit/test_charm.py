@@ -10,7 +10,18 @@ from charm import AMFOperatorCharm
 from k8s_service import K8sService
 from ops import ActiveStatus, BlockedStatus, WaitingStatus, testing
 
-from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
+from lib.charms.tls_certificates_interface.v4.tls_certificates import (
+    Certificate,
+    CertificateSigningRequest,
+    PrivateKey,
+    ProviderCertificate,
+)
+from tests.unit.certificates_helpers import (
+    generate_ca,
+    generate_certificate,
+    generate_csr,
+    generate_private_key,
+)
 
 CONTAINER_NAME = "amf"
 DB_APPLICATION_NAME = "mongodb-k8s"
@@ -24,9 +35,6 @@ NMS_APPLICATION_NAME = "sdcore-nms-operator"
 TLS_APPLICATION_NAME = "tls-certificates-operator"
 TLS_RELATION_NAME = "certificates"
 NAMESPACE = "whatever"
-PRIVATE_KEY = b"whatever key content"
-CSR = b"whatever csr content"
-CERTIFICATE = "Whatever certificate content"
 
 
 class TestCharm:
@@ -42,23 +50,13 @@ class TestCharm:
     patcher_is_resource_created = patch(
         "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created"
     )
-    patcher_generate_csr = patch("charm.generate_csr")
-    patcher_generate_private_key = patch("charm.generate_private_key")
-    patcher_get_assigned_certificates = patch(
-        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.get_assigned_certificates"
-    )
-    patcher_request_certificate_creation = patch(
-        "charms.tls_certificates_interface.v3.tls_certificates.TLSCertificatesRequiresV3.request_certificate_creation"
+    patcher_get_assigned_certificate = patch(
+        "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
     )
 
     @pytest.fixture()
     def setup(self):
-        self.mock_generate_csr = TestCharm.patcher_generate_csr.start()
-        self.mock_generate_private_key = TestCharm.patcher_generate_private_key.start()
-        self.mock_get_assigned_certificates = TestCharm.patcher_get_assigned_certificates.start()
-        self.mock_request_certificate_creation = (
-            TestCharm.patcher_request_certificate_creation.start()
-        )
+        self.mock_get_assigned_certificate = TestCharm.patcher_get_assigned_certificate.start()
         self.mock_is_resource_created = TestCharm.patcher_is_resource_created.start()
         self.mock_nrf_url = TestCharm.patcher_nrf_url.start()
         self.mock_webui_url = TestCharm.patcher_webui_url.start()
@@ -141,6 +139,34 @@ class TestCharm:
         with open(path, "r") as f:
             content = f.read()
         return content
+
+    def example_cert_and_key(self, tls_relation_id: int) -> tuple[ProviderCertificate, PrivateKey]:
+        private_key_str = generate_private_key()
+        csr = generate_csr(
+            private_key=private_key_str,
+            common_name="amf",
+        )
+        ca_private_key = generate_private_key()
+        ca_certificate = generate_ca(
+            private_key=ca_private_key,
+            common_name="ca.com",
+            validity=365,
+        )
+        certificate_str = generate_certificate(
+            csr=csr,
+            ca=ca_certificate,
+            ca_key=ca_private_key,
+            validity=365,
+        )
+        provider_certificate = ProviderCertificate(
+            relation_id=tls_relation_id,
+            certificate=Certificate.from_string(certificate_str),
+            certificate_signing_request=CertificateSigningRequest.from_string(csr),
+            ca=Certificate.from_string(ca_certificate),
+            chain=[Certificate.from_string(ca_certificate)],
+        )
+        private_key = PrivateKey.from_string(private_key_str)
+        return provider_certificate, private_key
 
     def test_given_fiveg_nrf_relation_not_created_when_pebble_ready_then_status_is_blocked(
         self, certificates_relation_id, sdcore_config_relation_id, database_relation_id
@@ -240,7 +266,6 @@ class TestCharm:
         self, nrf_relation_id, certificates_relation_id, sdcore_config_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.mock_is_resource_created.return_value = False
@@ -254,7 +279,6 @@ class TestCharm:
         self, nrf_relation_id, certificates_relation_id, sdcore_config_relation_id
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.add_relation(relation_name=DB_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
@@ -272,7 +296,6 @@ class TestCharm:
         sdcore_config_relation_id,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = ""
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -287,7 +310,6 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.add_relation(
@@ -310,7 +332,6 @@ class TestCharm:
         sdcore_config_relation_id,
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
@@ -327,10 +348,9 @@ class TestCharm:
         certificates_relation_id,
         sdcore_config_relation_id,
     ):
+        self.mock_get_assigned_certificate.return_value = None, None
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
@@ -338,7 +358,7 @@ class TestCharm:
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
         assert self.harness.model.unit.status == WaitingStatus(
-            "Waiting for certificates to be stored"
+            "Waiting for certificates to be available"
         )
 
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
@@ -350,27 +370,21 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_check_output.return_value = b"1.1.1.1"
-        certificate = "Whatever certificate content"
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_webui_url.return_value = WEBUI_URL
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(certificate)
 
         self.harness.container_pebble_ready(CONTAINER_NAME)
         with open("tests/unit/expected_config/config.conf") as expected_config_file:
             expected_content = expected_config_file.read()
-        assert (root / "support/TLS/amf.key").read_text() == PRIVATE_KEY.decode()
-        assert (root / "support/TLS/amf.pem").read_text() == certificate
+        assert (root / "support/TLS/amf.key").read_text() == str(private_key)
+        assert (root / "support/TLS/amf.pem").read_text() == str(provider_certificate.certificate)
         assert (root / "free5gc/config/amfcfg.conf").read_text() == expected_content.strip()
 
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
@@ -382,16 +396,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
@@ -414,16 +424,14 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -462,17 +470,13 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -548,16 +552,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -587,16 +587,13 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -629,16 +626,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -671,16 +664,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -705,16 +694,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -749,16 +734,12 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        certificate = "Whatever certificate content"
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         (root / "free5gc/config/amfcfg.conf").write_text(
             self._read_file("tests/unit/expected_config/config.conf").strip()
         )
@@ -767,7 +748,6 @@ class TestCharm:
         self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
 
@@ -799,35 +779,31 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        private_key = b"whatever key content"
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        certificate = "Whatever certificate content"
-        self.mock_generate_csr.return_value = CSR
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
         self.harness.evaluate_status()
-        assert (root / "support/TLS/amf.key").read_text() == private_key.decode()
+        assert (root / "support/TLS/amf.key").read_text() == str(private_key)
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
         self,
+        certificates_relation_id,
     ):
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
         self.harness.add_storage(storage_name="certs", attach=True)
-        certificate = "Whatever certificate content"
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.key").write_text(PRIVATE_KEY.decode())
-        (root / "support/TLS/amf.csr").write_text(CSR.decode())
-        (root / "support/TLS/amf.pem").write_text(certificate)
+        (root / "support/TLS/amf.key").write_text(str(private_key))
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
 
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
 
@@ -837,8 +813,6 @@ class TestCharm:
             (root / "support/TLS/amf.key").read_text()
         with pytest.raises(FileNotFoundError):
             (root / "support/TLS/amf.pem").read_text()
-        with pytest.raises(FileNotFoundError):
-            (root / "support/TLS/amf.csr").read_text()
 
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_status_is_blocked(  # noqa: E501
         self,
@@ -849,10 +823,11 @@ class TestCharm:
     ):
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_generate_private_key.return_value = PRIVATE_KEY
-        self.mock_generate_csr.return_value = CSR
+        provider_certificate, private_key = self.example_cert_and_key(
+            tls_relation_id=certificates_relation_id
+        )
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
         self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = NRF_URL
         self.mock_check_output.return_value = b"1.1.1.1"
@@ -863,103 +838,6 @@ class TestCharm:
             "Waiting for certificates relation(s)"
         )
 
-    def test_given_private_key_exists_when_pebble_ready_then_csr_is_generated(
-        self,
-        database_relation_id,
-        nrf_relation_id,
-        certificates_relation_id,
-        sdcore_config_relation_id,
-    ):
-        self.mock_check_output.return_value = b"1.1.1.1"
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = NRF_URL
-        self.mock_generate_csr.return_value = CSR
-        private_key = "private key content"
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.key").write_text(private_key)
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-
-        assert (root / "support/TLS/amf.csr").read_text() == CSR.decode()
-
-    def test_given_private_key_exists_and_cert_not_yet_requested_when_pebble_ready_then_cert_is_requested(  # noqa: E501
-        self,
-        database_relation_id,
-        nrf_relation_id,
-        certificates_relation_id,
-        sdcore_config_relation_id,
-    ):
-        self.mock_check_output.return_value = b"1.1.1.1"
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = NRF_URL
-        self.mock_generate_csr.return_value = CSR
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.key").write_text(PRIVATE_KEY.decode())
-
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-
-        self.mock_request_certificate_creation.assert_called_with(certificate_signing_request=CSR)
-
-    def test_given_cert_already_stored_when_pebble_ready_then_cert_is_not_requested(  # noqa: E501
-        self,
-        database_relation_id,
-        nrf_relation_id,
-        certificates_relation_id,
-        sdcore_config_relation_id,
-    ):
-        self.mock_check_output.return_value = b"1.1.1.1"
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = NRF_URL
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.key").write_text(PRIVATE_KEY.decode())
-        (root / "support/TLS/amf.pem").write_text(CERTIFICATE)
-        (root / "support/TLS/amf.csr").write_text(CSR.decode())
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = CERTIFICATE
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
-
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-
-        self.mock_request_certificate_creation.assert_not_called()
-
-    def test_given_csr_matches_stored_one_when_pebble_ready_then_certificate_is_pushed(
-        self,
-        database_relation_id,
-        nrf_relation_id,
-        certificates_relation_id,
-        sdcore_config_relation_id,
-    ):
-        self.mock_check_output.return_value = b"1.1.1.1"
-        self.harness.add_storage(storage_name="certs", attach=True)
-        self.harness.add_storage(storage_name="config", attach=True)
-        self.mock_nrf_url.return_value = NRF_URL
-        private_key = "whatever key content"
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.key").write_text(private_key)
-        (root / "support/TLS/amf.csr").write_text(CSR.decode())
-        certificate = "Whatever certificate content"
-        (root / "support/TLS/amf.pem").write_text(certificate)
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
-
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-        self.harness.container_pebble_ready(CONTAINER_NAME)
-
-        assert (root / "support/TLS/amf.pem").read_text() == certificate
-
     def test_given_certificate_matches_stored_one_when_pebble_ready_then_certificate_is_not_pushed(
         self, database_relation_id
     ):
@@ -967,18 +845,13 @@ class TestCharm:
         self.harness.add_storage(storage_name="certs", attach=True)
         self.harness.add_storage(storage_name="config", attach=True)
         self.mock_nrf_url.return_value = NRF_URL
-        private_key = "whatever key content"
+
+        provider_certificate, private_key = self.example_cert_and_key(tls_relation_id=1)
         root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        (root / "support/TLS/amf.key").write_text(private_key)
-        (root / "support/TLS/amf.csr").write_text(CSR.decode())
-        certificate = "Whatever certificate content"
-        (root / "support/TLS/amf.pem").write_text(certificate)
-        provider_certificate = Mock(ProviderCertificate)
-        provider_certificate.certificate = certificate
-        provider_certificate.csr = CSR.decode()
-        self.mock_get_assigned_certificates.return_value = [
-            provider_certificate,
-        ]
+        (root / "support/TLS/amf.key").write_text(str(private_key))
+        (root / "support/TLS/amf.pem").write_text(str(provider_certificate.certificate))
+
+        self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
 
         self.harness.add_relation(relation_name=NRF_RELATION_NAME, remote_app=DB_APPLICATION_NAME)
         self.harness.add_relation(
@@ -987,57 +860,7 @@ class TestCharm:
         self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
         self.harness.container_pebble_ready(CONTAINER_NAME)
 
-        assert (root / "support/TLS/amf.pem").read_text() == certificate
-
-    def test_given_certificate_does_not_match_stored_one_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self,
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        event = Mock()
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        certificate = "Stored certificate content"
-        (root / "support/TLS/amf.pem").write_text(certificate)
-        event.certificate = "Relation certificate content (different from stored)"
-        self.mock_generate_csr.return_value = CSR
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-
-        self.harness.charm._on_certificate_expiring(event=event)
-
-        self.mock_request_certificate_creation.assert_not_called()
-
-    def test_given_amf_cannot_connect_when_certificate_expiring_then_certificate_is_not_requested(  # noqa: E501
-        self,
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        event = Mock()
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        certificate = "Stored certificate content"
-        (root / "support/TLS/amf.pem").write_text(certificate)
-        event.certificate = certificate
-        self.mock_generate_csr.return_value = CSR
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=False)
-
-        self.harness.charm._on_certificate_expiring(event=event)
-
-        self.mock_request_certificate_creation.assert_not_called()
-
-    def test_given_certificate_matches_stored_one_when_certificate_expiring_then_certificate_is_requested(  # noqa: E501
-        self,
-    ):
-        self.harness.add_storage(storage_name="certs", attach=True)
-        root = self.harness.get_filesystem_root(CONTAINER_NAME)
-        private_key = "whatever key content"
-        certificate = "whatever certificate content"
-        (root / "support/TLS/amf.key").write_text(private_key)
-        (root / "support/TLS/amf.pem").write_text(certificate)
-        event = Mock()
-        event.certificate = certificate
-        self.mock_generate_csr.return_value = CSR
-        self.harness.set_can_connect(container=CONTAINER_NAME, val=True)
-
-        self.harness.charm._on_certificate_expiring(event=event)
-
-        self.mock_request_certificate_creation.assert_called_with(certificate_signing_request=CSR)
+        assert (root / "support/TLS/amf.pem").read_text() == str(provider_certificate.certificate)
 
     def test_given_k8s_service_not_created_when_pebble_ready_then_service_is_created(self):
         self.mock_k8s_service.is_created.return_value = False
