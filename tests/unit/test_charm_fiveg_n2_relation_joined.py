@@ -26,7 +26,6 @@ from tests.unit.certificates_helpers import (
 
 NRF_URL = "http://nrf:8081"
 WEBUI_URL = "sdcore-webui:9876"
-DATABASE_LIB_PATH = "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires"
 
 
 class TestCharmFiveGN2RelationJoined:
@@ -44,6 +43,9 @@ class TestCharmFiveGN2RelationJoined:
     )
     patcher_get_assigned_certificate = patch(
         "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
+    )
+    patcher_db_fetch_relation_data = patch(
+        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.fetch_relation_data"
     )
 
     @pytest.fixture(autouse=True)
@@ -65,6 +67,9 @@ class TestCharmFiveGN2RelationJoined:
         self.mock_check_output = TestCharmFiveGN2RelationJoined.patcher_check_output.start()
         self.mock_k8s_service = (
             TestCharmFiveGN2RelationJoined.patcher_k8s_service.start().return_value
+        )
+        self.mock_db_fetch_relation_data = (
+            TestCharmFiveGN2RelationJoined.patcher_db_fetch_relation_data.start()
         )
 
     @staticmethod
@@ -109,13 +114,12 @@ class TestCharmFiveGN2RelationJoined:
         private_key = PrivateKey.from_string(private_key_str)
         return provider_certificate, private_key
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -169,13 +173,12 @@ class TestCharmFiveGN2RelationJoined:
                     == self._read_file("tests/unit/expected_config/config.conf").strip()
                 )
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -230,14 +233,12 @@ class TestCharmFiveGN2RelationJoined:
 
             assert os.stat(tempdir + "/amfcfg.conf").st_mtime == config_modification_time
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_relations_available_and_config_pushed_when_pebble_ready_then_pebble_is_applied_correctly(  # noqa: E501
         self,
-        mock_fetch_relation_data,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")

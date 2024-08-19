@@ -1,4 +1,4 @@
-# Copyright 2023 Canonical Ltd.
+# Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 import os
@@ -26,7 +26,6 @@ from tests.unit.certificates_helpers import (
 
 NRF_URL = "http://nrf:8081"
 WEBUI_URL = "sdcore-webui:9876"
-DATABASE_LIB_PATH = "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires"
 
 
 class TestCharmConfigure:
@@ -45,6 +44,9 @@ class TestCharmConfigure:
     patcher_get_assigned_certificate = patch(
         "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
     )
+    patcher_db_fetch_relation_data = patch(
+        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.fetch_relation_data"
+    )
 
     @pytest.fixture(autouse=True)
     def context(self):
@@ -62,6 +64,9 @@ class TestCharmConfigure:
         self.mock_webui_url = TestCharmConfigure.patcher_webui_url.start()
         self.mock_check_output = TestCharmConfigure.patcher_check_output.start()
         self.mock_k8s_service = TestCharmConfigure.patcher_k8s_service.start().return_value
+        self.mock_db_fetch_relation_data = (
+            TestCharmConfigure.patcher_db_fetch_relation_data.start()
+        )
 
     @staticmethod
     def _read_file(path: str) -> str:
@@ -105,13 +110,12 @@ class TestCharmConfigure:
         private_key = PrivateKey.from_string(private_key_str)
         return provider_certificate, private_key
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -165,13 +169,12 @@ class TestCharmConfigure:
                     == self._read_file("tests/unit/expected_config/config.conf").strip()
                 )
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -226,14 +229,12 @@ class TestCharmConfigure:
 
             assert os.stat(tempdir + "/amfcfg.conf").st_mtime == config_modification_time
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_relations_available_and_config_pushed_when_pebble_ready_then_pebble_is_applied_correctly(  # noqa: E501
         self,
-        mock_fetch_relation_data,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -295,13 +296,12 @@ class TestCharmConfigure:
                 }
             )
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_service_starts_running_after_n2_relation_joined_when_pebble_ready_then_n2_information_is_in_relation_databag(  # noqa: E501
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -355,14 +355,12 @@ class TestCharmConfigure:
                 "amf_port": "38412",
             }
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_more_than_one_n2_requirers_join_n2_relation_when_service_starts_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
-        mock_fetch_relation_data,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -423,14 +421,12 @@ class TestCharmConfigure:
                 "amf_port": "38412",
             }
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_can_connect_when_on_pebble_ready_then_private_key_is_generated(
         self,
-        mock_fetch_relation_data,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -472,13 +468,12 @@ class TestCharmConfigure:
             with open(tempdir + "/amf.key", "r") as f:
                 assert f.read() == str(private_key)
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_certificate_matches_stored_one_when_pebble_ready_then_certificate_is_not_pushed(
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
             container = scenario.Container(

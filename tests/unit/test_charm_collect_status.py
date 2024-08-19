@@ -45,6 +45,9 @@ class TestCharmCollectUnitStatus:
     patcher_get_assigned_certificate = patch(
         "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
     )
+    patcher_db_fetch_relation_data = patch(
+        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.fetch_relation_data"
+    )
 
     @pytest.fixture(autouse=True)
     def context(self):
@@ -64,6 +67,9 @@ class TestCharmCollectUnitStatus:
         self.mock_webui_url = TestCharmCollectUnitStatus.patcher_webui_url.start()
         self.mock_check_output = TestCharmCollectUnitStatus.patcher_check_output.start()
         self.mock_k8s_service = TestCharmCollectUnitStatus.patcher_k8s_service.start().return_value
+        self.mock_db_fetch_relation_data = (
+            TestCharmCollectUnitStatus.patcher_db_fetch_relation_data.start()
+        )
 
     @staticmethod
     def _read_file(path: str) -> str:
@@ -190,38 +196,79 @@ class TestCharmCollectUnitStatus:
     def test_given_relations_created_and_database_not_available_when_collect_unit_status_then_status_is_waiting(  # noqa: E501
         self,
     ):
-        nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-        database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-        certificates_relation = scenario.Relation(
-            endpoint="certificates", interface="tls-certificates"
-        )
-        sdcore_config_relation = scenario.Relation(
-            endpoint="sdcore_config", interface="sdcore_config"
-        )
-        container = scenario.Container(name="amf", can_connect=True)
-        state_in = scenario.State(
-            leader=True,
-            containers=[container],
-            relations=[
-                nrf_relation,
-                database_relation,
-                certificates_relation,
-                sdcore_config_relation,
-            ],
-        )
+        with tempfile.TemporaryDirectory() as tempdir:
+            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
+            self.mock_db_fetch_relation_data.return_value = {database_relation.relation_id: None}
+            certificates_relation = scenario.Relation(
+                endpoint="certificates", interface="tls-certificates"
+            )
+            sdcore_config_relation = scenario.Relation(
+                endpoint="sdcore_config", interface="sdcore_config"
+            )
+            certs_mount = scenario.Mount(
+                location="/support/TLS",
+                src=tempdir,
+            )
+            config_mount = scenario.Mount(
+                location="/free5gc/config",
+                src=tempdir,
+            )
+            container = scenario.Container(
+                name="amf",
+                can_connect=True,
+                layers={
+                    "amf": Layer(
+                        {
+                            "services": {
+                                "amf": {
+                                    "startup": "enabled",
+                                    "override": "replace",
+                                    "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
+                                    "environment": {
+                                        "GOTRACEBACK": "crash",
+                                        "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
+                                        "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
+                                        "GRPC_TRACE": "all",
+                                        "GRPC_VERBOSITY": "DEBUG",
+                                        "POD_IP": "1.1.1.1",
+                                        "MANAGED_BY_CONFIG_POD": "true",
+                                    },
+                                }
+                            }
+                        }
+                    )
+                },
+                service_status={"amf": ServiceStatus.ACTIVE},
+                mounts={"certs": certs_mount, "config": config_mount},
+            )
+            state_in = scenario.State(
+                leader=True,
+                containers=[container],
+                relations=[
+                    nrf_relation,
+                    database_relation,
+                    certificates_relation,
+                    sdcore_config_relation,
+                ],
+            )
+            self.mock_check_output.return_value = b"1.1.1.1"
+            provider_certificate, private_key = self.example_cert_and_key(
+                tls_relation_id=certificates_relation.relation_id
+            )
+            self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+            state_out = self.ctx.run("collect_unit_status", state_in)
 
-        assert state_out.unit_status == WaitingStatus(
-            "Waiting for AMF database info to be available"
-        )
+            assert state_out.unit_status == WaitingStatus(
+                "Waiting for AMF database info to be available"
+            )
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_nrf_data_not_available_when_collect_unit_status_then_status_is_waiting(
-        self, mock_fetch_relation_data
+        self,
     ):
         database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-        mock_fetch_relation_data.return_value = {
+        self.mock_db_fetch_relation_data.return_value = {
             database_relation.relation_id: {"uris": "abc.com"}
         }
         certificates_relation = scenario.Relation(
@@ -249,12 +296,11 @@ class TestCharmCollectUnitStatus:
 
         assert state_out.unit_status == WaitingStatus("Waiting for NRF data to be available")
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_webui_data_not_available_when_collect_unit_status_then_status_is_waiting(
-        self, mock_fetch_relation_data
+        self,
     ):
         database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-        mock_fetch_relation_data.return_value = {
+        self.mock_db_fetch_relation_data.return_value = {
             database_relation.relation_id: {"uris": "abc.com"}
         }
         nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -283,12 +329,11 @@ class TestCharmCollectUnitStatus:
 
         assert state_out.unit_status == WaitingStatus("Waiting for Webui data to be available")
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_storage_not_attached_when_collect_unit_status_then_status_is_waiting(
-        self, mock_fetch_relation_data
+        self,
     ):
         database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-        mock_fetch_relation_data.return_value = {
+        self.mock_db_fetch_relation_data.return_value = {
             database_relation.relation_id: {"uris": "abc.com"}
         }
         nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -316,13 +361,12 @@ class TestCharmCollectUnitStatus:
 
         assert state_out.unit_status == WaitingStatus("Waiting for storage to be attached")
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_certificates_not_stored_when_collect_unit_status_then_status_is_waiting(
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
+            self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "abc.com"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
@@ -360,15 +404,13 @@ class TestCharmCollectUnitStatus:
                 "Waiting for certificates to be available"
             )
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_relations_available_and_config_pushed_and_pebble_updated_when_collect_unit_status_then_status_is_active(  # noqa: E501
         self,
-        mock_fetch_relation_data,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
+            self.mock_db_fetch_relation_data.return_value = {
+                database_relation.relation_id: {"uris": "abc.com"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
@@ -435,15 +477,13 @@ class TestCharmCollectUnitStatus:
 
             assert state_out.unit_status == ActiveStatus()
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_empty_ip_address_when_collect_unit_status_then_status_is_waiting(
         self,
-        mock_fetch_relation_data,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
+            self.mock_db_fetch_relation_data.return_value = {
+                database_relation.relation_id: {"uris": "abc.com"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
@@ -535,14 +575,13 @@ class TestCharmCollectUnitStatus:
 
             assert state_out.workload_version == expected_version
 
-    @patch(f"{DATABASE_LIB_PATH}.fetch_relation_data")
     def test_given_n2_information_and_service_is_running_and_metallb_service_is_not_available_when_collect_unit_status_then_amf_goes_in_blocked_state(  # noqa: E501
-        self, mock_fetch_relation_data
+        self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
             database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            mock_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
+            self.mock_db_fetch_relation_data.return_value = {
+                database_relation.relation_id: {"uris": "abc.com"}
             }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(

@@ -3,11 +3,13 @@
 
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 import scenario
 
 from charm import AMFOperatorCharm
+from k8s_service import K8sService
 from lib.charms.tls_certificates_interface.v4.tls_certificates import (
     Certificate,
     CertificateSigningRequest,
@@ -23,10 +25,18 @@ from tests.unit.certificates_helpers import (
 
 
 class TestCharmCertificatesRelationBroken:
+    patcher_k8s_service = patch("charm.K8sService", autospec=K8sService)
+
     @pytest.fixture(autouse=True)
     def context(self):
         self.ctx = scenario.Context(
             charm_type=AMFOperatorCharm,
+        )
+
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        self.mock_k8s_service = (
+            TestCharmCertificatesRelationBroken.patcher_k8s_service.start().return_value
         )
 
     def example_cert_and_key(self, tls_relation_id: int) -> tuple[ProviderCertificate, PrivateKey]:
