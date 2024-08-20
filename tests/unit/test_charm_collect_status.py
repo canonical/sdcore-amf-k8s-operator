@@ -11,17 +11,8 @@ from ops.pebble import Layer, ServiceStatus
 
 from charm import AMFOperatorCharm
 from k8s_service import K8sService
-from lib.charms.tls_certificates_interface.v4.tls_certificates import (
-    Certificate,
-    CertificateSigningRequest,
-    PrivateKey,
-    ProviderCertificate,
-)
 from tests.unit.certificates_helpers import (
-    generate_ca,
-    generate_certificate,
-    generate_csr,
-    generate_private_key,
+    example_cert_and_key,
 )
 
 NRF_URL = "http://nrf:8081"
@@ -70,48 +61,6 @@ class TestCharmCollectUnitStatus:
         self.mock_db_fetch_relation_data = (
             TestCharmCollectUnitStatus.patcher_db_fetch_relation_data.start()
         )
-
-    @staticmethod
-    def _read_file(path: str) -> str:
-        """Read a file and returns as a string.
-
-        Args:
-            path (str): path to the file.
-
-        Returns:
-            str: content of the file.
-        """
-        with open(path, "r") as f:
-            content = f.read()
-        return content
-
-    def example_cert_and_key(self, tls_relation_id: int) -> tuple[ProviderCertificate, PrivateKey]:
-        private_key_str = generate_private_key()
-        csr = generate_csr(
-            private_key=private_key_str,
-            common_name="amf",
-        )
-        ca_private_key = generate_private_key()
-        ca_certificate = generate_ca(
-            private_key=ca_private_key,
-            common_name="ca.com",
-            validity=365,
-        )
-        certificate_str = generate_certificate(
-            csr=csr,
-            ca=ca_certificate,
-            ca_key=ca_private_key,
-            validity=365,
-        )
-        provider_certificate = ProviderCertificate(
-            relation_id=tls_relation_id,
-            certificate=Certificate.from_string(certificate_str),
-            certificate_signing_request=CertificateSigningRequest.from_string(csr),
-            ca=Certificate.from_string(ca_certificate),
-            chain=[Certificate.from_string(ca_certificate)],
-        )
-        private_key = PrivateKey.from_string(private_key_str)
-        return provider_certificate, private_key
 
     def test_given_fiveg_nrf_relation_not_created_when_collect_unit_status_then_status_is_blocked(
         self,
@@ -253,7 +202,7 @@ class TestCharmCollectUnitStatus:
                 ],
             )
             self.mock_check_output.return_value = b"1.1.1.1"
-            provider_certificate, private_key = self.example_cert_and_key(
+            provider_certificate, private_key = example_cert_and_key(
                 tls_relation_id=certificates_relation.relation_id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
@@ -465,7 +414,7 @@ class TestCharmCollectUnitStatus:
                     sdcore_config_relation,
                 ],
             )
-            provider_certificate, private_key = self.example_cert_and_key(
+            provider_certificate, private_key = example_cert_and_key(
                 tls_relation_id=certificates_relation.relation_id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
