@@ -30,6 +30,10 @@ class TestCharmCertificatesRelationBroken:
             TestCharmCertificatesRelationBroken.patcher_k8s_service.start().return_value
         )
 
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
+
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
         self,
     ):
