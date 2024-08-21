@@ -26,7 +26,6 @@ from charms.tls_certificates_interface.v4.tls_certificates import (
     TLSCertificatesRequiresV4,
 )
 from jinja2 import Environment, FileSystemLoader
-from k8s_service import K8sService
 from ops import (
     ActiveStatus,
     BlockedStatus,
@@ -44,6 +43,8 @@ from ops.charm import (
 from ops.framework import EventBase
 from ops.main import main
 from ops.pebble import Layer
+
+from k8s_service import K8sService
 
 logger = logging.getLogger(__name__)
 
@@ -147,23 +148,19 @@ class AMFOperatorCharm(CharmBase):
         """
         if not self.k8s_service.is_created():
             self.k8s_service.create()
-
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
             return
         if not self._certificate_is_available():
             logger.info("The certificate is not available yet.")
             return
-
         certificate_update_required = self._check_and_update_certificate()
-
         desired_config_file = self._generate_amf_config_file()
         if config_update_required := self._is_config_update_required(desired_config_file):
             self._push_config_file(content=desired_config_file)
 
         should_restart = config_update_required or certificate_update_required
         self._configure_pebble(restart=should_restart)
-
         try:
             self._set_n2_information()
         except ValueError:
@@ -312,28 +309,20 @@ class AMFOperatorCharm(CharmBase):
         """
         if not self._amf_container.can_connect():
             return False
-
         if self._get_invalid_configs():
             return False
-
         if self._missing_relations():
             return False
-
         if not self._database_is_available():
             return False
-
         if not self._get_database_info():
             return False
-
         if not self._nrf_requires.nrf_url:
             return False
-
         if not self._webui_requires.webui_url:
             return False
-
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
             return False
-
         if not _get_pod_ip():
             return False
 

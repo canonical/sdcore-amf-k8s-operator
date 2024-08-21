@@ -8,6 +8,13 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from lib.charms.tls_certificates_interface.v4.tls_certificates import (
+    Certificate,
+    CertificateSigningRequest,
+    PrivateKey,
+    ProviderCertificate,
+)
+
 KEY_SIZE = 2048
 PUBLIC_EXPONENT = 65537
 
@@ -154,3 +161,32 @@ def generate_ca(
         .sign(private_key_object, hashes.SHA256())  # type: ignore[arg-type]
     )
     return cert.public_bytes(serialization.Encoding.PEM).decode().strip()
+
+
+def example_cert_and_key(tls_relation_id: int) -> tuple[ProviderCertificate, PrivateKey]:
+    private_key_str = generate_private_key()
+    csr = generate_csr(
+        private_key=private_key_str,
+        common_name="amf",
+    )
+    ca_private_key = generate_private_key()
+    ca_certificate = generate_ca(
+        private_key=ca_private_key,
+        common_name="ca.com",
+        validity=365,
+    )
+    certificate_str = generate_certificate(
+        csr=csr,
+        ca=ca_certificate,
+        ca_key=ca_private_key,
+        validity=365,
+    )
+    provider_certificate = ProviderCertificate(
+        relation_id=tls_relation_id,
+        certificate=Certificate.from_string(certificate_str),
+        certificate_signing_request=CertificateSigningRequest.from_string(csr),
+        ca=Certificate.from_string(ca_certificate),
+        chain=[Certificate.from_string(ca_certificate)],
+    )
+    private_key = PrivateKey.from_string(private_key_str)
+    return provider_certificate, private_key
