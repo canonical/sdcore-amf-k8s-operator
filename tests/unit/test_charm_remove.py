@@ -23,6 +23,10 @@ class TestCharmRemove:
     def setup(self):
         self.mock_k8s_service = TestCharmRemove.patcher_k8s_service.start().return_value
 
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
+
     def test_given_k8s_service_created_when_remove_then_external_service_is_deleted(self):
         container = scenario.Container(
             name="amf",

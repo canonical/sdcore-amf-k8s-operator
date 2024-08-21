@@ -62,6 +62,10 @@ class TestCharmCollectUnitStatus:
             TestCharmCollectUnitStatus.patcher_db_fetch_relation_data.start()
         )
 
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
+
     def test_given_fiveg_nrf_relation_not_created_when_collect_unit_status_then_status_is_blocked(
         self,
     ):

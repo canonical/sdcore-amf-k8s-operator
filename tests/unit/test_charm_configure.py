@@ -60,6 +60,10 @@ class TestCharmConfigure:
         )
 
     @staticmethod
+    def teardown() -> None:
+        patch.stopall()
+
+    @staticmethod
     def _read_file(path: str) -> str:
         """Read a file and returns as a string.
 

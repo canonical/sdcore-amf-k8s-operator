@@ -40,6 +40,10 @@ class TestCharmFiveGN2RelationJoined:
             TestCharmFiveGN2RelationJoined.patcher_k8s_service.start().return_value
         )
 
+    @staticmethod
+    def teardown() -> None:
+        patch.stopall()
+
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
         self,
     ):
