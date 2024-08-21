@@ -46,7 +46,7 @@ class TestCharmConfigure:
         )
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, request):
         self.mock_get_assigned_certificate = (
             TestCharmConfigure.patcher_get_assigned_certificate.start()
         )
@@ -58,6 +58,8 @@ class TestCharmConfigure:
         self.mock_db_fetch_relation_data = (
             TestCharmConfigure.patcher_db_fetch_relation_data.start()
         )
+        yield
+        request.addfinalizer(self.teardown)
 
     @staticmethod
     def teardown() -> None:

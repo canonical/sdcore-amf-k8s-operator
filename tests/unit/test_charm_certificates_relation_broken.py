@@ -25,10 +25,12 @@ class TestCharmCertificatesRelationBroken:
         )
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, request):
         self.mock_k8s_service = (
             TestCharmCertificatesRelationBroken.patcher_k8s_service.start().return_value
         )
+        yield
+        request.addfinalizer(self.teardown)
 
     @staticmethod
     def teardown() -> None:

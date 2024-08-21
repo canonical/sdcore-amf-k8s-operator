@@ -30,7 +30,7 @@ class TestCharmFiveGN2RelationJoined:
         )
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self, request):
         self.mock_is_resource_created = (
             TestCharmFiveGN2RelationJoined.patcher_is_resource_created.start()
         )
@@ -39,6 +39,8 @@ class TestCharmFiveGN2RelationJoined:
         self.mock_k8s_service = (
             TestCharmFiveGN2RelationJoined.patcher_k8s_service.start().return_value
         )
+        yield
+        request.addfinalizer(self.teardown)
 
     @staticmethod
     def teardown() -> None:
