@@ -445,6 +445,13 @@ class TestCharmConfigure:
             self.mock_db_fetch_relation_data.return_value = {
                 database_relation.relation_id: {"uris": "http://dummy"}
             }
+            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = scenario.Relation(
+                endpoint="certificates", interface="tls-certificates"
+            )
+            sdcore_config_relation = scenario.Relation(
+                endpoint="sdcore_config", interface="sdcore_config"
+            )
             container = scenario.Container(
                 name="amf",
                 can_connect=True,
@@ -461,21 +468,29 @@ class TestCharmConfigure:
             )
             state_in = scenario.State(
                 leader=True,
-                relations=[database_relation],
+                relations=[
+                    database_relation,
+                    nrf_relation,
+                    certificates_relation,
+                    sdcore_config_relation,
+                ],
                 containers=[container],
             )
             self.mock_check_output.return_value = b"1.1.1.1"
             self.mock_nrf_url.return_value = NRF_URL
-            provider_certificate, private_key = example_cert_and_key(tls_relation_id=1)
+            provider_certificate, private_key = example_cert_and_key(
+                tls_relation_id=certificates_relation.relation_id
+            )
             with open(f"{tempdir}/amf.pem", "w") as f:
                 f.write(str(provider_certificate.certificate))
             with open(f"{tempdir}/amf.key", "w") as f:
                 f.write(str(private_key))
+            self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
+            config_modification_time_amf_pem = os.stat(tempdir + "/amf.pem").st_mtime
+            config_modification_time_amf_key = os.stat(tempdir + "/amf.key").st_mtime
 
             self.ctx.run(container.pebble_ready_event, state_in)
 
-            config_modification_time_amf_pem = os.stat(tempdir + "/amf.pem").st_mtime
-            config_modification_time_amf_key = os.stat(tempdir + "/amf.key").st_mtime
             assert os.stat(tempdir + "/amf.pem").st_mtime == config_modification_time_amf_pem
             assert os.stat(tempdir + "/amf.key").st_mtime == config_modification_time_amf_key
 

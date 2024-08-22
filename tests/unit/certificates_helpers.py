@@ -1,7 +1,7 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from lib.charms.tls_certificates_interface.v4.tls_certificates import (
+from charms.tls_certificates_interface.v4.tls_certificates import (
     PrivateKey,
     ProviderCertificate,
     generate_ca,
