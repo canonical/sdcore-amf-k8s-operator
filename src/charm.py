@@ -158,7 +158,6 @@ class AMFOperatorCharm(CharmBase):
         desired_config_file = self._generate_amf_config_file()
         if config_update_required := self._is_config_update_required(desired_config_file):
             self._push_config_file(content=desired_config_file)
-
         should_restart = config_update_required or certificate_update_required
         self._configure_pebble(restart=should_restart)
         try:
