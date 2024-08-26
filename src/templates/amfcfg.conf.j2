@@ -7,6 +7,8 @@ configuration:
   enableSctpLb: false
   mongodb:
     url: {{ database_url }}
+  enableNrfCaching: true
+  nrfCacheEvictionInterval: 900
   networkFeatureSupport5GS:
     emc: 0
     emcN3: 0
