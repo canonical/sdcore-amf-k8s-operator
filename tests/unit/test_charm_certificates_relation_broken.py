@@ -3,39 +3,16 @@
 
 import os
 import tempfile
-from unittest.mock import patch
 
-import pytest
 import scenario
 
-from charm import AMFOperatorCharm
-from k8s_service import K8sService
 from tests.unit.certificates_helpers import (
     example_cert_and_key,
 )
+from tests.unit.fixtures import AMFUnitTestFixtures
 
 
-class TestCharmCertificatesRelationBroken:
-    patcher_k8s_service = patch("charm.K8sService", autospec=K8sService)
-
-    @pytest.fixture(autouse=True)
-    def context(self):
-        self.ctx = scenario.Context(
-            charm_type=AMFOperatorCharm,
-        )
-
-    @pytest.fixture(autouse=True)
-    def setup(self, request):
-        self.mock_k8s_service = (
-            TestCharmCertificatesRelationBroken.patcher_k8s_service.start().return_value
-        )
-        yield
-        request.addfinalizer(self.teardown)
-
-    @staticmethod
-    def teardown() -> None:
-        patch.stopall()
-
+class TestCharmCertificatesRelationBroken(AMFUnitTestFixtures):
     def test_given_certificates_are_stored_when_on_certificates_relation_broken_then_certificates_are_removed(  # noqa: E501
         self,
     ):
