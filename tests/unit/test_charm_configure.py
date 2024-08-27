@@ -3,82 +3,17 @@
 
 import os
 import tempfile
-from unittest.mock import PropertyMock, patch
 
-import pytest
 import scenario
 from ops.pebble import Layer
 
-from charm import AMFOperatorCharm
-from k8s_service import K8sService
 from tests.unit.certificates_helpers import (
     example_cert_and_key,
 )
-
-NRF_URL = "http://nrf:8081"
-WEBUI_URL = "sdcore-webui:9876"
+from tests.unit.fixtures import AMFUnitTestFixtures
 
 
-class TestCharmConfigure:
-    patcher_check_output = patch("charm.check_output")
-    patcher_k8s_service = patch("charm.K8sService", autospec=K8sService)
-    patcher_nrf_url = patch(
-        "charms.sdcore_nrf_k8s.v0.fiveg_nrf.NRFRequires.nrf_url", new_callable=PropertyMock
-    )
-    patcher_webui_url = patch(
-        "charms.sdcore_nms_k8s.v0.sdcore_config.SdcoreConfigRequires.webui_url",
-        new_callable=PropertyMock,
-    )
-    patcher_is_resource_created = patch(
-        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.is_resource_created"
-    )
-    patcher_get_assigned_certificate = patch(
-        "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
-    )
-    patcher_db_fetch_relation_data = patch(
-        "charms.data_platform_libs.v0.data_interfaces.DatabaseRequires.fetch_relation_data"
-    )
-
-    @pytest.fixture(autouse=True)
-    def context(self):
-        self.ctx = scenario.Context(
-            charm_type=AMFOperatorCharm,
-        )
-
-    @pytest.fixture(autouse=True)
-    def setup(self, request):
-        self.mock_get_assigned_certificate = (
-            TestCharmConfigure.patcher_get_assigned_certificate.start()
-        )
-        self.mock_is_resource_created = TestCharmConfigure.patcher_is_resource_created.start()
-        self.mock_nrf_url = TestCharmConfigure.patcher_nrf_url.start()
-        self.mock_webui_url = TestCharmConfigure.patcher_webui_url.start()
-        self.mock_check_output = TestCharmConfigure.patcher_check_output.start()
-        self.mock_k8s_service = TestCharmConfigure.patcher_k8s_service.start().return_value
-        self.mock_db_fetch_relation_data = (
-            TestCharmConfigure.patcher_db_fetch_relation_data.start()
-        )
-        yield
-        request.addfinalizer(self.teardown)
-
-    @staticmethod
-    def teardown() -> None:
-        patch.stopall()
-
-    @staticmethod
-    def _read_file(path: str) -> str:
-        """Read a file and returns as a string.
-
-        Args:
-            path (str): path to the file.
-
-        Returns:
-            str: content of the file.
-        """
-        with open(path, "r") as f:
-            content = f.read()
-        return content
-
+class TestCharmConfigure(AMFUnitTestFixtures):
     def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
         self,
     ):
@@ -121,8 +56,8 @@ class TestCharmConfigure:
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
             self.mock_is_resource_created.return_value = True
-            self.mock_nrf_url.return_value = NRF_URL
-            self.mock_webui_url.return_value = WEBUI_URL
+            self.mock_nrf_url.return_value = "http://nrf:8081"
+            self.mock_webui_url.return_value = "sdcore-webui:9876"
 
             self.ctx.run(container.pebble_ready_event, state_in)
 
@@ -133,10 +68,12 @@ class TestCharmConfigure:
                 assert f.read() == str(private_key)
 
             with open(tempdir + "/amfcfg.conf", "r") as f:
-                assert (
-                    f.read().strip()
-                    == self._read_file("tests/unit/expected_config/config.conf").strip()
-                )
+                actual_config = f.read().strip()
+
+            with open("tests/unit/expected_config/config.conf", "r") as f:
+                expected_config = f.read().strip()
+
+            assert actual_config == expected_config
 
     def test_given_content_of_config_file_not_changed_when_pebble_ready_then_config_file_is_not_pushed(  # noqa: E501
         self,
@@ -180,8 +117,8 @@ class TestCharmConfigure:
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
             self.mock_is_resource_created.return_value = True
-            self.mock_nrf_url.return_value = NRF_URL
-            self.mock_webui_url.return_value = WEBUI_URL
+            self.mock_nrf_url.return_value = "http://nrf:8081"
+            self.mock_webui_url.return_value = "sdcore-webui:9876"
 
             with open(tempdir + "/amf.pem", "w") as f:
                 f.write(str(provider_certificate.certificate))
@@ -189,8 +126,11 @@ class TestCharmConfigure:
             with open(tempdir + "/amf.key", "w") as f:
                 f.write(str(private_key))
 
+            with open("tests/unit/expected_config/config.conf", "r") as f:
+                expected_config = f.read().strip()
+
             with open(tempdir + "/amfcfg.conf", "w") as f:
-                f.write(self._read_file("tests/unit/expected_config/config.conf").strip())
+                f.write(expected_config)
 
             config_modification_time = os.stat(tempdir + "/amfcfg.conf").st_mtime
 
@@ -240,7 +180,7 @@ class TestCharmConfigure:
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
             self.mock_check_output.return_value = b"1.1.1.1"
             self.mock_is_resource_created.return_value = True
-            self.mock_nrf_url.return_value = NRF_URL
+            self.mock_nrf_url.return_value = "http://nrf:8081"
 
             state_out = self.ctx.run(container.pebble_ready_event, state_in)
 
@@ -313,8 +253,8 @@ class TestCharmConfigure:
             self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
             self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
             self.mock_is_resource_created.return_value = True
-            self.mock_nrf_url.return_value = NRF_URL
-            self.mock_webui_url.return_value = WEBUI_URL
+            self.mock_nrf_url.return_value = "http://nrf:8081"
+            self.mock_webui_url.return_value = "sdcore-webui:9876"
 
             state_out = self.ctx.run(container.pebble_ready_event, state_in)
 
@@ -374,8 +314,8 @@ class TestCharmConfigure:
             self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
             self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
             self.mock_is_resource_created.return_value = True
-            self.mock_nrf_url.return_value = NRF_URL
-            self.mock_webui_url.return_value = WEBUI_URL
+            self.mock_nrf_url.return_value = "http://nrf:8081"
+            self.mock_webui_url.return_value = "sdcore-webui:9876"
 
             state_out = self.ctx.run(container.pebble_ready_event, state_in)
 
@@ -477,7 +417,7 @@ class TestCharmConfigure:
                 containers=[container],
             )
             self.mock_check_output.return_value = b"1.1.1.1"
-            self.mock_nrf_url.return_value = NRF_URL
+            self.mock_nrf_url.return_value = "http://nrf:8081"
             provider_certificate, private_key = example_cert_and_key(
                 tls_relation_id=certificates_relation.relation_id
             )
