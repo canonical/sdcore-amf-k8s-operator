@@ -20,7 +20,7 @@ resources:
   amf-image:
     type: oci-image
     description: OCI image for SD-Core amf
-    upstream-source: ghcr.io/canonical/sdcore-amf:1.4.2
+    upstream-source: ghcr.io/canonical/sdcore-amf:1.4.4
 
 storage:
   config:
@@ -43,8 +43,6 @@ provides:
 requires:
   fiveg_nrf:
     interface: fiveg_nrf
-  database:
-    interface: mongodb_client
   certificates:
     interface: tls-certificates
   logging:
