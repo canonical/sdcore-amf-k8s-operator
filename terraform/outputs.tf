@@ -18,11 +18,6 @@ output "sdcore_config_endpoint" {
   value       = "sdcore_config"
 }
 
-output "database_endpoint" {
-  description = "Name of the endpoint used to integrate with the database."
-  value       = "database"
-}
-
 output "certificates_endpoint" {
   description = "Name of the endpoint used to integrate with the TLS certificates provider."
   value       = "certificates"
