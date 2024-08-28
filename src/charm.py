@@ -97,6 +97,7 @@ class AMFOperatorCharm(CharmBase):
             charm=self,
             relationship_name=TLS_RELATION_NAME,
             certificate_requests=[self._get_certificate_request()],
+            refresh_events=[self.on.upgrade_charm],
         )
         self._amf_metrics_endpoint = MetricsEndpointProvider(
             self,
