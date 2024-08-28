@@ -172,7 +172,6 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
         self.mock_check_output.return_value = b"1.1.1.1"
         self.mock_k8s_service.get_hostname.return_value = None
         self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
-        self.mock_is_resource_created.return_value = True
         self.mock_nrf_url.return_value = "http://nrf:8081"
 
         state_out = self.ctx.run(fiveg_n2_relation.joined_event, state_in)

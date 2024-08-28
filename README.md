@@ -21,7 +21,6 @@ juju integrate sdcore-nms-k8s:auth_database mongodb-k8s:database
 juju integrate sdcore-nrf-k8s:database mongodb-k8s:database
 juju integrate sdcore-nrf-k8s:certificates self-signed-certificates:certificates
 juju integrate sdcore-nrf-k8s:sdcore_config sdcore-webui-k8s:sdcore-config
-juju integrate sdcore-amf-k8s:database mongodb-k8s:database
 juju integrate sdcore-amf-k8s:fiveg_nrf sdcore-nrf-k8s:fiveg_nrf
 juju integrate sdcore-amf-k8s:certificates self-signed-certificates:certificates
 juju integrate sdcore-amf-k8s:sdcore_config sdcore-nms-k8s:sdcore_config
@@ -40,4 +39,4 @@ juju config sdcore-amf-k8s external-amf-ip=192.168.0.4 external-amf-hostname=amf
 
 ## Image
 
-**amf**: ghcr.io/canonical/sdcore-amf:1.4.2
+**amf**: ghcr.io/canonical/sdcore-amf:1.4.4

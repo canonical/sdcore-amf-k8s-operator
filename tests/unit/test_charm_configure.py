@@ -14,14 +14,10 @@ from tests.unit.fixtures import AMFUnitTestFixtures
 
 
 class TestCharmConfigure(AMFUnitTestFixtures):
-    def test_given_relations_created_and_database_available_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
+    def test_given_relations_created_and_nrf_data_available_and_certs_stored_when_pebble_ready_then_config_file_rendered_and_pushed_correctly(  # noqa: E501
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -44,7 +40,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 leader=True,
                 containers=[container],
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
@@ -55,7 +50,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 tls_relation_id=certificates_relation.relation_id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_is_resource_created.return_value = True
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
@@ -79,10 +73,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -105,7 +95,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 leader=True,
                 containers=[container],
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
@@ -116,7 +105,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 tls_relation_id=certificates_relation.relation_id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_is_resource_created.return_value = True
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
@@ -142,10 +130,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -168,7 +152,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 leader=True,
                 containers=[container],
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
@@ -179,7 +162,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
             self.mock_check_output.return_value = b"1.1.1.1"
-            self.mock_is_resource_created.return_value = True
             self.mock_nrf_url.return_value = "http://nrf:8081"
 
             state_out = self.ctx.run(container.pebble_ready_event, state_in)
@@ -209,10 +191,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -238,7 +216,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 leader=True,
                 containers=[container],
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
@@ -252,13 +229,12 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             self.mock_check_output.return_value = b"1.1.1.1"
             self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
             self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
-            self.mock_is_resource_created.return_value = True
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
             state_out = self.ctx.run(container.pebble_ready_event, state_in)
 
-            assert state_out.relations[4].local_app_data == {
+            assert state_out.relations[3].local_app_data == {
                 "amf_ip_address": "1.1.1.1",
                 "amf_hostname": "amf.pizza.com",
                 "amf_port": "38412",
@@ -268,10 +244,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -298,7 +270,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 leader=True,
                 containers=[container],
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
@@ -313,18 +284,17 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             self.mock_check_output.return_value = b"1.1.1.1"
             self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
             self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
-            self.mock_is_resource_created.return_value = True
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
             state_out = self.ctx.run(container.pebble_ready_event, state_in)
 
-            assert state_out.relations[4].local_app_data == {
+            assert state_out.relations[3].local_app_data == {
                 "amf_ip_address": "1.1.1.1",
                 "amf_hostname": "amf.pizza.com",
                 "amf_port": "38412",
             }
-            assert state_out.relations[5].local_app_data == {
+            assert state_out.relations[4].local_app_data == {
                 "amf_ip_address": "1.1.1.1",
                 "amf_hostname": "amf.pizza.com",
                 "amf_port": "38412",
@@ -334,10 +304,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -360,7 +326,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 leader=True,
                 containers=[container],
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
@@ -381,10 +346,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            database_relation = scenario.Relation(endpoint="database", interface="mongodb_client")
-            self.mock_db_fetch_relation_data.return_value = {
-                database_relation.relation_id: {"uris": "http://dummy"}
-            }
             nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
             certificates_relation = scenario.Relation(
                 endpoint="certificates", interface="tls-certificates"
@@ -409,7 +370,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             state_in = scenario.State(
                 leader=True,
                 relations=[
-                    database_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
