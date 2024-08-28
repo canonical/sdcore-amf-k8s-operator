@@ -58,7 +58,6 @@ CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
 WORKLOAD_VERSION_FILE_NAME = "/etc/workload-version"
 CERTS_DIR_PATH = "/support/TLS"  # Certificate paths are hardcoded in AMF code
 PRIVATE_KEY_NAME = "amf.key"
-CSR_NAME = "amf.csr"
 CERTIFICATE_NAME = "amf.pem"
 CERTIFICATE_COMMON_NAME = "amf.sdcore"
 CORE_NETWORK_FULL_NAME = "SDCORE5G"
