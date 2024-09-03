@@ -4,12 +4,12 @@
 import unittest
 from unittest.mock import Mock, PropertyMock, call, patch
 
-from charm import AMFOperatorCharm
 from lightkube.models.core_v1 import ServicePort, ServiceSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Service
 from ops import ActiveStatus, BlockedStatus, WaitingStatus, testing
 
+from charm import AMFOperatorCharm
 from lib.charms.tls_certificates_interface.v3.tls_certificates import ProviderCertificate
 
 
