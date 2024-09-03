@@ -4,7 +4,8 @@
 
 import pytest
 import scenario
-from ops.charm import ActionEvent, CharmBase
+import scenario.errors
+from ops import ActionEvent, CharmBase
 
 from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
 
@@ -12,10 +13,10 @@ from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
 class DummyFivegN2ProviderCharm(CharmBase):
     """Dummy charm implementing the provider side of the fiveg_n2 interface."""
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, framework):
+        super().__init__(framework)
         self.n2_provider = N2Provides(self, "fiveg-n2")
-        self.framework.observe(
+        framework.observe(
             self.on.set_n2_information_action, self._on_set_n2_information_action
         )
 
@@ -62,23 +63,21 @@ class TestFiveGN2Provider:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        action = scenario.Action(
-            name="set-n2-information",
-            params={
-                "ip-address": "1.2.3.4",
-                "hostname": "amf",
-                "port": "38412",
-            },
-        )
+        params={
+            "ip-address": "192.0.2.1",
+            "hostname": "amf",
+            "port": "38412",
+        }
 
-        action_output = self.ctx.run_action(action, state_in)
+        state_out = self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
-        assert action_output.state.relations[0].local_app_data["amf_ip_address"] == "1.2.3.4"
-        assert action_output.state.relations[0].local_app_data["amf_hostname"] == "amf"
-        assert action_output.state.relations[0].local_app_data["amf_port"] == "38412"
+        relation = state_out.get_relation(fiveg_n2_relation.id)
+        assert relation.local_app_data["amf_ip_address"] == "192.0.2.1"
+        assert relation.local_app_data["amf_hostname"] == "amf"
+        assert relation.local_app_data["amf_port"] == "38412"
 
     def test_given_unit_is_not_leader_when_fiveg_n2_relation_joined_then_data_is_not_in_application_databag(  # noqa: E501
         self,
@@ -89,20 +88,18 @@ class TestFiveGN2Provider:
         )
         state_in = scenario.State(
             leader=False,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        action = scenario.Action(
-            name="set-n2-information",
-            params={
-                "ip-address": "1.2.3.4",
-                "hostname": "amf",
-                "port": "38412",
-            },
-        )
+        params={
+            "ip-address": "192.0.2.1",
+            "hostname": "amf",
+            "port": "38412",
+        }
 
-        with pytest.raises(Exception) as e:
-            self.ctx.run_action(action, state_in)
+        # TODO: Shouldn't this use event.fail() rather than raising an exception?
+        with pytest.raises(scenario.errors.UncaughtCharmError) as e:
+            self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Unit must be leader" in str(e.value)
 
@@ -115,20 +112,18 @@ class TestFiveGN2Provider:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        action = scenario.Action(
-            name="set-n2-information",
-            params={
-                "ip-address": "1.2.3.4",
-                "hostname": "amf",
-                "port": "invalid_port123",
-            },
-        )
+        params={
+            "ip-address": "192.0.2.1",
+            "hostname": "amf",
+            "port": "invalid_port123",
+        }
 
-        with pytest.raises(Exception) as e:
-            self.ctx.run_action(action, state_in)
+        # TODO: Shouldn't this use event.fail() rather than raising an exception?
+        with pytest.raises(scenario.errors.UncaughtCharmError) as e:
+            self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Invalid relation data" in str(e.value)
 
@@ -141,19 +136,17 @@ class TestFiveGN2Provider:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        action = scenario.Action(
-            name="set-n2-information",
-            params={
-                "ip-address": "invalid.ip.format.123",
-                "hostname": "amf",
-                "port": "38412",
-            },
-        )
+        params={
+            "ip-address": "invalid.ip.format.123",
+            "hostname": "amf",
+            "port": "38412",
+        }
 
-        with pytest.raises(Exception) as e:
-            self.ctx.run_action(action, state_in)
+        # TODO: Shouldn't this use event.fail() rather than raising an exception?
+        with pytest.raises(scenario.errors.UncaughtCharmError) as e:
+            self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Invalid relation data" in str(e.value)

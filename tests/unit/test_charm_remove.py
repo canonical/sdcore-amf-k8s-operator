@@ -14,10 +14,10 @@ class TestCharmRemove(AMFUnitTestFixtures):
         )
         state_in = scenario.State(
             leader=True,
-            containers=[container],
+            containers={container},
         )
         self.mock_k8s_service.is_created.return_value = True
 
-        self.ctx.run("remove", state_in)
+        self.ctx.run(self.ctx.on.remove(), state_in)
 
         self.mock_k8s_service.remove.assert_called_once()

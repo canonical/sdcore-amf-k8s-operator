@@ -4,7 +4,7 @@
 
 import pytest
 import scenario
-from ops.charm import ActionEvent, CharmBase
+from ops import ActionEvent, CharmBase
 
 from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2InformationAvailableEvent, N2Requires
 
@@ -12,10 +12,10 @@ from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2InformationAvailableEvent, N
 class DummyFivegN2Requires(CharmBase):
     """Dummy charm implementing the requirer side of the fiveg_n2 interface."""
 
-    def __init__(self, *args):
-        super().__init__(*args)
+    def __init__(self, framework):
+        super().__init__(framework)
         self.n2_requirer = N2Requires(self, "fiveg-n2")
-        self.framework.observe(
+        framework.observe(
             self.on.get_n2_information_action, self._on_get_n2_information_action
         )
 
@@ -57,10 +57,10 @@ class TestFiveGNRFRequirer:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        self.ctx.run(fiveg_n2_relation.changed_event, state_in)
+        self.ctx.run(self.ctx.on.relation_changed(fiveg_n2_relation), state_in)
 
         assert len(self.ctx.emitted_events) == 2
         assert isinstance(self.ctx.emitted_events[1], N2InformationAvailableEvent)
@@ -77,10 +77,10 @@ class TestFiveGNRFRequirer:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        self.ctx.run(fiveg_n2_relation.changed_event, state_in)
+        self.ctx.run(self.ctx.on.relation_changed(fiveg_n2_relation), state_in)
 
         assert len(self.ctx.emitted_events) == 1
 
@@ -98,10 +98,10 @@ class TestFiveGNRFRequirer:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
+            relations={fiveg_n2_relation},
         )
 
-        self.ctx.run(fiveg_n2_relation.changed_event, state_in)
+        self.ctx.run(self.ctx.on.relation_changed(fiveg_n2_relation), state_in)
 
         assert len(self.ctx.emitted_events) == 1
 
@@ -119,17 +119,13 @@ class TestFiveGNRFRequirer:
         )
         state_in = scenario.State(
             leader=True,
-            relations=[fiveg_n2_relation],
-        )
-        action = scenario.Action(
-            name="get-n2-information",
+            relations={fiveg_n2_relation},
         )
 
-        action_output = self.ctx.run_action(action, state_in)
+        self.ctx.run(self.ctx.on.action("get-n2-information"), state_in)
 
-        assert action_output.success is True
-        assert action_output.results
-        assert action_output.results == {
+        assert self.ctx.action_results
+        assert self.ctx.action_results == {
             "amf-ip-address": "1.2.3.4",
             "amf-hostname": "amf",
             "amf-port": "38412",

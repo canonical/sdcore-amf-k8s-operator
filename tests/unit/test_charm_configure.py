@@ -27,33 +27,33 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
-            self.ctx.run(container.pebble_ready_event, state_in)
+            self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
             with open(tempdir + "/amf.pem", "r") as f:
                 assert f.read() == str(provider_certificate.certificate)
@@ -82,27 +82,27 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
             self.mock_nrf_url.return_value = "http://nrf:8081"
@@ -122,7 +122,7 @@ class TestCharmConfigure(AMFUnitTestFixtures):
 
             config_modification_time = os.stat(tempdir + "/amfcfg.conf").st_mtime
 
-            self.ctx.run(container.pebble_ready_event, state_in)
+            self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
             assert os.stat(tempdir + "/amfcfg.conf").st_mtime == config_modification_time
 
@@ -139,34 +139,34 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             self.mock_nrf_url.return_value = "http://nrf:8081"
 
-            state_out = self.ctx.run(container.pebble_ready_event, state_in)
+            state_out = self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
-            assert state_out.containers[0].layers["amf"] == Layer(
+            assert state_out.get_container("amf").layers["amf"] == Layer(
                 {
                     "services": {
                         "amf": {
@@ -179,7 +179,7 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                                 "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
                                 "GRPC_TRACE": "all",
                                 "GRPC_VERBOSITY": "DEBUG",
-                                "POD_IP": "1.1.1.1",
+                                "POD_IP": "192.0.2.1",
                                 "MANAGED_BY_CONFIG_POD": "true",
                             },
                         }
@@ -201,11 +201,11 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf",
@@ -214,29 +214,29 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
                     fiveg_n2_relation,
-                ],
+                },
             )
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_check_output.return_value = b"1.1.1.1"
-            self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
-            self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
+            self.mock_check_output.return_value = b"192.0.2.1"
+            self.mock_k8s_service.get_ip.return_value = "192.0.2.1"
+            self.mock_k8s_service.get_hostname.return_value = "amf.pizza.example.com"
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
-            state_out = self.ctx.run(container.pebble_ready_event, state_in)
+            state_out = self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
-            assert state_out.relations[3].local_app_data == {
-                "amf_ip_address": "1.1.1.1",
-                "amf_hostname": "amf.pizza.com",
+            assert state_out.get_relation(fiveg_n2_relation.id).local_app_data == {
+                "amf_ip_address": "192.0.2.1",
+                "amf_hostname": "amf.pizza.example.com",
                 "amf_port": "38412",
             }
 
@@ -255,11 +255,11 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             fiveg_n2_relation_2 = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf",
@@ -268,35 +268,35 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
                     fiveg_n2_relation_1,
                     fiveg_n2_relation_2,
-                ],
+                },
             )
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_check_output.return_value = b"1.1.1.1"
-            self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
-            self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
+            self.mock_check_output.return_value = b"192.0.2.1"
+            self.mock_k8s_service.get_ip.return_value = "192.0.2.1"
+            self.mock_k8s_service.get_hostname.return_value = "amf.pizza.example.com"
             self.mock_nrf_url.return_value = "http://nrf:8081"
             self.mock_webui_url.return_value = "sdcore-webui:9876"
 
-            state_out = self.ctx.run(container.pebble_ready_event, state_in)
+            state_out = self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
-            assert state_out.relations[3].local_app_data == {
-                "amf_ip_address": "1.1.1.1",
-                "amf_hostname": "amf.pizza.com",
+            assert state_out.get_relation(fiveg_n2_relation_1.id).local_app_data == {
+                "amf_ip_address": "192.0.2.1",
+                "amf_hostname": "amf.pizza.example.com",
                 "amf_port": "38412",
             }
-            assert state_out.relations[4].local_app_data == {
-                "amf_ip_address": "1.1.1.1",
-                "amf_hostname": "amf.pizza.com",
+            assert state_out.get_relation(fiveg_n2_relation_2.id).local_app_data == {
+                "amf_ip_address": "192.0.2.1",
+                "amf_hostname": "amf.pizza.example.com",
                 "amf_port": "38412",
             }
 
@@ -313,31 +313,31 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
 
-            self.ctx.run(container.pebble_ready_event, state_in)
+            self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
             with open(tempdir + "/amf.key", "r") as f:
                 assert f.read() == str(private_key)
@@ -359,27 +359,27 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 mounts={
                     "certs": scenario.Mount(
                         location="/support/TLS",
-                        src=tempdir,
+                        source=tempdir,
                     ),
                     "config": scenario.Mount(
                         location="/free5gc/config",
-                        src=tempdir,
+                        source=tempdir,
                     ),
                 },
             )
             state_in = scenario.State(
                 leader=True,
-                relations=[
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
-                containers=[container],
+                },
+                containers={container},
             )
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             self.mock_nrf_url.return_value = "http://nrf:8081"
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             with open(f"{tempdir}/amf.pem", "w") as f:
                 f.write(str(provider_certificate.certificate))
@@ -389,7 +389,7 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             config_modification_time_amf_pem = os.stat(tempdir + "/amf.pem").st_mtime
             config_modification_time_amf_key = os.stat(tempdir + "/amf.key").st_mtime
 
-            self.ctx.run(container.pebble_ready_event, state_in)
+            self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
             assert os.stat(tempdir + "/amf.pem").st_mtime == config_modification_time_amf_pem
             assert os.stat(tempdir + "/amf.key").st_mtime == config_modification_time_amf_key
@@ -400,10 +400,10 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         )
         state_in = scenario.State(
             leader=True,
-            containers=[container],
+            containers={container},
         )
         self.mock_k8s_service.is_created.return_value = False
 
-        self.ctx.run(container.pebble_ready_event, state_in)
+        self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
         self.mock_k8s_service.create.assert_called_once()
