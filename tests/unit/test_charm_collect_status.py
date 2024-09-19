@@ -26,11 +26,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[certificates_relation, sdcore_config_relation],
+            containers={container},
+            relations={certificates_relation, sdcore_config_relation},
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus("Waiting for fiveg_nrf relation(s)")
 
@@ -44,11 +44,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[nrf_relation, sdcore_config_relation],
+            containers={container},
+            relations={nrf_relation, sdcore_config_relation},
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus("Waiting for certificates relation(s)")
 
@@ -62,11 +62,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[nrf_relation, certificates_relation],
+            containers={container},
+            relations={nrf_relation, certificates_relation},
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == BlockedStatus("Waiting for sdcore_config relation(s)")
 
@@ -83,16 +83,16 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[
+            containers={container},
+            relations={
                 certificates_relation,
                 sdcore_config_relation,
                 nrf_relation,
-            ],
+            },
         )
         self.mock_nrf_url.return_value = ""
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for NRF data to be available")
 
@@ -109,17 +109,17 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[
+            containers={container},
+            relations={
                 nrf_relation,
                 certificates_relation,
                 sdcore_config_relation,
-            ],
+            },
         )
         self.mock_webui_url.return_value = ""
         self.mock_nrf_url.return_value = "http://nrf"
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for Webui data to be available")
 
@@ -136,16 +136,16 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[
+            containers={container},
+            relations={
                 nrf_relation,
                 certificates_relation,
                 sdcore_config_relation,
-            ],
+            },
         )
         self.mock_nrf_url.return_value = "http://nrf"
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.unit_status == WaitingStatus("Waiting for storage to be attached")
 
@@ -162,25 +162,25 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf", can_connect=True, mounts={"config": config_mount}
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
             self.mock_get_assigned_certificate.return_value = None, None
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             self.mock_nrf_url.return_value = "http://nrf"
 
-            state_out = self.ctx.run("collect_unit_status", state_in)
+            state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
             assert state_out.unit_status == WaitingStatus(
                 "Waiting for certificates to be available"
@@ -199,11 +199,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf",
@@ -221,7 +221,7 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
                                         "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
                                         "GRPC_TRACE": "all",
                                         "GRPC_VERBOSITY": "DEBUG",
-                                        "POD_IP": "1.1.1.1",
+                                        "POD_IP": "192.0.2.1",
                                         "MANAGED_BY_CONFIG_POD": "true",
                                     },
                                 }
@@ -231,25 +231,25 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
                 },
                 can_connect=True,
                 mounts={"certs": certs_mount, "config": config_mount},
-                service_status={"amf": ServiceStatus.ACTIVE},
+                service_statuses={"amf": ServiceStatus.ACTIVE},
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             self.mock_nrf_url.return_value = "http://nrf"
 
-            state_out = self.ctx.run("collect_unit_status", state_in)
+            state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
             assert state_out.unit_status == ActiveStatus()
 
@@ -266,28 +266,28 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
             self.mock_check_output.return_value = b""
             self.mock_nrf_url.return_value = "http://nrf"
 
-            state_out = self.ctx.run("collect_unit_status", state_in)
+            state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
             assert state_out.unit_status == WaitingStatus(
                 "Waiting for pod IP address to be available"
@@ -306,11 +306,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[nrf_relation, certificates_relation, sdcore_config_relation],
+            containers={container},
+            relations={nrf_relation, certificates_relation, sdcore_config_relation},
         )
 
-        state_out = self.ctx.run("collect_unit_status", state_in)
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
         assert state_out.workload_version == ""
 
@@ -327,7 +327,7 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
             )
             workload_version_mount = scenario.Mount(
                 location="/etc",
-                src=tempdir,
+                source=tempdir,
             )
             # Write workload version file
             expected_version = "1.2.3"
@@ -338,11 +338,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[nrf_relation, certificates_relation, sdcore_config_relation],
+                containers={container},
+                relations={nrf_relation, certificates_relation, sdcore_config_relation},
             )
 
-            state_out = self.ctx.run("collect_unit_status", state_in)
+            state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
             assert state_out.workload_version == expected_version
 
@@ -360,11 +360,11 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
             fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf",
@@ -384,7 +384,7 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
                                         "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
                                         "GRPC_TRACE": "all",
                                         "GRPC_VERBOSITY": "DEBUG",
-                                        "POD_IP": "1.1.1.1",
+                                        "POD_IP": "192.0.2.1",
                                         "MANAGED_BY_CONFIG_POD": "true",
                                     },
                                 }
@@ -392,23 +392,23 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
                         }
                     )
                 },
-                service_status={"amf": ServiceStatus.ACTIVE},
+                service_statuses={"amf": ServiceStatus.ACTIVE},
             )
             state_in = scenario.State(
                 leader=True,
-                containers=[container],
-                relations=[
+                containers={container},
+                relations={
                     fiveg_n2_relation,
                     nrf_relation,
                     certificates_relation,
                     sdcore_config_relation,
-                ],
+                },
             )
-            self.mock_check_output.return_value = b"1.1.1.1"
+            self.mock_check_output.return_value = b"192.0.2.1"
             self.mock_k8s_service.get_hostname.return_value = None
             self.mock_k8s_service.get_ip.return_value = None
             self.mock_nrf_url.return_value = "http://nrf"
 
-            state_out = self.ctx.run("collect_unit_status", state_in)
+            state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
 
             assert state_out.unit_status == BlockedStatus("Waiting for MetalLB to be enabled")

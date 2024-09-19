@@ -21,15 +21,15 @@ class TestCharmCertificatesRelationBroken(AMFUnitTestFixtures):
                 endpoint="certificates", interface="tls-certificates"
             )
             provider_certificate, private_key = example_cert_and_key(
-                tls_relation_id=certificates_relation.relation_id
+                tls_relation_id=certificates_relation.id
             )
             certs_mount = scenario.Mount(
                 location="/support/TLS",
-                src=tempdir,
+                source=tempdir,
             )
             config_mount = scenario.Mount(
                 location="/free5gc/config",
-                src=tempdir,
+                source=tempdir,
             )
             container = scenario.Container(
                 name="amf",
@@ -45,12 +45,12 @@ class TestCharmCertificatesRelationBroken(AMFUnitTestFixtures):
                 f.write(str(private_key))
 
             state_in = scenario.State(
-                relations=[certificates_relation],
-                containers=[container],
+                relations={certificates_relation},
+                containers={container},
                 leader=True,
             )
 
-            self.ctx.run(certificates_relation.broken_event, state_in)
+            self.ctx.run(self.ctx.on.relation_broken(certificates_relation), state_in)
 
             assert not os.path.exists(f"{tempdir}/amf.pem")
             assert not os.path.exists(f"{tempdir}/amf.key")

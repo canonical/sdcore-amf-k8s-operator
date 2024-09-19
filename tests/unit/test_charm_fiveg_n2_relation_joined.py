@@ -16,16 +16,16 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
         container = scenario.Container(name="amf", can_connect=True)
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[fiveg_n2_relation],
+            containers={container},
+            relations={fiveg_n2_relation},
         )
-        self.mock_check_output.return_value = b"1.1.1.1"
-        self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
-        self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
+        self.mock_check_output.return_value = b"192.0.2.1"
+        self.mock_k8s_service.get_hostname.return_value = "amf.pizza.example.com"
+        self.mock_k8s_service.get_ip.return_value = "192.0.2.1"
 
-        state_out = self.ctx.run(fiveg_n2_relation.joined_event, state_in)
+        state_out = self.ctx.run(self.ctx.on.relation_joined(fiveg_n2_relation), state_in)
 
-        assert state_out.relations[0].local_app_data == {}
+        assert state_out.get_relation(fiveg_n2_relation.id).local_app_data == {}
 
     def test_given_n2_information_and_service_is_running_when_fiveg_n2_relation_joined_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
@@ -48,7 +48,7 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
                                     "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
                                     "GRPC_TRACE": "all",
                                     "GRPC_VERBOSITY": "DEBUG",
-                                    "POD_IP": "1.1.1.1",
+                                    "POD_IP": "192.0.2.1",
                                     "MANAGED_BY_CONFIG_POD": "true",
                                 },
                             }
@@ -56,23 +56,23 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
                     }
                 )
             },
-            service_status={"amf": ServiceStatus.ACTIVE},
+            service_statuses={"amf": ServiceStatus.ACTIVE},
         )
         state_in = scenario.State(
             leader=True,
-            containers=[container],
-            relations=[
+            containers={container},
+            relations={
                 fiveg_n2_relation,
-            ],
+            },
         )
-        self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
-        self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
+        self.mock_k8s_service.get_hostname.return_value = "amf.pizza.example.com"
+        self.mock_k8s_service.get_ip.return_value = "192.0.2.1"
 
-        state_out = self.ctx.run(fiveg_n2_relation.joined_event, state_in)
+        state_out = self.ctx.run(self.ctx.on.relation_joined(fiveg_n2_relation), state_in)
 
-        assert state_out.relations[0].local_app_data == {
-            "amf_ip_address": "1.1.1.1",
-            "amf_hostname": "amf.pizza.com",
+        assert state_out.get_relation(fiveg_n2_relation.id).local_app_data == {
+            "amf_ip_address": "192.0.2.1",
+            "amf_hostname": "amf.pizza.example.com",
             "amf_port": "38412",
         }
 
@@ -97,7 +97,7 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
                                     "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
                                     "GRPC_TRACE": "all",
                                     "GRPC_VERBOSITY": "DEBUG",
-                                    "POD_IP": "1.1.1.1",
+                                    "POD_IP": "192.0.2.1",
                                     "MANAGED_BY_CONFIG_POD": "true",
                                 },
                             }
@@ -105,24 +105,27 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
                     }
                 )
             },
-            service_status={"amf": ServiceStatus.ACTIVE},
+            service_statuses={"amf": ServiceStatus.ACTIVE},
         )
         state_in = scenario.State(
-            config={"external-amf-ip": "2.2.2.2", "external-amf-hostname": "amf.burger.com"},
+            config={
+                "external-amf-ip": "192.0.2.2",
+                "external-amf-hostname": "amf.burger.example.com",
+            },
             leader=True,
-            containers=[container],
-            relations=[
+            containers={container},
+            relations={
                 fiveg_n2_relation,
-            ],
+            },
         )
-        self.mock_k8s_service.get_hostname.return_value = "amf.pizza.com"
-        self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
+        self.mock_k8s_service.get_hostname.return_value = "amf.pizza.example.com"
+        self.mock_k8s_service.get_ip.return_value = "192.0.2.1"
 
-        state_out = self.ctx.run(fiveg_n2_relation.joined_event, state_in)
+        state_out = self.ctx.run(self.ctx.on.relation_joined(fiveg_n2_relation), state_in)
 
-        assert state_out.relations[0].local_app_data == {
-            "amf_ip_address": "2.2.2.2",
-            "amf_hostname": "amf.burger.com",
+        assert state_out.get_relation(fiveg_n2_relation.id).local_app_data == {
+            "amf_ip_address": "192.0.2.2",
+            "amf_hostname": "amf.burger.example.com",
             "amf_port": "38412",
         }
 
@@ -148,7 +151,7 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
                                     "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
                                     "GRPC_TRACE": "all",
                                     "GRPC_VERBOSITY": "DEBUG",
-                                    "POD_IP": "1.1.1.1",
+                                    "POD_IP": "192.0.2.1",
                                     "MANAGED_BY_CONFIG_POD": "true",
                                 },
                             }
@@ -156,28 +159,28 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
                     }
                 )
             },
-            service_status={"amf": ServiceStatus.ACTIVE},
+            service_statuses={"amf": ServiceStatus.ACTIVE},
         )
         state_in = scenario.State(
             model=scenario.Model(
                 name=model_name,
             ),
-            config={"external-amf-ip": "2.2.2.2"},
+            config={"external-amf-ip": "192.0.2.2"},
             leader=True,
-            containers=[container],
-            relations=[
+            containers={container},
+            relations={
                 fiveg_n2_relation,
-            ],
+            },
         )
-        self.mock_check_output.return_value = b"1.1.1.1"
+        self.mock_check_output.return_value = b"192.0.2.1"
         self.mock_k8s_service.get_hostname.return_value = None
-        self.mock_k8s_service.get_ip.return_value = "1.1.1.1"
+        self.mock_k8s_service.get_ip.return_value = "192.0.2.1"
         self.mock_nrf_url.return_value = "http://nrf:8081"
 
-        state_out = self.ctx.run(fiveg_n2_relation.joined_event, state_in)
+        state_out = self.ctx.run(self.ctx.on.relation_joined(fiveg_n2_relation), state_in)
 
-        assert state_out.relations[0].local_app_data == {
-            "amf_ip_address": "2.2.2.2",
+        assert state_out.get_relation(fiveg_n2_relation.id).local_app_data == {
+            "amf_ip_address": "192.0.2.2",
             "amf_hostname": f"sdcore-amf-k8s-external.{model_name}.svc.cluster.local",
             "amf_port": "38412",
         }
