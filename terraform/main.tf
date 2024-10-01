@@ -3,13 +3,17 @@
 
 resource "juju_application" "amf" {
   name  = var.app_name
-  model = var.model_name
+  model = var.model
 
   charm {
-    name    = "sdcore-amf-k8s"
-    channel = var.channel
+    name     = "sdcore-amf-k8s"
+    channel  = var.channel
+    revision = var.revision
   }
-  config = var.config
-  units  = 1
-  trust  = true
+
+  config      = var.config
+  constraints = var.constraints
+  units       = var.units
+  resources   = var.resources
+  trust       = true
 }
