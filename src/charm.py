@@ -32,6 +32,7 @@ from ops import (
     MaintenanceStatus,
     ModelError,
     WaitingStatus,
+    main,
 )
 from ops.charm import (
     CharmBase,
@@ -40,7 +41,6 @@ from ops.charm import (
     RemoveEvent,
 )
 from ops.framework import EventBase
-from ops.main import main
 from ops.pebble import Layer
 
 from k8s_service import K8sService
