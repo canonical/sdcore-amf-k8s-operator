@@ -3,9 +3,7 @@
 
 
 import pytest
-import scenario
-import scenario.errors
-from ops import ActionEvent, CharmBase
+from ops import ActionEvent, CharmBase, testing
 
 from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2Provides
 
@@ -37,7 +35,7 @@ class DummyFivegN2ProviderCharm(CharmBase):
 class TestFiveGN2Provider:
     @pytest.fixture(autouse=True)
     def context(self):
-        self.ctx = scenario.Context(
+        self.ctx = testing.Context(
             charm_type=DummyFivegN2ProviderCharm,
             meta={
                 "name": "n2-provider-charm",
@@ -57,11 +55,11 @@ class TestFiveGN2Provider:
     def test_given_unit_is_leader_and_data_is_valid_when_set_fiveg_n2_information_then_data_is_in_application_databag(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
@@ -82,11 +80,11 @@ class TestFiveGN2Provider:
     def test_given_unit_is_not_leader_when_fiveg_n2_relation_joined_then_data_is_not_in_application_databag(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=False,
             relations={fiveg_n2_relation},
         )
@@ -98,7 +96,7 @@ class TestFiveGN2Provider:
         }
 
         # TODO: Shouldn't this use event.fail() rather than raising an exception?
-        with pytest.raises(scenario.errors.UncaughtCharmError) as e:
+        with pytest.raises(testing.errors.UncaughtCharmError) as e:
             self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Unit must be leader" in str(e.value)
@@ -106,11 +104,11 @@ class TestFiveGN2Provider:
     def test_given_unit_is_leader_but_port_is_invalid_when_fiveg_n2_relation_joined_then_value_error_is_raised(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
@@ -122,7 +120,7 @@ class TestFiveGN2Provider:
         }
 
         # TODO: Shouldn't this use event.fail() rather than raising an exception?
-        with pytest.raises(scenario.errors.UncaughtCharmError) as e:
+        with pytest.raises(testing.errors.UncaughtCharmError) as e:
             self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Invalid relation data" in str(e.value)
@@ -130,11 +128,11 @@ class TestFiveGN2Provider:
     def test_given_unit_is_leader_but_ip_is_invalid_when_fiveg_n2_relation_joined_then_value_error_is_raised(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
@@ -146,7 +144,7 @@ class TestFiveGN2Provider:
         }
 
         # TODO: Shouldn't this use event.fail() rather than raising an exception?
-        with pytest.raises(scenario.errors.UncaughtCharmError) as e:
+        with pytest.raises(testing.errors.UncaughtCharmError) as e:
             self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Invalid relation data" in str(e.value)

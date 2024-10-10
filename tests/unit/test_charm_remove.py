@@ -2,17 +2,17 @@
 # See LICENSE file for licensing details.
 
 
-import scenario
+from ops import testing
 
 from tests.unit.fixtures import AMFUnitTestFixtures
 
 
 class TestCharmRemove(AMFUnitTestFixtures):
     def test_given_k8s_service_created_when_remove_then_external_service_is_deleted(self):
-        container = scenario.Container(
+        container = testing.Container(
             name="amf",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             containers={container},
         )

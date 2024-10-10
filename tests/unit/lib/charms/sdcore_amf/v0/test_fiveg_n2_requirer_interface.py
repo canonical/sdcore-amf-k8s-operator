@@ -3,8 +3,7 @@
 
 
 import pytest
-import scenario
-from ops import ActionEvent, CharmBase
+from ops import ActionEvent, CharmBase, testing
 
 from lib.charms.sdcore_amf_k8s.v0.fiveg_n2 import N2InformationAvailableEvent, N2Requires
 
@@ -32,7 +31,7 @@ class DummyFivegN2Requires(CharmBase):
 class TestFiveGNRFRequirer:
     @pytest.fixture(autouse=True)
     def context(self):
-        self.ctx = scenario.Context(
+        self.ctx = testing.Context(
             charm_type=DummyFivegN2Requires,
             meta={
                 "name": "n2-requirer-charm",
@@ -46,7 +45,7 @@ class TestFiveGNRFRequirer:
     def test_given_n2_information_in_relation_data_when_relation_changed_then_n2_information_available_event_emitted(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
             remote_app_data={
@@ -55,7 +54,7 @@ class TestFiveGNRFRequirer:
                 "amf_port": "38412",
             },
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
@@ -71,11 +70,11 @@ class TestFiveGNRFRequirer:
     def test_given_n2_information_not_in_relation_data_when_relation_changed_then_n2_information_available_event_is_not_emitted(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
@@ -87,7 +86,7 @@ class TestFiveGNRFRequirer:
     def test_given_invalid_n2_information_in_relation_data_when_relation_changed_then_n2_information_available_event_is_not_emitted(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
             remote_app_data={
@@ -96,7 +95,7 @@ class TestFiveGNRFRequirer:
                 "amf_port": "invalid_port123",
             },
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
@@ -108,7 +107,7 @@ class TestFiveGNRFRequirer:
     def test_given_n2_information_in_relation_data_when_get_n2_information_is_called_then_information_is_returned(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(
+        fiveg_n2_relation = testing.Relation(
             endpoint="fiveg-n2",
             interface="fiveg_n2",
             remote_app_data={
@@ -117,7 +116,7 @@ class TestFiveGNRFRequirer:
                 "amf_port": "38412",
             },
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             relations={fiveg_n2_relation},
         )
