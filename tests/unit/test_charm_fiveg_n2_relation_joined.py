@@ -2,7 +2,7 @@
 # See LICENSE file for licensing details.
 
 
-import scenario
+from ops import testing
 from ops.pebble import Layer, ServiceStatus
 
 from tests.unit.fixtures import AMFUnitTestFixtures
@@ -12,9 +12,9 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
     def test_given_service_not_running_when_fiveg_n2_relation_joined_then_n2_information_is_not_in_relation_databag(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-        container = scenario.Container(name="amf", can_connect=True)
-        state_in = scenario.State(
+        fiveg_n2_relation = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+        container = testing.Container(name="amf", can_connect=True)
+        state_in = testing.State(
             leader=True,
             containers={container},
             relations={fiveg_n2_relation},
@@ -30,8 +30,8 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
     def test_given_n2_information_and_service_is_running_when_fiveg_n2_relation_joined_then_n2_information_is_in_relation_databag(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-        container = scenario.Container(
+        fiveg_n2_relation = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+        container = testing.Container(
             name="amf",
             can_connect=True,
             layers={
@@ -58,7 +58,7 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
             },
             service_statuses={"amf": ServiceStatus.ACTIVE},
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             containers={container},
             relations={
@@ -79,8 +79,8 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
     def test_given_n2_information_and_service_is_running_and_n2_config_is_overriden_when_fiveg_n2_relation_joined_then_custom_n2_information_is_in_relation_databag(  # noqa: E501
         self,
     ):
-        fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-        container = scenario.Container(
+        fiveg_n2_relation = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+        container = testing.Container(
             name="amf",
             can_connect=True,
             layers={
@@ -107,7 +107,7 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
             },
             service_statuses={"amf": ServiceStatus.ACTIVE},
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             config={
                 "external-amf-ip": "192.0.2.2",
                 "external-amf-hostname": "amf.burger.example.com",
@@ -133,8 +133,8 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
         self,
     ):
         model_name = "whatever"
-        fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-        container = scenario.Container(
+        fiveg_n2_relation = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+        container = testing.Container(
             name="amf",
             can_connect=True,
             layers={
@@ -161,8 +161,8 @@ class TestCharmFiveGN2RelationJoined(AMFUnitTestFixtures):
             },
             service_statuses={"amf": ServiceStatus.ACTIVE},
         )
-        state_in = scenario.State(
-            model=scenario.Model(
+        state_in = testing.State(
+            model=testing.Model(
                 name=model_name,
             ),
             config={"external-amf-ip": "192.0.2.2"},

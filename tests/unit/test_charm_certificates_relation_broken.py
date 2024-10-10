@@ -4,7 +4,7 @@
 import os
 import tempfile
 
-import scenario
+from ops import testing
 
 from tests.unit.certificates_helpers import (
     example_cert_and_key,
@@ -17,21 +17,21 @@ class TestCharmCertificatesRelationBroken(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            certificates_relation = scenario.Relation(
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
             provider_certificate, private_key = example_cert_and_key(
                 tls_relation_id=certificates_relation.id
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            config_mount = scenario.Mount(
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf",
                 can_connect=True,
                 mounts={"certs": certs_mount, "config": config_mount},
@@ -44,7 +44,7 @@ class TestCharmCertificatesRelationBroken(AMFUnitTestFixtures):
             with open(f"{tempdir}/amf.key", "w") as f:
                 f.write(str(private_key))
 
-            state_in = scenario.State(
+            state_in = testing.State(
                 relations={certificates_relation},
                 containers={container},
                 leader=True,
