@@ -4,7 +4,7 @@
 from unittest.mock import PropertyMock, patch
 
 import pytest
-import scenario
+from ops import testing
 
 from charm import AMFOperatorCharm
 from k8s_service import K8sService
@@ -42,6 +42,6 @@ class AMFUnitTestFixtures:
 
     @pytest.fixture(autouse=True)
     def context(self):
-        self.ctx = scenario.Context(
+        self.ctx = testing.Context(
             charm_type=AMFOperatorCharm,
         )
