@@ -4,7 +4,7 @@
 import os
 import tempfile
 
-import scenario
+from ops import testing
 from ops.pebble import Layer
 
 from tests.unit.certificates_helpers import (
@@ -18,25 +18,25 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            config_mount = scenario.Mount(
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 containers={container},
                 relations={
@@ -73,25 +73,25 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            config_mount = scenario.Mount(
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 containers={container},
                 relations={
@@ -130,25 +130,25 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            config_mount = scenario.Mount(
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 containers={container},
                 relations={
@@ -191,28 +191,28 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            fiveg_n2_relation = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-            config_mount = scenario.Mount(
+            fiveg_n2_relation = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf",
                 can_connect=True,
                 mounts={"certs": certs_mount, "config": config_mount},
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 containers={container},
                 relations={
@@ -244,29 +244,29 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            fiveg_n2_relation_1 = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-            fiveg_n2_relation_2 = scenario.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
-            config_mount = scenario.Mount(
+            fiveg_n2_relation_1 = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+            fiveg_n2_relation_2 = testing.Relation(endpoint="fiveg-n2", interface="fiveg-n2")
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf",
                 can_connect=True,
                 mounts={"certs": certs_mount, "config": config_mount},
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 containers={container},
                 relations={
@@ -304,25 +304,25 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            certs_mount = scenario.Mount(
+            certs_mount = testing.Mount(
                 location="/support/TLS",
                 source=tempdir,
             )
-            config_mount = scenario.Mount(
+            config_mount = testing.Mount(
                 location="/free5gc/config",
                 source=tempdir,
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 containers={container},
                 relations={
@@ -346,28 +346,28 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self,
     ):
         with tempfile.TemporaryDirectory() as tempdir:
-            nrf_relation = scenario.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
-            certificates_relation = scenario.Relation(
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
                 endpoint="certificates", interface="tls-certificates"
             )
-            sdcore_config_relation = scenario.Relation(
+            sdcore_config_relation = testing.Relation(
                 endpoint="sdcore_config", interface="sdcore_config"
             )
-            container = scenario.Container(
+            container = testing.Container(
                 name="amf",
                 can_connect=True,
                 mounts={
-                    "certs": scenario.Mount(
+                    "certs": testing.Mount(
                         location="/support/TLS",
                         source=tempdir,
                     ),
-                    "config": scenario.Mount(
+                    "config": testing.Mount(
                         location="/free5gc/config",
                         source=tempdir,
                     ),
                 },
             )
-            state_in = scenario.State(
+            state_in = testing.State(
                 leader=True,
                 relations={
                     nrf_relation,
@@ -395,10 +395,10 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             assert os.stat(tempdir + "/amf.key").st_mtime == config_modification_time_amf_key
 
     def test_given_k8s_service_not_created_when_pebble_ready_then_service_is_created(self):
-        container = scenario.Container(
+        container = testing.Container(
             name="amf",
         )
-        state_in = scenario.State(
+        state_in = testing.State(
             leader=True,
             containers={container},
         )
