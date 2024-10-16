@@ -1,0 +1,8 @@
+alert: AmfDown
+expr: up == 0
+for: 5m
+labels:
+    severity: critical
+annotations:
+    summary: "AMF availability"
+    description: "AMF is unavailable"
