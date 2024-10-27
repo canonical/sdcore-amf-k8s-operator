@@ -6,7 +6,7 @@
 #
 annotated-types==0.7.0
     # via pydantic
-anyio==4.6.0
+anyio==4.6.2.post1
     # via httpx
 attrs==24.2.0
     # via
@@ -16,17 +16,27 @@ certifi==2024.8.30
     # via
     #   httpcore
     #   httpx
+    #   requests
 cffi==1.17.1
     # via cryptography
+charset-normalizer==3.4.0
+    # via requests
 click==8.1.7
     # via typer
 cosl==0.0.42
     # via -r requirements.in
 cryptography==43.0.3
     # via -r requirements.in
+deprecated==1.2.14
+    # via
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-http
+    #   opentelemetry-semantic-conventions
+googleapis-common-protos==1.65.0
+    # via opentelemetry-exporter-otlp-proto-http
 h11==0.14.0
     # via httpcore
-httpcore==1.0.5
+httpcore==1.0.6
     # via httpx
 httpx==0.27.2
     # via lightkube
@@ -34,13 +44,16 @@ idna==3.10
     # via
     #   anyio
     #   httpx
+    #   requests
+importlib-metadata==8.4.0
+    # via opentelemetry-api
 iniconfig==2.0.0
     # via pytest
 jinja2==3.1.4
     # via -r requirements.in
 jsonschema==4.23.0
     # via -r requirements.in
-jsonschema-specifications==2023.12.1
+jsonschema-specifications==2024.10.1
     # via jsonschema
 lightkube==0.15.4
     # via
@@ -50,8 +63,25 @@ lightkube-models==1.31.1.8
     # via
     #   -r requirements.in
     #   lightkube
-markupsafe==2.1.5
+markupsafe==3.0.2
     # via jinja2
+opentelemetry-api==1.27.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-http
+    #   opentelemetry-sdk
+    #   opentelemetry-semantic-conventions
+opentelemetry-exporter-otlp-proto-common==1.27.0
+    # via opentelemetry-exporter-otlp-proto-http
+opentelemetry-exporter-otlp-proto-http==1.27.0
+    # via -r requirements.in
+opentelemetry-proto==1.27.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-http
+opentelemetry-sdk==1.27.0
+    # via opentelemetry-exporter-otlp-proto-http
+opentelemetry-semantic-conventions==0.48b0
+    # via opentelemetry-sdk
 ops==2.17.0
     # via
     #   -r requirements.in
@@ -63,6 +93,10 @@ packaging==24.1
     # via pytest
 pluggy==1.5.0
     # via pytest
+protobuf==4.25.5
+    # via
+    #   googleapis-common-protos
+    #   opentelemetry-proto
 pycparser==2.22
     # via cffi
 pydantic==2.9.2
@@ -86,6 +120,8 @@ referencing==0.35.1
     # via
     #   jsonschema
     #   jsonschema-specifications
+requests==2.32.3
+    # via opentelemetry-exporter-otlp-proto-http
 rpds-py==0.18.1
     # via
     #   -r requirements.in
@@ -102,7 +138,14 @@ typer==0.7.0
 typing-extensions==4.12.2
     # via
     #   cosl
+    #   opentelemetry-sdk
     #   pydantic
     #   pydantic-core
+urllib3==2.2.3
+    # via requests
 websocket-client==1.8.0
     # via ops
+wrapt==1.16.0
+    # via deprecated
+zipp==3.20.2
+    # via importlib-metadata

@@ -49,6 +49,9 @@ requires:
     interface: loki_push_api
   sdcore_config:
     interface: sdcore_config
+  tracing:
+    interface: tracing
+    limit: 1
 
 type: charm
 bases:
