@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 METADATA = yaml.safe_load(Path("./charmcraft.yaml").read_text())
 APP_NAME = METADATA["name"]
 DB_CHARM_NAME = "mongodb-k8s"
-DB_CHARM_CHANNEL = "6/beta"
+DB_CHARM_CHANNEL = "6/stable"
 NRF_CHARM_NAME = "sdcore-nrf-k8s"
 NRF_CHARM_CHANNEL = "1.5/edge"
 TLS_PROVIDER_CHARM_NAME = "self-signed-certificates"
@@ -128,6 +128,7 @@ async def _deploy_mongodb(ops_test: OpsTest):
         DB_CHARM_NAME,
         application_name=DB_CHARM_NAME,
         channel=DB_CHARM_CHANNEL,
+        trust=True,
     )
 
 
