@@ -18,6 +18,8 @@ from charms.sdcore_nms_k8s.v0.sdcore_config import (
     SdcoreConfigRequires,
 )
 from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
+from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
+from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer, charm_tracing_config
 from charms.tls_certificates_interface.v4.tls_certificates import (
     Certificate,
     CertificateRequestAttributes,
@@ -69,6 +71,11 @@ SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
 
 
+@trace_charm(
+    tracing_endpoint="_tracing_endpoint",
+    server_cert="_tracing_server_cert",
+    extra_types=(TLSCertificatesRequiresV4,),
+)
 class AMFOperatorCharm(CharmBase):
     """Main class to describe juju event handling for the SD-Core AMF operator for K8s."""
 
@@ -101,6 +108,10 @@ class AMFOperatorCharm(CharmBase):
                     "static_configs": [{"targets": [f"*:{PROMETHEUS_PORT}"]}],
                 }
             ],
+        )
+        self.tracing = TracingEndpointRequirer(self, protocols=["otlp_http"])
+        self._tracing_endpoint, self._tracing_server_cert = charm_tracing_config(
+            self.tracing, cert_path=None
         )
         self.unit.set_ports(PROMETHEUS_PORT, SBI_PORT, SCTP_GRPC_PORT)
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
