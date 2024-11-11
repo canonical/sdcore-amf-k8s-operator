@@ -7,5 +7,5 @@ jinja2
 jsonschema
 cryptography
 cosl # Required by prometheus_k8s.v0.prometheus_scrape
-rpds-py==0.18.1
+rpds-py==0.21.0
 opentelemetry-exporter-otlp-proto-http

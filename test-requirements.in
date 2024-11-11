@@ -1,6 +1,6 @@
 codespell
 coverage[toml]
-juju==3.5.2.0
+juju==3.5.2.1
 pyright
 pytest
 pytest-asyncio>=v0.21.2  # https://github.com/pytest-dev/pytest/issues/12269
