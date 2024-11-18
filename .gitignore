@@ -1,9 +1,13 @@
 *.idea
 .vscode/
 .coverage
+.charm_tracing_buffer.raw
+build/
+src/sdcore_amf_k8s_operator.egg-info/
 
 # Python
 **/venv/**
+**/.venv/**
 *.pyc
 
 # Charmcraft
