@@ -66,8 +66,6 @@ parts:
   charm:
     source: .
     plugin: charm
-    charm-requirements:
-      - requirements.txt
     build-packages:
       - libffi-dev
       - libssl-dev
