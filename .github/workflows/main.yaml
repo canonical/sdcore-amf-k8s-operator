@@ -11,37 +11,37 @@ on:
 jobs:
   codeql:
     name: CodeQL Analysis
-    uses: canonical/sdcore-github-workflows/.github/workflows/codeql-analysis.yml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/codeql-analysis.yml@fix-workaround-lxd-issue
 
   check-libraries:
-    uses: canonical/sdcore-github-workflows/.github/workflows/check-libraries.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/check-libraries.yaml@fix-workaround-lxd-issue
     secrets:
       CHARMCRAFT_AUTH: ${{ secrets.CHARMCRAFT_AUTH }}
 
   lint-report:
-    uses: canonical/sdcore-github-workflows/.github/workflows/lint-report.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/lint-report.yaml@fix-workaround-lxd-issue
 
   terraform-check:
-    uses: canonical/sdcore-github-workflows/.github/workflows/terraform.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/terraform.yaml@fix-workaround-lxd-issue
 
   static-analysis:
-    uses: canonical/sdcore-github-workflows/.github/workflows/static-analysis.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/static-analysis.yaml@fix-workaround-lxd-issue
 
   unit-tests-with-coverage:
-    uses: canonical/sdcore-github-workflows/.github/workflows/unit-test.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/unit-test.yaml@fix-workaround-lxd-issue
 
   build:
     needs:
       - lint-report
       - static-analysis
       - unit-tests-with-coverage
-    uses: canonical/sdcore-github-workflows/.github/workflows/build.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/build.yaml@fix-workaround-lxd-issue
     secrets: inherit
 
   integration-test:
     needs:
       - build
-    uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@fix-workaround-lxd-issue
     with:
       enable-metallb: true
 
@@ -53,7 +53,7 @@ jobs:
       - unit-tests-with-coverage
       - integration-test
     if: ${{ github.ref_name == 'main' }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@fix-workaround-lxd-issue
     with:
       track-name: 1.5
     secrets:
@@ -67,7 +67,7 @@ jobs:
       - unit-tests-with-coverage
       - integration-test
     if: ${{ (github.ref_name != 'main') && (github.event_name == 'push') }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/publish-charm.yaml@fix-workaround-lxd-issue
     with:
       branch-name: ${{ github.ref_name }}
       track-name: 1.5
@@ -93,7 +93,7 @@ jobs:
       - publish-charm
       - lib-needs-publishing
     if: ${{ github.ref_name == 'main' }} && ${{ needs.changes.outputs.needs-publishing == 'true' }}
-    uses: canonical/sdcore-github-workflows/.github/workflows/publish-lib.yaml@v2.1.0
+    uses: canonical/sdcore-github-workflows/.github/workflows/publish-lib.yaml@fix-workaround-lxd-issue
     with:
       lib-name: "charms.sdcore_amf_k8s.v0.fiveg_n2"
     secrets:
