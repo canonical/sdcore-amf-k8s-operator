@@ -4,8 +4,7 @@
     "config:recommended",
     ":disableRateLimiting",
     ":noUnscheduledUpdates",
-    // Avoid conflicts with custom `commitMessagePrefix`
-    ":semanticCommitsDisabled"
+    ":semanticCommits"
   ],
   "automerge": true,
   "automergeStrategy": "squash",
