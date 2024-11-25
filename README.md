@@ -12,7 +12,7 @@ Juju model on a Kubernetes Cluster.
 
 ```bash
 juju deploy sdcore-amf-k8s --trust --channel=1.5/edge
-juju deploy mongodb-k8s --trust --channel=6/beta
+juju deploy mongodb-k8s --trust --channel=6/stable
 juju deploy sdcore-nrf-k8s --channel=1.5/edge
 juju deploy self-signed-certificates --channel=stable
 juju deploy sdcore-nms-k8s --channel=1.5/edge
