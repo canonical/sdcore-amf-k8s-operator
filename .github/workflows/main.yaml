@@ -5,8 +5,6 @@ on:
     branches:
       - v1.5
   push:
-  schedule:
-    - cron: '0 6 * * 0'
 
 jobs:
   codeql:
