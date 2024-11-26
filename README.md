@@ -11,11 +11,11 @@ Juju model on a Kubernetes Cluster.
 ## Usage
 
 ```bash
-juju deploy sdcore-amf-k8s --trust --channel=1.5/edge
-juju deploy mongodb-k8s --trust --channel=6/beta
-juju deploy sdcore-nrf-k8s --channel=1.5/edge
+juju deploy sdcore-amf-k8s --trust --channel=1.6/edge
+juju deploy mongodb-k8s --trust --channel=6/stable
+juju deploy sdcore-nrf-k8s --channel=1.6/edge
 juju deploy self-signed-certificates --channel=stable
-juju deploy sdcore-nms-k8s --channel=1.5/edge
+juju deploy sdcore-nms-k8s --channel=1.6/edge
 juju integrate sdcore-nms-k8s:common_database mongodb-k8s:database
 juju integrate sdcore-nms-k8s:auth_database mongodb-k8s:database
 juju integrate sdcore-nms-k8s:certificates self-signed-certificates:certificates
@@ -40,4 +40,4 @@ juju config sdcore-amf-k8s external-amf-ip=192.168.0.4 external-amf-hostname=amf
 
 ## Image
 
-**amf**: ghcr.io/canonical/sdcore-amf:1.4.4
+**amf**: ghcr.io/canonical/sdcore-amf:1.5.1
