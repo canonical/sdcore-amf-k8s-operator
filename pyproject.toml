@@ -14,7 +14,7 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http",
     "pydantic<3.0",
     "pytest-interface-tester",
-    "rpds-py==0.21.0",
+    "rpds-py==0.22.1",
 ]
 
 [dependency-groups]
