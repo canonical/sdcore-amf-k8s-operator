@@ -476,10 +476,19 @@ class AMFOperatorCharm(CharmBase):
         invalid_configs = []
         if not self._get_dnn_config():
             invalid_configs.append("dnn")
+        if not self._is_log_level_valid():
+            invalid_configs.append("log-level")
         return invalid_configs
 
     def _get_dnn_config(self) -> Optional[str]:
         return cast(Optional[str], self.model.config.get("dnn"))
+
+    def _get_log_level_config(self) -> Optional[str]:
+        return cast(Optional[str], self.model.config.get("log-level"))
+
+    def _is_log_level_valid(self) -> bool:
+        log_level = self._get_log_level_config()
+        return log_level in ["debug", "info", "warn", "error", "fatal", "panic"]
 
     def _get_external_amf_ip_config(self) -> Optional[str]:
         return cast(Optional[str], self.model.config.get("external-amf-ip"))
@@ -558,6 +567,8 @@ class AMFOperatorCharm(CharmBase):
             raise ValueError("NRF URL is not available")
         if not self._webui_requires.webui_url:
             raise ValueError("Webui URL is not available")
+        if not (log_level := self._get_log_level_config()):
+            raise ValueError("Log level configuration value is empty")
 
         return self._render_config_file(
             ngapp_port=NGAPP_PORT,
@@ -570,6 +581,7 @@ class AMFOperatorCharm(CharmBase):
             dnn=dnn,
             scheme="https",
             webui_uri=self._webui_requires.webui_url,
+            log_level=log_level,
         )
 
     @staticmethod
@@ -585,6 +597,7 @@ class AMFOperatorCharm(CharmBase):
         dnn: str,
         scheme: str,
         webui_uri: str,
+        log_level: str,
     ) -> str:
         """Render the AMF config file.
 
@@ -599,6 +612,7 @@ class AMFOperatorCharm(CharmBase):
             dnn (str): Data Network name.
             scheme (str): SBI interface scheme ("http" or "https")
             webui_uri (str) : URL of the Webui.
+            log_level (str): Log level for the AMF.
 
         Returns:
             str: Content of the rendered config file.
@@ -616,6 +630,7 @@ class AMFOperatorCharm(CharmBase):
             dnn=dnn,
             scheme=scheme,
             webui_uri=webui_uri,
+            log_level=log_level,
         )
         return content
 
@@ -684,10 +699,6 @@ class AMFOperatorCharm(CharmBase):
         """
         return {
             "GOTRACEBACK": "crash",
-            "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
-            "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
-            "GRPC_TRACE": "all",
-            "GRPC_VERBOSITY": "DEBUG",
             "POD_IP": _get_pod_ip(),
             "MANAGED_BY_CONFIG_POD": "true",
         }

@@ -13,6 +13,22 @@ from tests.unit.fixtures import AMFUnitTestFixtures
 
 
 class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
+    def test_given_invalid_log_level_config_when_collect_unit_status_then_status_is_blocked(
+        self,
+    ):
+        container = testing.Container(name="amf", can_connect=True)
+        state_in = testing.State(
+            leader=True,
+            config={"log-level": "invalid"},
+            containers={container},
+        )
+
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
+
+        assert state_out.unit_status == BlockedStatus(
+            "The following configurations are not valid: ['log-level']"
+        )
+
     def test_given_fiveg_nrf_relation_not_created_when_collect_unit_status_then_status_is_blocked(
         self,
     ):
@@ -216,10 +232,6 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
                                     "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
                                     "environment": {
                                         "GOTRACEBACK": "crash",
-                                        "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
-                                        "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
-                                        "GRPC_TRACE": "all",
-                                        "GRPC_VERBOSITY": "DEBUG",
                                         "POD_IP": "192.0.2.1",
                                         "MANAGED_BY_CONFIG_POD": "true",
                                     },
@@ -379,10 +391,6 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
                                     "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
                                     "environment": {
                                         "GOTRACEBACK": "crash",
-                                        "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
-                                        "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
-                                        "GRPC_TRACE": "all",
-                                        "GRPC_VERBOSITY": "DEBUG",
                                         "POD_IP": "192.0.2.1",
                                         "MANAGED_BY_CONFIG_POD": "true",
                                     },
