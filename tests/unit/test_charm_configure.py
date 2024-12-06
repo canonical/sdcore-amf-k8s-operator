@@ -175,10 +175,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                             "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
                             "environment": {
                                 "GOTRACEBACK": "crash",
-                                "GRPC_GO_LOG_VERBOSITY_LEVEL": "99",
-                                "GRPC_GO_LOG_SEVERITY_LEVEL": "info",
-                                "GRPC_TRACE": "all",
-                                "GRPC_VERBOSITY": "DEBUG",
                                 "POD_IP": "192.0.2.1",
                                 "MANAGED_BY_CONFIG_POD": "true",
                             },

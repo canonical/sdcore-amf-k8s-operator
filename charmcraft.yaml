@@ -79,6 +79,10 @@ parts:
 
 config:
   options:
+    log-level:
+      type: string
+      default: info
+      description: Log level for the AMF. One of `debug`, `info`, `warn`, `error`, `fatal`, `panic`.
     dnn:
       type: string
       default: internet
