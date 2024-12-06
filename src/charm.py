@@ -58,7 +58,7 @@ CONFIG_FILE_NAME = "amfcfg.conf"
 CONFIG_TEMPLATE_DIR_PATH = "src/templates/"
 CONFIG_TEMPLATE_NAME = "amfcfg.conf.j2"
 WORKLOAD_VERSION_FILE_NAME = "/etc/workload-version"
-CERTS_DIR_PATH = "/support/TLS"  # Certificate paths are hardcoded in AMF code
+CERTS_DIR_PATH = "/support/TLS"
 PRIVATE_KEY_NAME = "amf.key"
 CERTIFICATE_NAME = "amf.pem"
 CERTIFICATE_COMMON_NAME = "amf.sdcore"
@@ -570,6 +570,8 @@ class AMFOperatorCharm(CharmBase):
             dnn=dnn,
             scheme="https",
             webui_uri=self._webui_requires.webui_url,
+            tls_pem=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}",
+            tls_key=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
         )
 
     @staticmethod
@@ -585,6 +587,8 @@ class AMFOperatorCharm(CharmBase):
         dnn: str,
         scheme: str,
         webui_uri: str,
+        tls_pem: str,
+        tls_key: str,
     ) -> str:
         """Render the AMF config file.
 
@@ -599,6 +603,8 @@ class AMFOperatorCharm(CharmBase):
             dnn (str): Data Network name.
             scheme (str): SBI interface scheme ("http" or "https")
             webui_uri (str) : URL of the Webui.
+            tls_pem (str): TLS certificate file.
+            tls_key (str): TLS key file.
 
         Returns:
             str: Content of the rendered config file.
@@ -616,6 +622,8 @@ class AMFOperatorCharm(CharmBase):
             dnn=dnn,
             scheme=scheme,
             webui_uri=webui_uri,
+            tls_pem=tls_pem,
+            tls_key=tls_key,
         )
         return content
 
@@ -668,7 +676,7 @@ class AMFOperatorCharm(CharmBase):
                     self._amf_service_name: {
                         "override": "replace",
                         "startup": "enabled",
-                        "command": f"/bin/amf --amfcfg {CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",  # noqa: E501
+                        "command": f"/bin/amf --cfg {CONFIG_DIR_PATH}/{CONFIG_FILE_NAME}",
                         "environment": self._amf_environment_variables,
                     },
                 },
