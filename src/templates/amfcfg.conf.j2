@@ -24,6 +24,9 @@ configuration:
     port: {{ sbi_port }}
     registerIPv4: {{ amf_ip }}
     scheme: {{ scheme }}
+    tls:
+      pem: {{ tls_pem }}
+      key: {{ tls_key }}
   sctpGrpcPort: {{ sctp_grpc_port }}
   serviceNameList:
     - namf-comm
