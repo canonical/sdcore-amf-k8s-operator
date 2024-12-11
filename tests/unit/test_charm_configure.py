@@ -115,15 +115,22 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                 f.write(str(private_key))
 
             with open("tests/unit/expected_config/config.conf", "r") as f:
-                expected_config = f.read().strip()
+                expected_config = f.read()
 
             with open(tempdir + "/amfcfg.conf", "w") as f:
-                f.write(expected_config)
+                f.write(expected_config.strip())
 
             config_modification_time = os.stat(tempdir + "/amfcfg.conf").st_mtime
 
             self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
+            with open(tempdir + "/amfcfg.conf", "r") as config_file:
+                actual_config = config_file.read()
+
+            with open("tests/unit/expected_config/config.conf", "r") as expected_config_file:
+                expected_config = expected_config_file.read()
+
+            assert actual_config.strip() == expected_config.strip()
             assert os.stat(tempdir + "/amfcfg.conf").st_mtime == config_modification_time
 
     def test_given_relations_available_and_config_pushed_when_pebble_ready_then_pebble_is_applied_correctly(  # noqa: E501
@@ -172,7 +179,7 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                         "amf": {
                             "startup": "enabled",
                             "override": "replace",
-                            "command": "/bin/amf --amfcfg /free5gc/config/amfcfg.conf",
+                            "command": "/bin/amf --cfg /free5gc/config/amfcfg.conf",
                             "environment": {
                                 "GOTRACEBACK": "crash",
                                 "POD_IP": "192.0.2.1",
