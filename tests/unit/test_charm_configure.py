@@ -181,6 +181,7 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                                 "GRPC_VERBOSITY": "DEBUG",
                                 "POD_IP": "192.0.2.1",
                                 "MANAGED_BY_CONFIG_POD": "true",
+                                "GIN_MODE": "release",
                             },
                         }
                     }
