@@ -24,6 +24,7 @@ NMS_CHARM_NAME = "sdcore-nms-k8s"
 NMS_CHARM_CHANNEL = "1.6/edge"
 GRAFANA_AGENT_CHARM_NAME = "grafana-agent-k8s"
 GRAFANA_AGENT_CHARM_CHANNEL = "latest/stable"
+SDCORE_CHARMS_BASE = "ubuntu@24.04"
 TIMEOUT = 15 * 60
 
 
@@ -156,6 +157,7 @@ async def _deploy_nrf(ops_test: OpsTest):
         NRF_CHARM_NAME,
         application_name=NRF_CHARM_NAME,
         channel=NRF_CHARM_CHANNEL,
+        base=SDCORE_CHARMS_BASE,
     )
     await ops_test.model.integrate(
         relation1=f"{NRF_CHARM_NAME}:database", relation2=f"{DB_CHARM_NAME}"
@@ -170,6 +172,7 @@ async def _deploy_nms(ops_test: OpsTest):
         NMS_CHARM_NAME,
         application_name=NMS_CHARM_NAME,
         channel=NMS_CHARM_CHANNEL,
+        base=SDCORE_CHARMS_BASE,
     )
     await ops_test.model.integrate(
         relation1=f"{NMS_CHARM_NAME}:common_database", relation2=f"{DB_CHARM_NAME}"

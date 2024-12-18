@@ -9,6 +9,7 @@ resource "juju_application" "amf" {
     name     = "sdcore-amf-k8s"
     channel  = var.channel
     revision = var.revision
+    base     = var.base
   }
 
   config      = var.config
