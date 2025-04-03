@@ -6,7 +6,7 @@ on:
   workflow_dispatch: # Allows manual triggering
 
 jobs:
-  tics-scan:
+  tics-analysis:
     uses: canonical/sdcore-github-workflows/.github/workflows/tics-scan.yaml@v2.3.2
     with:
       project: sdcore-amf-k8s-operator
