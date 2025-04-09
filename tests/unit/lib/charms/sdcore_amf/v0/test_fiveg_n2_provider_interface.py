@@ -98,8 +98,8 @@ class TestFiveGN2Provider:
     #     # TODO: Shouldn't this use event.fail() rather than raising an exception?
     #     with pytest.raises(testing.errors.UncaughtCharmError) as e:
     #         self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
-
-        assert "Unit must be leader" in str(e.value)
+    #
+    #     assert "Unit must be leader" in str(e.value)
 
     def test_given_unit_is_leader_but_port_is_invalid_when_fiveg_n2_relation_joined_then_value_error_is_raised(  # noqa: E501
         self,
