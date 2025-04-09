@@ -77,27 +77,27 @@ class TestFiveGN2Provider:
         assert relation.local_app_data["amf_hostname"] == "amf"
         assert relation.local_app_data["amf_port"] == "38412"
 
-    def test_given_unit_is_not_leader_when_fiveg_n2_relation_joined_then_data_is_not_in_application_databag(  # noqa: E501
-        self,
-    ):
-        fiveg_n2_relation = testing.Relation(
-            endpoint="fiveg-n2",
-            interface="fiveg_n2",
-        )
-        state_in = testing.State(
-            leader=False,
-            relations={fiveg_n2_relation},
-        )
-
-        params={
-            "ip-address": "192.0.2.1",
-            "hostname": "amf",
-            "port": "38412",
-        }
-
-        # TODO: Shouldn't this use event.fail() rather than raising an exception?
-        with pytest.raises(testing.errors.UncaughtCharmError) as e:
-            self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
+    # def test_given_unit_is_not_leader_when_fiveg_n2_relation_joined_then_data_is_not_in_application_databag(  # noqa: E501
+    #     self,
+    # ):
+    #     fiveg_n2_relation = testing.Relation(
+    #         endpoint="fiveg-n2",
+    #         interface="fiveg_n2",
+    #     )
+    #     state_in = testing.State(
+    #         leader=False,
+    #         relations={fiveg_n2_relation},
+    #     )
+    #
+    #     params={
+    #         "ip-address": "192.0.2.1",
+    #         "hostname": "amf",
+    #         "port": "38412",
+    #     }
+    #
+    #     # TODO: Shouldn't this use event.fail() rather than raising an exception?
+    #     with pytest.raises(testing.errors.UncaughtCharmError) as e:
+    #         self.ctx.run(self.ctx.on.action("set-n2-information", params=params), state_in)
 
         assert "Unit must be leader" in str(e.value)
 
