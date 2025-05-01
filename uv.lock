@@ -980,28 +980,49 @@ wheels = [
 
 [[package]]
 name = "ops"
-version = "2.20.0"
+version = "2.21.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "importlib-metadata" },
+    { name = "opentelemetry-api" },
     { name = "pyyaml" },
     { name = "websocket-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/af/d2eb331b6424b879a448611524f54590fde6e3726f7513941f4fc26c4b08/ops-2.20.0.tar.gz", hash = "sha256:be1dcfd0bb748839fbc200bbd073a6acf9648401c3729db22d8594ebb4301e05", size = 492365, upload-time = "2025-03-31T20:43:20.044Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/97/c5/f0098a9b1b72680b3682043227a628a08a7b5b9592fc98ea6efa0d638017/ops-2.21.1.tar.gz", hash = "sha256:4a8190420813ba37e7a0399d656008f99c79015d7f72e138bad7cb1ac403d0b0", size = 496427, upload-time = "2025-05-01T03:03:23.038Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/62/83/0acfc15b24d1bc302e47f2e5e9170c8707cef9e7eb90177d38afce8cd6e8/ops-2.20.0-py3-none-any.whl", hash = "sha256:94791a4b45f00c6902494a4934480c85947880b27f5ebf3a0ec32e8cc6279c99", size = 180997, upload-time = "2025-03-31T20:43:15.433Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/c7/b70271ee12418144d5c596f37745c21da105470d365d834a9fce071f7bc2/ops-2.21.1-py3-none-any.whl", hash = "sha256:6745084c8e73bc485c254f95664bd85ddcf786c91b90782f2830c8333a1440b2", size = 182682, upload-time = "2025-05-01T03:03:20.946Z" },
+]
+
+[package.optional-dependencies]
+tracing = [
+    { name = "ops-tracing" },
 ]
 
 [[package]]
 name = "ops-scenario"
-version = "7.20.0"
+version = "7.21.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ops" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/d6/85a7d0a1f0df597a82caa5350a45f0e99ef2c72eed5705d80cae72101925/ops_scenario-7.20.0.tar.gz", hash = "sha256:f1c058dac51bb953389cbddedbf131fe545b9932ae8fe32c1e701833b31ea88b", size = 142159, upload-time = "2025-03-31T20:36:39.027Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/95/90312165f3e1d5876872ad64131be9c0f26b5aa09bd73a436a21b0752820/ops_scenario-7.21.1.tar.gz", hash = "sha256:534b407b34212161c3e74cb396b79ca7449932e483053e924146fdf0140876b9", size = 141631, upload-time = "2025-05-01T03:03:30.456Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/a3/8cb3445f8666082a8b20c6547debca47902c15f5a9ff608dd767632b4a70/ops_scenario-7.20.0-py3-none-any.whl", hash = "sha256:ee8defa368751d819e3b8ae08de672fa281af16274567f022c42a5f2c6c584a3", size = 72497, upload-time = "2025-03-31T20:36:36.706Z" },
+    { url = "https://files.pythonhosted.org/packages/93/3b/4cc28ea9d77015ecf8fc5c3d362bb274e35ffaa2e6fbd87909a5384afa40/ops_scenario-7.21.1-py3-none-any.whl", hash = "sha256:eeb9def2c31a1db2429cf21bd9b8cbd2ac092cc1fbe5591e850e4aa192c542fa", size = 72451, upload-time = "2025-05-01T03:03:28.488Z" },
+]
+
+[[package]]
+name = "ops-tracing"
+version = "2.21.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "opentelemetry-sdk" },
+    { name = "ops" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cd/1d/8c028b996ef5cc320064e63b8497cc95dbd4cb6be730012f12046ac50d43/ops_tracing-2.21.1.tar.gz", hash = "sha256:d1dc8ecd079a4d78f3d6978bda16b884d1dc00792db0d8e9273912a87cf2cafc", size = 27871, upload-time = "2025-05-01T03:03:18.482Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/22/d75274cd8775a016b925fd7a3a4040b890a3be797285d4f6c56ab0c2b471/ops_tracing-2.21.1-py3-none-any.whl", hash = "sha256:e84900361806481e74b0c1855c52a85552a3a3edaaea06f47846f934a2ffa5b2", size = 31177, upload-time = "2025-05-01T03:03:16.918Z" },
 ]
 
 [[package]]
@@ -1613,7 +1634,7 @@ dependencies = [
     { name = "lightkube" },
     { name = "lightkube-models" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "ops" },
+    { name = "ops", extra = ["tracing"] },
     { name = "pydantic" },
     { name = "pytest-interface-tester" },
     { name = "rpds-py" },
@@ -1642,7 +1663,7 @@ requires-dist = [
     { name = "lightkube" },
     { name = "lightkube-models" },
     { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "ops" },
+    { name = "ops", extras = ["tracing"], specifier = "~=2.21" },
     { name = "pydantic", specifier = "<3.0" },
     { name = "pytest-interface-tester" },
     { name = "rpds-py", specifier = "==0.24.0" },
