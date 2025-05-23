@@ -10,7 +10,7 @@ dependencies = [
     "jsonschema",
     "lightkube",
     "lightkube-models",
-    "ops",
+    "ops[tracing]~=2.21",
     "opentelemetry-exporter-otlp-proto-http",
     "pydantic<3.0",
     "pytest-interface-tester",
