@@ -34,12 +34,14 @@
       matchManagers: [
         'pep621',
       ],
+
       rangeStrategy: 'bump',
       groupName: 'Python dependencies',
     },
     {
       matchPackageNames: [
         'pytest-asyncio',
+        'python'
       ],
       matchUpdateTypes: [
         'minor',
