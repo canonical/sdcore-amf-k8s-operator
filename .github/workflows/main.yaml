@@ -44,7 +44,7 @@ jobs:
   integration-test:
     needs:
       - build
-    uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@main
+    uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@v2.3.4
     with:
       enable-metallb: true
 
