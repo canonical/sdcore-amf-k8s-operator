@@ -23,7 +23,7 @@ TLS_PROVIDER_CHARM_CHANNEL = "latest/stable"
 NMS_CHARM_NAME = "sdcore-nms-k8s"
 NMS_CHARM_CHANNEL = "1.6/edge"
 GRAFANA_AGENT_CHARM_NAME = "grafana-agent-k8s"
-GRAFANA_AGENT_CHARM_CHANNEL = "latest/stable"
+GRAFANA_AGENT_CHARM_CHANNEL = "1/stable"
 SDCORE_CHARMS_BASE = "ubuntu@24.04"
 TIMEOUT = 15 * 60
 
