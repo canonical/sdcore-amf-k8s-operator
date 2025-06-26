@@ -67,8 +67,8 @@ configuration:
     enable: true
     expireTime: 6s
     maxRetryTimes: 4
-  telemetry:                                 
-    enabled: {{ telemetry.enabled }} 
+  telemetry:
+    enabled: {{ telemetry.enabled }}
     otlp_endpoint: {{ telemetry.otlp_endpoint }}
     ratio: {{ telemetry.ratio }}
 logger:
