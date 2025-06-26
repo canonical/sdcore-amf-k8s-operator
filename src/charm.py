@@ -5,6 +5,7 @@
 """Charmed operator for the SD-Core AMF service for K8s."""
 
 import logging
+from dataclasses import dataclass
 from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import List, Optional, cast
@@ -19,6 +20,7 @@ from charms.sdcore_nms_k8s.v0.sdcore_config import (
     SdcoreConfigRequires,
 )
 from charms.sdcore_nrf_k8s.v0.fiveg_nrf import NRFRequires
+from charms.tempo_coordinator_k8s.v0.tracing import TracingEndpointRequirer
 from charms.tls_certificates_interface.v4.tls_certificates import (
     Certificate,
     CertificateRequestAttributes,
@@ -70,6 +72,14 @@ SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
 
 
+@dataclass
+class TelemetryConfig:
+    """Telemetry configuration."""
+    enabled: bool
+    otlp_endpoint: str
+    ratio: float
+
+
 class AMFOperatorCharm(CharmBase):
     """Main class to describe juju event handling for the SD-Core AMF operator for K8s."""
 
@@ -104,7 +114,12 @@ class AMFOperatorCharm(CharmBase):
                 }
             ],
         )
-        self.tracing = ops.tracing.Tracing(self, "tracing")
+        self.charm_tracing = ops.tracing.Tracing(self, "charm-tracing")
+        self.tracing = TracingEndpointRequirer(
+            charm=self,
+            relation_name="tracing",
+            protocols=['otlp_grpc']
+        )
         self.unit.set_ports(PROMETHEUS_PORT, SBI_PORT, SCTP_GRPC_PORT)
         self._logging = LogForwarder(charm=self, relation_name=LOGGING_RELATION_NAME)
         self.k8s_service = K8sService(
@@ -544,6 +559,25 @@ class AMFOperatorCharm(CharmBase):
             amf_port=NGAPP_PORT,
         )
 
+    def _get_telemetry_config(self) -> TelemetryConfig:
+        enabled: bool = False
+        ratio = 0.0
+        otlp_endpoint = ""
+
+        is_ready = self.tracing.is_ready()
+        endpoints = self.tracing.get_all_endpoints()
+
+        if is_ready and endpoints:
+            enabled = True
+            ratio = 1.0
+            otlp_endpoint = endpoints.receivers[0].url
+
+        return TelemetryConfig(
+            enabled=enabled,
+            otlp_endpoint=otlp_endpoint,
+            ratio=ratio,
+        )
+
     def _generate_amf_config_file(self) -> str:
         """Handle creation of the AMF config file based on a given template.
 
@@ -561,6 +595,8 @@ class AMFOperatorCharm(CharmBase):
         if not (log_level := self._get_log_level_config()):
             raise ValueError("Log level configuration value is empty")
 
+        telemetry_config = self._get_telemetry_config()
+
         return self._render_config_file(
             ngapp_port=NGAPP_PORT,
             sctp_grpc_port=SCTP_GRPC_PORT,
@@ -575,6 +611,7 @@ class AMFOperatorCharm(CharmBase):
             log_level=log_level,
             tls_pem=f"{CERTS_DIR_PATH}/{CERTIFICATE_NAME}",
             tls_key=f"{CERTS_DIR_PATH}/{PRIVATE_KEY_NAME}",
+            telemetry_config=telemetry_config,
         )
 
     @staticmethod
@@ -593,6 +630,7 @@ class AMFOperatorCharm(CharmBase):
         log_level: str,
         tls_pem: str,
         tls_key: str,
+        telemetry_config: TelemetryConfig,
     ) -> str:
         """Render the AMF config file.
 
@@ -610,6 +648,7 @@ class AMFOperatorCharm(CharmBase):
             log_level (str): Log level for the AMF.
             tls_pem (str): TLS certificate file.
             tls_key (str): TLS key file.
+            telemetry_config (TelemetryConfig): Telemetry configuration.
 
         Returns:
             str: Content of the rendered config file.
@@ -630,6 +669,7 @@ class AMFOperatorCharm(CharmBase):
             log_level=log_level,
             tls_pem=tls_pem,
             tls_key=tls_key,
+            telemetry=telemetry_config,
         )
         return content
 

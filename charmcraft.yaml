@@ -52,6 +52,9 @@ requires:
   tracing:
     interface: tracing
     limit: 1
+  charm_tracing:
+    interface: tracing
+    limit: 1
 
 type: charm
 base: ubuntu@24.04
