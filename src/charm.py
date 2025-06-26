@@ -114,7 +114,7 @@ class AMFOperatorCharm(CharmBase):
                 }
             ],
         )
-        self.charm_tracing = ops.tracing.Tracing(self, "charm-tracing")
+        self.charm_tracing = ops.tracing.Tracing(self, "charm_tracing")
         self.tracing = TracingEndpointRequirer(
             charm=self,
             relation_name="tracing",
