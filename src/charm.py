@@ -132,6 +132,7 @@ class AMFOperatorCharm(CharmBase):
         if self.peers:
             self.peers.data[self.app]["leader-elected-at"] = str(time.time())
             self.peers.data[self.app]["leader"] = self.unit.name
+        self._configure_amf(event)
 
     def _on_peers_changed(self, event):
         if not self.peers:
@@ -145,12 +146,8 @@ class AMFOperatorCharm(CharmBase):
             logger.debug("Leader data not yet available in peer relation")
             return
 
-        if self.unit.name == recorded_leader:
-            logger.info("This unit (%s) is the recorded leader, reconfiguring AMF", self.unit.name)
-            self._configure_amf(event)
-        else:
-            logger.info("This unit (%s) is not leader, stopping AMF service", self.unit.name)
-            self._stop_amf_service()
+        logger.info("This unit (%s) is not leader, stopping AMF service", self.unit.name)
+        self._stop_amf_service()
 
     def _configure_amf(self, _: EventBase) -> None:
         """Handle Juju events.
