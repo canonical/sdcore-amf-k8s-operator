@@ -58,6 +58,25 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         )
         container = testing.Container(
             name="amf", can_connect=True,
+            layers={
+                "amf": Layer(
+                    {
+                        "services": {
+                            "amf": {
+                                "startup": "enabled",
+                                "override": "replace",
+                                "command": "/bin/amf --cfg /free5gc/config/amfcfg.conf",
+                                "environment": {
+                                    "GOTRACEBACK": "crash",
+                                    "POD_IP": "192.0.2.1",
+                                    "MANAGED_BY_CONFIG_POD": "true",
+                                },
+                            }
+                        }
+                    }
+                )
+            },
+            service_statuses={"amf": ops.pebble.ServiceStatus.ACTIVE},
         )
         state_in = testing.State(
             leader=False,

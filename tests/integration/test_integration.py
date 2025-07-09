@@ -123,6 +123,13 @@ async def test_restore_nms_and_wait_for_active_status(ops_test: OpsTest, deploy)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
 
+@pytest.mark.abort_on_fail
+async def test_scale_up_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    await ops_test.model.applications.get(APP_NAME).scale(2)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+
+
 async def _deploy_mongodb(ops_test: OpsTest):
     assert ops_test.model
     await ops_test.model.deploy(
