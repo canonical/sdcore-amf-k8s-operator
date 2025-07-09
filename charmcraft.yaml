@@ -53,6 +53,10 @@ requires:
     interface: tracing
     limit: 1
 
+peers:
+  replicas:
+    interface: amf_replicas
+
 type: charm
 base: ubuntu@24.04
 build-base: ubuntu@24.04

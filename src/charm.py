@@ -5,6 +5,7 @@
 """Charmed operator for the SD-Core AMF service for K8s."""
 
 import logging
+import time
 from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import List, Optional, cast
@@ -30,8 +31,10 @@ from ops import (
     ActiveStatus,
     BlockedStatus,
     CollectStatusEvent,
+    LeaderElectedEvent,
     MaintenanceStatus,
     ModelError,
+    RelationChangedEvent,
     WaitingStatus,
     main,
 )
@@ -68,6 +71,7 @@ LOGGING_RELATION_NAME = "logging"
 FIVEG_NRF_RELATION_NAME = "fiveg_nrf"
 SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
+REPLICAS_RELATION_NAME = "replicas"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -75,14 +79,8 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.replicas = self.model.get_relation(REPLICAS_RELATION_NAME)
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
-        if not self.unit.is_leader():
-            # NOTE: In cases where leader status is lost before the charm is
-            # finished processing all teardown events, this prevents teardown
-            # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to perform if we're removing the
-            # charm.
-            return
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name=FIVEG_NRF_RELATION_NAME)
@@ -114,6 +112,11 @@ class AMFOperatorCharm(CharmBase):
             app_name=self.app.name,
         )
         self.framework.observe(self.on.remove, self._on_remove)
+        self.framework.observe(self.on.leader_elected, self._on_leader_elected)
+        self.framework.observe(
+            self.on.replicas_relation_changed,
+            self._on_amf_replicas_relation_changed
+        )
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
@@ -128,6 +131,27 @@ class AMFOperatorCharm(CharmBase):
         )
         self.framework.observe(self._certificates.on.certificate_available, self._configure_amf)
 
+    def _on_leader_elected(self, event: LeaderElectedEvent) -> None:
+        if self.replicas:
+            logger.debug("Unit `%s` is leader", self.unit.name)
+            self.replicas.data[self.app]["leader"] = self.unit.name
+            self.replicas.data[self.app]["elected-at"] = time.strftime(
+                '%Y-%m-%d %H:%M:%S', time.localtime()
+            )
+        self._configure_amf(event)
+
+    def _on_amf_replicas_relation_changed(self, _: RelationChangedEvent):
+        if not self.replicas:
+            return
+        leader_unit = self.replicas.data[self.app].get("leader")
+        leader_elected_at = self.replicas.data[self.app].get("elected-at")
+        logger.debug("Leader is: `%s`, elected at `%s`", leader_unit, leader_elected_at)
+        if not self.unit.is_leader():
+            if self._amf_service_is_running():
+                logger.debug("Stopping AMF service")
+                self._amf_container.stop(self._amf_service_name)
+                logger.info("Stopped service `%s` in non-leader unit", self._amf_service_name)
+
     def _configure_amf(self, _: EventBase) -> None:
         """Handle Juju events.
 
@@ -140,6 +164,9 @@ class AMFOperatorCharm(CharmBase):
         Args:
             _ (EventBase): Juju event
         """
+        if not self.unit.is_leader():
+            logger.info("Unit `%s` is not leader", self.unit.name)
+            return
         if not self.k8s_service.is_created():
             self.k8s_service.create()
         if not self.ready_to_configure():
@@ -191,13 +218,8 @@ class AMFOperatorCharm(CharmBase):
             event: CollectStatusEvent
         """
         if not self.unit.is_leader():
-            # NOTE: In cases where leader status is lost before the charm is
-            # finished processing all teardown events, this prevents teardown
-            # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to perform if we're removing the
-            # charm.
-            event.add_status(BlockedStatus("Scaling is not implemented for this charm"))
-            logger.info("Scaling is not implemented for this charm")
+            event.add_status(ActiveStatus("standby (non-leader)"))
+            logger.info("Unit in standby (non-leader)")
             return
 
         if not self._amf_container.can_connect():
@@ -717,10 +739,12 @@ class AMFOperatorCharm(CharmBase):
             bool: Whether the AMF service is running.
         """
         if not self._amf_container.can_connect():
+            logger.debug("Cannot connect to AMF container")
             return False
         try:
             service = self._amf_container.get_service(self._amf_service_name)
         except ModelError:
+            logger.debug("Service AMF not found")
             return False
         return service.is_running()
 

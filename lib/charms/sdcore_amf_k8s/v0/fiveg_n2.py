@@ -307,7 +307,7 @@ class N2Provides(Object):
             None
         """
         if not self.charm.unit.is_leader():
-            raise RuntimeError("Unit must be leader to set application relation data.")
+            return
         relations = self.model.relations[self.relation_name]
         if not relations:
             raise RuntimeError(f"Relation {self.relation_name} not created yet.")

@@ -264,6 +264,14 @@ class TestCharmCollectUnitStatus(AMFUnitTestFixtures):
 
             assert state_out.unit_status == ActiveStatus()
 
+    def test_unit_is_non_leader_when_collect_unit_status_then_status_is_active(self):
+        state_in = testing.State(
+            leader=False
+        )
+        state_out = self.ctx.run(self.ctx.on.collect_unit_status(), state_in)
+
+        assert state_out.unit_status == ActiveStatus("standby (non-leader)")
+
     def test_given_empty_ip_address_when_collect_unit_status_then_status_is_waiting(
         self,
     ):
