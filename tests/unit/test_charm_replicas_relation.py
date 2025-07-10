@@ -8,7 +8,7 @@ from tests.unit.fixtures import AMFUnitTestFixtures
 
 
 class TestCharmConfigure(AMFUnitTestFixtures):
-    def test_given_replicas_relation_created_and_unit_is_leader_when_leader_elected_then_databag_is_updated(  #noqa E501
+    def test_given_replicas_relation_created_and_unit_is_leader_when_leader_elected_then_databag_is_updated(  # noqa E501
         self,
     ):
         replicas_relation = testing.PeerRelation(

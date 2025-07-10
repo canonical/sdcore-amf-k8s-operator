@@ -19,11 +19,19 @@ logger = logging.getLogger(__name__)
 class K8sService:
     """K8sService class to manage external AMF service."""
 
-    def __init__(self, namespace: str, service_name: str, service_port: int, app_name: str):
+    def __init__(
+            self,
+            namespace: str,
+            service_name: str,
+            service_port: int,
+            app_name: str,
+            unit_id: str
+    ):
         self.namespace = namespace
         self.service_name = service_name
         self.service_port = service_port
         self.app_name = app_name
+        self.unit_id = unit_id
         self.client = Client()
 
     def create(self) -> None:
@@ -47,6 +55,22 @@ class K8sService:
             field_manager=self.app_name,
         )
         logger.info("Created/asserted existence of external AMF service")
+
+    def patch(self) -> None:
+        """Patch the existing external AMF service with the pod index of the new leader."""
+        self.client.patch(
+            res=Service,
+            name=self.service_name,
+            namespace=self.namespace,
+            field_manager=self.app_name,
+            obj=Service(
+                spec=ServiceSpec(
+                    selector={
+                        "apps.kubernetes.io/pod-index": self.unit_id,
+                    },
+                )
+            )
+        )
 
     def is_created(self) -> bool:
         """Check if the external AMF service is created."""

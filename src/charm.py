@@ -110,6 +110,7 @@ class AMFOperatorCharm(CharmBase):
             service_name=f"{self.app.name}-external",
             service_port=NGAPP_PORT,
             app_name=self.app.name,
+            unit_id=self.unit.name.split("/")[-1],
         )
         self.framework.observe(self.on.remove, self._on_remove)
         self.framework.observe(self.on.leader_elected, self._on_leader_elected)
@@ -138,6 +139,8 @@ class AMFOperatorCharm(CharmBase):
             self.replicas.data[self.app]["elected-at"] = time.strftime(
                 '%Y-%m-%d %H:%M:%S', time.localtime()
             )
+        if self.k8s_service.is_created():
+            self.k8s_service.patch()
         self._configure_amf(event)
 
     def _on_amf_replicas_relation_changed(self, _: RelationChangedEvent):
@@ -344,8 +347,9 @@ class AMFOperatorCharm(CharmBase):
         # hooks are finished running. In this case, we will leave behind a
         # dirty state in k8s, but it will be cleaned up when the juju model is
         # destroyed. It will be reused if the charm is re-deployed.
-        if self.k8s_service.is_created():
-            self.k8s_service.remove()
+        if self.unit.is_leader():
+            if self.k8s_service.is_created():
+                self.k8s_service.remove()
 
     def _is_config_update_required(self, content: str) -> bool:
         """Decide whether config update is required by checking existence and config content.

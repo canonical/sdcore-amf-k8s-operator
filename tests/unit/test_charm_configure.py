@@ -411,6 +411,20 @@ class TestCharmConfigure(AMFUnitTestFixtures):
 
         self.mock_k8s_service.create.assert_called_once()
 
+    def test_given_k8s_service_created_when_leader_elected_then_service_is_patched(self):
+        container = testing.Container(
+            name="amf",
+        )
+        state_in = testing.State(
+            leader=True,
+            containers={container},
+        )
+        self.mock_k8s_service.is_created.return_value = True
+
+        self.ctx.run(self.ctx.on.leader_elected(), state_in)
+
+        self.mock_k8s_service.patch.assert_called_once()
+
     def test_given_unit_was_no_leader_when_leader_elected_then_pebble_is_applied_correctly(self):
         with tempfile.TemporaryDirectory() as tempdir:
             nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
