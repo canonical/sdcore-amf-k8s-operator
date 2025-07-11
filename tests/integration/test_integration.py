@@ -4,11 +4,14 @@
 
 
 import logging
+import os
 from pathlib import Path
 
 import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
+
+from tests.integration.jhack_helper import JhackClient
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +129,18 @@ async def test_restore_nms_and_wait_for_active_status(ops_test: OpsTest, deploy)
 @pytest.mark.abort_on_fail
 async def test_scale_up_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
-    await ops_test.model.applications.get(APP_NAME).scale(2)
+    amf_app = ops_test.model.applications.get(APP_NAME)
+    assert amf_app
+    await amf_app.scale(2)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+
+
+@pytest.mark.abort_on_fail
+async def test_trigger_leader_election_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    current_model = ops_test.model.name
+    jhack_client = JhackClient(model=current_model, user=os.getlogin())
+    jhack_client.elect(application=APP_NAME, unit_id=1)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
 
 
