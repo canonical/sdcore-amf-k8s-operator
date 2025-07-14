@@ -142,7 +142,7 @@ async def test_trigger_leader_election_and_wait_for_active_status(ops_test: OpsT
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
     expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/1")
     assert expected_leader_unit
-    assert expected_leader_unit.is_leader_from_status()
+    assert await expected_leader_unit.is_leader_from_status()
 
 
 @pytest.mark.abort_on_fail
@@ -154,7 +154,7 @@ async def test_scale_down_and_wait_for_active_status(ops_test: OpsTest, deploy):
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
     expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/0")
     assert expected_leader_unit
-    assert expected_leader_unit.is_leader_from_status()
+    assert await expected_leader_unit.is_leader_from_status()
 
 
 async def _deploy_mongodb(ops_test: OpsTest):

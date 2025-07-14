@@ -411,7 +411,9 @@ class TestCharmConfigure(AMFUnitTestFixtures):
 
         self.mock_k8s_service.create.assert_called_once()
 
-    def test_given_k8s_service_created_when_leader_elected_then_service_is_patched(self):
+    def test_given_k8s_service_created_and_requires_patch_when_leader_elected_then_service_is_patched(  # noqa E501
+        self,
+    ):
         container = testing.Container(
             name="amf",
         )
@@ -420,10 +422,28 @@ class TestCharmConfigure(AMFUnitTestFixtures):
             containers={container},
         )
         self.mock_k8s_service.is_created.return_value = True
+        self.mock_k8s_service.requires_patch.return_value = True
 
         self.ctx.run(self.ctx.on.leader_elected(), state_in)
 
         self.mock_k8s_service.patch.assert_called_once()
+
+    def test_given_k8s_service_created_and_does_not_require_patch_when_leader_elected_then_service_is_not_patched(  # noqa E501
+        self,
+    ):
+        container = testing.Container(
+            name="amf",
+        )
+        state_in = testing.State(
+            leader=True,
+            containers={container},
+        )
+        self.mock_k8s_service.is_created.return_value = True
+        self.mock_k8s_service.requires_patch.return_value = False
+
+        self.ctx.run(self.ctx.on.leader_elected(), state_in)
+
+        self.mock_k8s_service.patch.assert_not_called()
 
     def test_given_unit_was_no_leader_when_leader_elected_then_pebble_is_applied_correctly(self):
         with tempfile.TemporaryDirectory() as tempdir:

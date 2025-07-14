@@ -34,7 +34,6 @@ from ops import (
     LeaderElectedEvent,
     MaintenanceStatus,
     ModelError,
-    RelationChangedEvent,
     WaitingStatus,
     main,
 )
@@ -113,11 +112,8 @@ class AMFOperatorCharm(CharmBase):
             unit_id=self.unit.name.split("/")[-1],
         )
         self.framework.observe(self.on.remove, self._on_remove)
-        self.framework.observe(self.on.leader_elected, self._on_leader_elected)
-        self.framework.observe(
-            self.on.replicas_relation_changed,
-            self._on_amf_replicas_relation_changed
-        )
+        self.framework.observe(self.on.leader_elected, self._configure_amf)
+        self.framework.observe(self.on.replicas_relation_changed, self._configure_amf)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
@@ -143,18 +139,6 @@ class AMFOperatorCharm(CharmBase):
             self.k8s_service.patch()
         self._configure_amf(event)
 
-    def _on_amf_replicas_relation_changed(self, _: RelationChangedEvent):
-        if not self.replicas:
-            return
-        leader_unit = self.replicas.data[self.app].get("leader")
-        leader_elected_at = self.replicas.data[self.app].get("elected-at")
-        logger.debug("Leader is: `%s`, elected at `%s`", leader_unit, leader_elected_at)
-        if not self.unit.is_leader():
-            if self._amf_service_is_running():
-                logger.debug("Stopping AMF service")
-                self._amf_container.stop(self._amf_service_name)
-                logger.info("Stopped service `%s` in non-leader unit", self._amf_service_name)
-
     def _configure_amf(self, _: EventBase) -> None:
         """Handle Juju events.
 
@@ -169,9 +153,19 @@ class AMFOperatorCharm(CharmBase):
         """
         if not self.unit.is_leader():
             logger.info("Unit `%s` is not leader", self.unit.name)
+            if self._amf_service_is_running():
+                logger.debug("Stopping `%s` service", self._amf_service_name)
+                self._amf_container.stop(self._amf_service_name)
+                logger.debug(
+                    "Stopped service `%s` in non-leader unit", self._amf_service_name
+                )
             return
+        if self.replicas:
+            self.replicas.data[self.app]["leader"] = self.unit.name
         if not self.k8s_service.is_created():
             self.k8s_service.create()
+        if self.k8s_service.requires_patch():
+            self.k8s_service.patch()
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
             return

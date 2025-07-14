@@ -80,6 +80,21 @@ class K8sService:
         except Exception:
             return False
 
+    def requires_patch(self) -> bool:
+        """Check if the external AMF service requires patching."""
+        try:
+            service = self.client.get(Service, name=self.service_name, namespace=self.namespace)
+            if not service.spec:
+                logger.debug("Service `%s` not found", self.service_name)
+                return False
+            if not service.spec.selector:
+                return True
+            if service.spec.selector.get("apps.kubernetes.io/pod-index") != self.unit_id:
+                return True
+            return False
+        except Exception:
+            return False
+
     def remove(self):
         """Remove the external AMF service."""
         client = Client()

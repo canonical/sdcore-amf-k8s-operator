@@ -27,7 +27,6 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         state_out = self.ctx.run(self.ctx.on.leader_elected(), state_in)
         relation_data = state_out.get_relation(replicas_relation.id).local_app_data
         assert relation_data.get("leader") is not None
-        assert relation_data.get("elected-at") is not None
 
     def test_given_replicas_relation_created_and_unit_is_not_leader_when_replicas_relation_changed_then_databag_is_not_updated(  # noqa E501
         self,
