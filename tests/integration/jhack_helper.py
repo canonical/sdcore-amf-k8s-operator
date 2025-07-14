@@ -71,5 +71,6 @@ class JhackClient:
             env={
                 "JUJU_MODEL": self.model,
                 "USER": self.user,
+                "JHACK_PROFILE": "devmode",
             }
         )
