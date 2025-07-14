@@ -327,18 +327,15 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_remove(self, event: RemoveEvent) -> None:
         # NOTE: We want to perform this removal only if the last remaining unit
-        # is removed. This charm does not support scaling, so it *should* be
-        # the only unit.
+        # is removed.
         #
-        # However, to account for the case where the charm was scaled up, and
-        # now needs to be scaled back down, we only remove the service if the
-        # leader is removed. This is presumed to be the only healthy unit, and
-        # therefore the last remaining one when removed (since all other units
-        # will block if they are not leader)
+        # We only remove the service if the leader is removed. This is presumed
+        # to be the only healthy unit, and therefore the last remaining one when
+        # removed (since all other units will block if they are not leader)
         #
         # This is a best effort removal of the service. There are edge cases
         # where the leader status is removed from the leader unit before all
-        # hooks are finished running. In this case, we will leave behind a
+        # hooks have finished running. In this case, we will leave behind a
         # dirty state in k8s, but it will be cleaned up when the juju model is
         # destroyed. It will be reused if the charm is re-deployed.
         if self.unit.is_leader():

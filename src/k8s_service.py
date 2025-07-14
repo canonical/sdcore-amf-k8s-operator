@@ -20,12 +20,12 @@ class K8sService:
     """K8sService class to manage external AMF service."""
 
     def __init__(
-            self,
-            namespace: str,
-            service_name: str,
-            service_port: int,
-            app_name: str,
-            unit_id: str
+        self,
+        namespace: str,
+        service_name: str,
+        service_port: int,
+        app_name: str,
+        unit_id: str
     ):
         self.namespace = namespace
         self.service_name = service_name
