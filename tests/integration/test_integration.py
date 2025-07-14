@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
-
-
+import getpass
 import logging
-import os
 from pathlib import Path
 
 import pytest
@@ -139,7 +137,7 @@ async def test_scale_up_and_wait_for_active_status(ops_test: OpsTest, deploy):
 async def test_trigger_leader_election_and_wait_for_active_status(ops_test: OpsTest, deploy):
     assert ops_test.model
     current_model = ops_test.model.name
-    jhack_client = JhackClient(model=current_model, user=os.getlogin())
+    jhack_client = JhackClient(model=current_model, user=getpass.getuser())
     jhack_client.elect(application=APP_NAME, unit_id=1)
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
     expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/1")
