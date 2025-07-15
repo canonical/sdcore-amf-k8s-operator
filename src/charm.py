@@ -722,12 +722,12 @@ class AMFOperatorCharm(CharmBase):
             bool: Whether the AMF service is running.
         """
         if not self._amf_container.can_connect():
-            logger.debug("Cannot connect to AMF container")
+            logger.debug("Cannot connect to %s container", self._amf_container_name)
             return False
         try:
             service = self._amf_container.get_service(self._amf_service_name)
         except ModelError:
-            logger.debug("Service AMF not found")
+            logger.debug("Service %s not found", self._amf_service_name)
             return False
         return service.is_running()
 
