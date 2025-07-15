@@ -78,6 +78,7 @@ class AMFOperatorCharm(CharmBase):
         super().__init__(*args)
         self.replicas = self.model.get_relation(REPLICAS_RELATION_NAME)
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
+        self.framework.observe(self.on.collect_app_status, self._on_collect_app_status)
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name=FIVEG_NRF_RELATION_NAME)
@@ -194,6 +195,18 @@ class AMFOperatorCharm(CharmBase):
         if private_key_update_required := self._is_private_key_update_required(private_key):
             self._store_private_key(private_key=private_key)
         return certificate_update_required or private_key_update_required
+
+    def _on_collect_app_status(self, event: CollectStatusEvent):  # noqa C901
+        """Check the unit status and set to Application when CollectStatusEvent is fired.
+
+        If the unit is not leader, application status is not set.
+
+        Args:
+            event: CollectStatusEvent
+        """
+        if not self.unit.is_leader():
+            return
+        self._on_collect_unit_status(event)
 
     def _on_collect_unit_status(self, event: CollectStatusEvent):  # noqa C901
         """Check the unit status and set to Unit when CollectStatusEvent is fired.
