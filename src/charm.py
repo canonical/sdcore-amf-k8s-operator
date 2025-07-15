@@ -5,7 +5,6 @@
 """Charmed operator for the SD-Core AMF service for K8s."""
 
 import logging
-import time
 from ipaddress import IPv4Address
 from subprocess import check_output
 from typing import List, Optional, cast
@@ -31,7 +30,6 @@ from ops import (
     ActiveStatus,
     BlockedStatus,
     CollectStatusEvent,
-    LeaderElectedEvent,
     MaintenanceStatus,
     ModelError,
     WaitingStatus,
@@ -127,17 +125,6 @@ class AMFOperatorCharm(CharmBase):
             self.on.certificates_relation_broken, self._on_certificates_relation_broken
         )
         self.framework.observe(self._certificates.on.certificate_available, self._configure_amf)
-
-    def _on_leader_elected(self, event: LeaderElectedEvent) -> None:
-        if self.replicas:
-            logger.debug("Unit `%s` is leader", self.unit.name)
-            self.replicas.data[self.app]["leader"] = self.unit.name
-            self.replicas.data[self.app]["elected-at"] = time.strftime(
-                '%Y-%m-%d %H:%M:%S', time.localtime()
-            )
-        if self.k8s_service.is_created():
-            self.k8s_service.patch()
-        self._configure_amf(event)
 
     def _configure_amf(self, _: EventBase) -> None:
         """Handle Juju events.
