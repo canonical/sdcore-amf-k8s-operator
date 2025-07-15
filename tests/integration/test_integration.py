@@ -10,7 +10,6 @@ import yaml
 from pytest_operator.plugin import OpsTest
 
 from tests.integration.jhack_helper import JhackClient
-from tests.integration.k8s_helper import get_loadbalancer_service_selector_pod_index
 
 logger = logging.getLogger(__name__)
 
@@ -144,9 +143,6 @@ async def test_trigger_leader_election_and_wait_for_active_status(ops_test: OpsT
     expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/1")
     assert expected_leader_unit
     assert await expected_leader_unit.is_leader_from_status()
-    assert get_loadbalancer_service_selector_pod_index(
-        f"{APP_NAME}-external", ops_test.model_name
-    ) == "1"
 
 
 @pytest.mark.abort_on_fail
@@ -159,9 +155,6 @@ async def test_scale_down_and_wait_for_active_status(ops_test: OpsTest, deploy):
     expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/0")
     assert expected_leader_unit
     assert await expected_leader_unit.is_leader_from_status()
-    assert get_loadbalancer_service_selector_pod_index(
-        f"{APP_NAME}-external", ops_test.model_name
-    ) == "0"
 
 
 async def _deploy_mongodb(ops_test: OpsTest):

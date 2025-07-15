@@ -56,42 +56,11 @@ class K8sService:
         )
         logger.info("Created/asserted existence of external AMF service")
 
-    def patch(self) -> None:
-        """Patch the existing external AMF service with the pod index of the new leader."""
-        self.client.patch(
-            res=Service,
-            name=self.service_name,
-            namespace=self.namespace,
-            field_manager=self.app_name,
-            obj=Service(
-                spec=ServiceSpec(
-                    selector={
-                        "apps.kubernetes.io/pod-index": self.unit_id,
-                    },
-                )
-            )
-        )
-
     def is_created(self) -> bool:
         """Check if the external AMF service is created."""
         try:
             self.client.get(Service, name=self.service_name, namespace=self.namespace)
             return True
-        except Exception:
-            return False
-
-    def requires_patch(self) -> bool:
-        """Check if the external AMF service requires patching."""
-        try:
-            service = self.client.get(Service, name=self.service_name, namespace=self.namespace)
-            if not service.spec:
-                logger.debug("Service `%s` not found", self.service_name)
-                return False
-            if not service.spec.selector:
-                return True
-            if service.spec.selector.get("apps.kubernetes.io/pod-index") != self.unit_id:
-                return True
-            return False
         except Exception:
             return False
 

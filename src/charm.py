@@ -151,8 +151,6 @@ class AMFOperatorCharm(CharmBase):
             self.replicas.data[self.app]["leader"] = self.unit.name
         if not self.k8s_service.is_created():
             self.k8s_service.create()
-        if self.k8s_service.requires_patch():
-            self.k8s_service.patch()
         if not self.ready_to_configure():
             logger.info("The preconditions for the configuration are not met yet.")
             return
@@ -372,7 +370,8 @@ class AMFOperatorCharm(CharmBase):
             restart (bool): Whether to restart the AMF container.
         """
         plan = self._amf_container.get_plan()
-        if plan.services != self._amf_pebble_layer.services:
+        if (plan.services != self._amf_pebble_layer.services or
+                plan.checks != self._amf_pebble_layer.checks):
             self._amf_container.add_layer(
                 self._amf_container_name, self._amf_pebble_layer, combine=True
             )
@@ -691,6 +690,16 @@ class AMFOperatorCharm(CharmBase):
                         "environment": self._amf_environment_variables,
                     },
                 },
+                "checks": {
+                    "service-readiness": {
+                        "override": "replace",
+                        "level": "ready",
+                        "tcp": {
+                            "host": "0.0.0.0",
+                            "port": SBI_PORT,
+                        }
+                    }
+                }
             }
         )
 
