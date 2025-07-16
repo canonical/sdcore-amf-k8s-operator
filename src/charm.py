@@ -465,14 +465,9 @@ class AMFOperatorCharm(CharmBase):
             list: List of strings matching config keys.
         """
         invalid_configs = []
-        if not self._get_dnn_config():
-            invalid_configs.append("dnn")
         if not self._is_log_level_valid():
             invalid_configs.append("log-level")
         return invalid_configs
-
-    def _get_dnn_config(self) -> Optional[str]:
-        return cast(Optional[str], self.model.config.get("dnn"))
 
     def _get_log_level_config(self) -> Optional[str]:
         return cast(Optional[str], self.model.config.get("log-level"))
@@ -550,8 +545,6 @@ class AMFOperatorCharm(CharmBase):
         Returns:
             content (str): desired config file content
         """
-        if not (dnn := self._get_dnn_config()):
-            raise ValueError("DNN configuration value is empty")
         if not (pod_ip := _get_pod_ip()):
             raise ValueError("Pod IP is not available")
         if not self._nrf_requires.nrf_url:
@@ -569,7 +562,6 @@ class AMFOperatorCharm(CharmBase):
             amf_ip=pod_ip,
             full_network_name=CORE_NETWORK_FULL_NAME,
             short_network_name=CORE_NETWORK_SHORT_NAME,
-            dnn=dnn,
             scheme="https",
             webui_uri=self._webui_requires.webui_url,
             log_level=log_level,
@@ -587,7 +579,6 @@ class AMFOperatorCharm(CharmBase):
         nrf_url: str,
         full_network_name: str,
         short_network_name: str,
-        dnn: str,
         scheme: str,
         webui_uri: str,
         log_level: str,
@@ -604,7 +595,6 @@ class AMFOperatorCharm(CharmBase):
             nrf_url (str): URL of the NRF.
             full_network_name (str): Full name of the network.
             short_network_name (str): Short name of the network.
-            dnn (str): Data Network name.
             scheme (str): SBI interface scheme ("http" or "https")
             webui_uri (str) : URL of the Webui.
             log_level (str): Log level for the AMF.
@@ -624,7 +614,6 @@ class AMFOperatorCharm(CharmBase):
             amf_ip=amf_ip,
             full_network_name=full_network_name,
             short_network_name=short_network_name,
-            dnn=dnn,
             scheme=scheme,
             webui_uri=webui_uri,
             log_level=log_level,

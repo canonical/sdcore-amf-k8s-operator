@@ -83,10 +83,6 @@ config:
       type: string
       default: info
       description: Log level for the AMF. One of `debug`, `info`, `warn`, `error`, `fatal`, `panic`.
-    dnn:
-      type: string
-      default: internet
-      description: Data Network Name (DNN)
     external-amf-ip:
       type: string
       description: |-
