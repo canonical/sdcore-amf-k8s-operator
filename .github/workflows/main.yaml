@@ -43,7 +43,7 @@ jobs:
   integration-test:
     needs:
       - build
-    uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@add-jhack-snap
+    uses: canonical/sdcore-github-workflows/.github/workflows/integration-test.yaml@test-jhack
     with:
       enable-metallb: true
 
