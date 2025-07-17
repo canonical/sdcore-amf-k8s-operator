@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
-
-
+import getpass
 import logging
 from pathlib import Path
 
 import pytest
 import yaml
 from pytest_operator.plugin import OpsTest
+
+from tests.integration.jhack_helper import JhackClient
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,39 @@ async def test_restore_nms_and_wait_for_active_status(ops_test: OpsTest, deploy)
         relation1=f"{APP_NAME}:sdcore_config", relation2=f"{NMS_CHARM_NAME}:sdcore_config"
     )
     await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+
+
+@pytest.mark.abort_on_fail
+async def test_scale_up_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    amf_app = ops_test.model.applications.get(APP_NAME)
+    assert amf_app
+    await amf_app.scale(2)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+
+
+@pytest.mark.abort_on_fail
+async def test_trigger_leader_election_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    current_model = ops_test.model.name
+    jhack_client = JhackClient(model=current_model, user=getpass.getuser())
+    jhack_client.elect(application=APP_NAME, unit_id=1)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+    expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/1")
+    assert expected_leader_unit
+    assert await expected_leader_unit.is_leader_from_status()
+
+
+@pytest.mark.abort_on_fail
+async def test_scale_down_and_wait_for_active_status(ops_test: OpsTest, deploy):
+    assert ops_test.model
+    amf_app = ops_test.model.applications.get(APP_NAME)
+    assert amf_app
+    await amf_app.scale(1)
+    await ops_test.model.wait_for_idle(apps=[APP_NAME], status="active", timeout=TIMEOUT)
+    expected_leader_unit = ops_test.model.units.get(f"{APP_NAME}/0")
+    assert expected_leader_unit
+    assert await expected_leader_unit.is_leader_from_status()
 
 
 async def _deploy_mongodb(ops_test: OpsTest):
