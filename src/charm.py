@@ -207,6 +207,7 @@ class AMFOperatorCharm(CharmBase):
         if not self._amf_container.can_connect():
             event.add_status(MaintenanceStatus("Waiting for service to start"))
             logger.info("Waiting for service to start")
+            self.app.status = MaintenanceStatus("Waiting for service to start")
             return
 
         if invalid_configs := self._get_invalid_configs():
@@ -214,6 +215,9 @@ class AMFOperatorCharm(CharmBase):
                 BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
             )
             logger.info("The following configurations are not valid: %s", invalid_configs)
+            self.app.status = BlockedStatus(
+                f"The following configurations are not valid: {invalid_configs}"
+            )
             return
 
         if version := self._get_workload_version():
@@ -224,41 +228,50 @@ class AMFOperatorCharm(CharmBase):
                 BlockedStatus(f"Waiting for {', '.join(missing_relations)} relation(s)")
             )
             logger.info("Waiting for %s  relation(s)", ", ".join(missing_relations))
+            self.app.status = BlockedStatus(
+                f"Waiting for {', '.join(missing_relations)} relation(s)")
             return
 
         if not self._nrf_requires.nrf_url:
             event.add_status(WaitingStatus("Waiting for NRF data to be available"))
             logger.info("Waiting for NRF data to be available")
+            self.app.status = WaitingStatus("Waiting for NRF data to be available")
             return
 
         if not self._webui_requires.webui_url:
             event.add_status(WaitingStatus("Waiting for Webui data to be available"))
             logger.info("Waiting for Webui data to be available")
+            self.app.status = WaitingStatus("Waiting for Webui data to be available")
             return
 
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
             event.add_status(WaitingStatus("Waiting for storage to be attached"))
             logger.info("Waiting for storage to be attached")
+            self.app.status = WaitingStatus("Waiting for storage to be attached")
             return
 
         if not _get_pod_ip():
             event.add_status(WaitingStatus("Waiting for pod IP address to be available"))
             logger.info("Waiting for pod IP address to be available")
+            self.app.status = WaitingStatus("Waiting for pod IP address to be available")
             return
 
         if not self._get_n2_amf_ip() or not self._get_n2_amf_hostname():
             event.add_status(BlockedStatus("Waiting for MetalLB to be enabled"))
             logger.info("Waiting for MetalLB to be enabled")
+            self.app.status = WaitingStatus("Waiting for MetalLB to be enabled")
             return
 
         if not self._certificate_is_available():
             event.add_status(WaitingStatus("Waiting for certificates to be available"))
             logger.info("Waiting for certificates to be available")
+            self.app.status = WaitingStatus("Waiting for certificates to be available")
             return
 
         if not self._amf_service_is_running():
             event.add_status(WaitingStatus("Waiting for AMF service to start"))
             logger.info("Waiting for AMF service to start")
+            self.app.status = WaitingStatus("Waiting for AMF service to start")
             return
 
         event.add_status(ActiveStatus())
