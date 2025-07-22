@@ -53,6 +53,12 @@ requires:
     interface: tracing
     limit: 1
 
+# this integration is only necessary since juju does not provide a leader-deposed hook
+# see https://github.com/juju/juju/issues/20232
+peers:
+  replicas:
+    interface: amf_replicas
+
 type: charm
 base: ubuntu@24.04
 build-base: ubuntu@24.04

@@ -68,6 +68,7 @@ LOGGING_RELATION_NAME = "logging"
 FIVEG_NRF_RELATION_NAME = "fiveg_nrf"
 SDCORE_CONFIG_RELATION_NAME = "sdcore_config"
 TLS_RELATION_NAME = "certificates"
+REPLICAS_RELATION_NAME = "replicas"
 
 
 class AMFOperatorCharm(CharmBase):
@@ -75,14 +76,8 @@ class AMFOperatorCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+        self.replicas = self.model.get_relation(REPLICAS_RELATION_NAME)
         self.framework.observe(self.on.collect_unit_status, self._on_collect_unit_status)
-        if not self.unit.is_leader():
-            # NOTE: In cases where leader status is lost before the charm is
-            # finished processing all teardown events, this prevents teardown
-            # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to perform if we're removing the
-            # charm.
-            return
         self._amf_container_name = self._amf_service_name = "amf"
         self._amf_container = self.unit.get_container(self._amf_container_name)
         self._nrf_requires = NRFRequires(charm=self, relation_name=FIVEG_NRF_RELATION_NAME)
@@ -112,8 +107,11 @@ class AMFOperatorCharm(CharmBase):
             service_name=f"{self.app.name}-external",
             service_port=NGAPP_PORT,
             app_name=self.app.name,
+            unit_id=self.unit.name.split("/")[-1],
         )
         self.framework.observe(self.on.remove, self._on_remove)
+        self.framework.observe(self.on.leader_elected, self._configure_amf)
+        self.framework.observe(self.on.replicas_relation_changed, self._configure_amf)
         self.framework.observe(self.on.config_changed, self._configure_amf)
         self.framework.observe(self.on.update_status, self._configure_amf)
         self.framework.observe(self.on.amf_pebble_ready, self._configure_amf)
@@ -140,6 +138,17 @@ class AMFOperatorCharm(CharmBase):
         Args:
             _ (EventBase): Juju event
         """
+        if not self.unit.is_leader():
+            logger.info("Unit `%s` is not leader", self.unit.name)
+            if self._amf_service_is_running():
+                logger.debug("Stopping `%s` service", self._amf_service_name)
+                self._amf_container.stop(self._amf_service_name)
+                logger.debug(
+                    "Stopped service `%s` in non-leader unit", self._amf_service_name
+                )
+            return
+        if self.replicas:
+            self.replicas.data[self.app]["leader"] = self.unit.name
         if not self.k8s_service.is_created():
             self.k8s_service.create()
         if not self.ready_to_configure():
@@ -191,18 +200,14 @@ class AMFOperatorCharm(CharmBase):
             event: CollectStatusEvent
         """
         if not self.unit.is_leader():
-            # NOTE: In cases where leader status is lost before the charm is
-            # finished processing all teardown events, this prevents teardown
-            # event code from running. Luckily, for this charm, none of the
-            # teardown code is necessary to perform if we're removing the
-            # charm.
-            event.add_status(BlockedStatus("Scaling is not implemented for this charm"))
-            logger.info("Scaling is not implemented for this charm")
+            event.add_status(ActiveStatus("standby (non-leader)"))
+            logger.info("Unit in standby (non-leader)")
             return
 
         if not self._amf_container.can_connect():
             event.add_status(MaintenanceStatus("Waiting for service to start"))
             logger.info("Waiting for service to start")
+            self.app.status = MaintenanceStatus("Waiting for service to start")
             return
 
         if invalid_configs := self._get_invalid_configs():
@@ -210,6 +215,9 @@ class AMFOperatorCharm(CharmBase):
                 BlockedStatus(f"The following configurations are not valid: {invalid_configs}")
             )
             logger.info("The following configurations are not valid: %s", invalid_configs)
+            self.app.status = BlockedStatus(
+                f"The following configurations are not valid: {invalid_configs}"
+            )
             return
 
         if version := self._get_workload_version():
@@ -220,44 +228,54 @@ class AMFOperatorCharm(CharmBase):
                 BlockedStatus(f"Waiting for {', '.join(missing_relations)} relation(s)")
             )
             logger.info("Waiting for %s  relation(s)", ", ".join(missing_relations))
+            self.app.status = BlockedStatus(
+                f"Waiting for {', '.join(missing_relations)} relation(s)")
             return
 
         if not self._nrf_requires.nrf_url:
             event.add_status(WaitingStatus("Waiting for NRF data to be available"))
             logger.info("Waiting for NRF data to be available")
+            self.app.status = WaitingStatus("Waiting for NRF data to be available")
             return
 
         if not self._webui_requires.webui_url:
             event.add_status(WaitingStatus("Waiting for Webui data to be available"))
             logger.info("Waiting for Webui data to be available")
+            self.app.status = WaitingStatus("Waiting for Webui data to be available")
             return
 
         if not self._amf_container.exists(path=CONFIG_DIR_PATH):
             event.add_status(WaitingStatus("Waiting for storage to be attached"))
             logger.info("Waiting for storage to be attached")
+            self.app.status = WaitingStatus("Waiting for storage to be attached")
             return
 
         if not _get_pod_ip():
             event.add_status(WaitingStatus("Waiting for pod IP address to be available"))
             logger.info("Waiting for pod IP address to be available")
+            self.app.status = WaitingStatus("Waiting for pod IP address to be available")
             return
 
         if not self._get_n2_amf_ip() or not self._get_n2_amf_hostname():
             event.add_status(BlockedStatus("Waiting for MetalLB to be enabled"))
             logger.info("Waiting for MetalLB to be enabled")
+            self.app.status = WaitingStatus("Waiting for MetalLB to be enabled")
             return
 
         if not self._certificate_is_available():
             event.add_status(WaitingStatus("Waiting for certificates to be available"))
             logger.info("Waiting for certificates to be available")
+            self.app.status = WaitingStatus("Waiting for certificates to be available")
             return
 
         if not self._amf_service_is_running():
             event.add_status(WaitingStatus("Waiting for AMF service to start"))
             logger.info("Waiting for AMF service to start")
+            self.app.status = WaitingStatus("Waiting for AMF service to start")
             return
 
         event.add_status(ActiveStatus())
+        self.app.status = ActiveStatus()
 
     def _get_certificate_request(self) -> CertificateRequestAttributes:
         return CertificateRequestAttributes(
@@ -308,22 +326,20 @@ class AMFOperatorCharm(CharmBase):
 
     def _on_remove(self, event: RemoveEvent) -> None:
         # NOTE: We want to perform this removal only if the last remaining unit
-        # is removed. This charm does not support scaling, so it *should* be
-        # the only unit.
+        # is removed.
         #
-        # However, to account for the case where the charm was scaled up, and
-        # now needs to be scaled back down, we only remove the service if the
-        # leader is removed. This is presumed to be the only healthy unit, and
-        # therefore the last remaining one when removed (since all other units
-        # will block if they are not leader)
+        # We only remove the service if the leader is removed. This is presumed
+        # to be the only healthy unit, and therefore the last remaining one when
+        # removed (since all other units will block if they are not leader)
         #
         # This is a best effort removal of the service. There are edge cases
         # where the leader status is removed from the leader unit before all
-        # hooks are finished running. In this case, we will leave behind a
+        # hooks have finished running. In this case, we will leave behind a
         # dirty state in k8s, but it will be cleaned up when the juju model is
         # destroyed. It will be reused if the charm is re-deployed.
-        if self.k8s_service.is_created():
-            self.k8s_service.remove()
+        if self.unit.is_leader():
+            if self.k8s_service.is_created():
+                self.k8s_service.remove()
 
     def _is_config_update_required(self, content: str) -> bool:
         """Decide whether config update is required by checking existence and config content.
@@ -367,7 +383,8 @@ class AMFOperatorCharm(CharmBase):
             restart (bool): Whether to restart the AMF container.
         """
         plan = self._amf_container.get_plan()
-        if plan.services != self._amf_pebble_layer.services:
+        if (plan.services != self._amf_pebble_layer.services or
+                plan.checks != self._amf_pebble_layer.checks):
             self._amf_container.add_layer(
                 self._amf_container_name, self._amf_pebble_layer, combine=True
             )
@@ -686,6 +703,16 @@ class AMFOperatorCharm(CharmBase):
                         "environment": self._amf_environment_variables,
                     },
                 },
+                "checks": {
+                    "service-readiness": {
+                        "override": "replace",
+                        "level": "ready",
+                        "tcp": {
+                            "host": "0.0.0.0",
+                            "port": SBI_PORT,
+                        }
+                    }
+                }
             }
         )
 
@@ -717,10 +744,12 @@ class AMFOperatorCharm(CharmBase):
             bool: Whether the AMF service is running.
         """
         if not self._amf_container.can_connect():
+            logger.debug("Cannot connect to %s container", self._amf_container_name)
             return False
         try:
             service = self._amf_container.get_service(self._amf_service_name)
         except ModelError:
+            logger.debug("Service %s not found", self._amf_service_name)
             return False
         return service.is_running()
 
