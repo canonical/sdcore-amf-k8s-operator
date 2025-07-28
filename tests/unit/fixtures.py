@@ -23,6 +23,7 @@ class AMFUnitTestFixtures:
     patcher_get_assigned_certificate = patch(
         "charms.tls_certificates_interface.v4.tls_certificates.TLSCertificatesRequiresV4.get_assigned_certificate"
     )
+    patcher_stop = patch("ops.model.Container.stop")
 
     @pytest.fixture(autouse=True)
     def setup(self, request):
@@ -33,6 +34,10 @@ class AMFUnitTestFixtures:
         self.mock_nrf_url = AMFUnitTestFixtures.patcher_nrf_url.start()
         self.mock_webui_url = AMFUnitTestFixtures.patcher_webui_url.start()
         self.mock_check_output = AMFUnitTestFixtures.patcher_check_output.start()
+
+        self.mock_stop = (
+            AMFUnitTestFixtures.patcher_stop.start()
+        )
         yield
         request.addfinalizer(self.teardown)
 

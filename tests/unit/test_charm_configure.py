@@ -186,6 +186,16 @@ class TestCharmConfigure(AMFUnitTestFixtures):
                                 "MANAGED_BY_CONFIG_POD": "true",
                             },
                         }
+                    },
+                    "checks": {
+                        "service-readiness": {
+                            "override": "replace",
+                            "level": "ready",
+                            "tcp": {
+                                "host": "0.0.0.0",
+                                "port": 29518,
+                            }
+                        }
                     }
                 }
             )
@@ -410,3 +420,68 @@ class TestCharmConfigure(AMFUnitTestFixtures):
         self.ctx.run(self.ctx.on.pebble_ready(container), state_in)
 
         self.mock_k8s_service.create.assert_called_once()
+
+    def test_given_unit_was_no_leader_when_leader_elected_then_pebble_is_applied_correctly(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            nrf_relation = testing.Relation(endpoint="fiveg_nrf", interface="fiveg_nrf")
+            certificates_relation = testing.Relation(
+                endpoint="certificates", interface="tls-certificates"
+            )
+            sdcore_config_relation = testing.Relation(
+                endpoint="sdcore_config", interface="sdcore_config"
+            )
+            certs_mount = testing.Mount(
+                location="/support/TLS",
+                source=tempdir,
+            )
+            config_mount = testing.Mount(
+                location="/free5gc/config",
+                source=tempdir,
+            )
+            container = testing.Container(
+                name="amf", can_connect=True, mounts={"certs": certs_mount, "config": config_mount}
+            )
+            state_in = testing.State(
+                leader=True,
+                containers={container},
+                relations={
+                    nrf_relation,
+                    certificates_relation,
+                    sdcore_config_relation,
+                },
+            )
+            provider_certificate, private_key = example_cert_and_key(
+                tls_relation_id=certificates_relation.id
+            )
+            self.mock_get_assigned_certificate.return_value = provider_certificate, private_key
+            self.mock_check_output.return_value = b"192.0.2.1"
+            self.mock_nrf_url.return_value = "http://nrf:8081"
+
+            state_out = self.ctx.run(self.ctx.on.leader_elected(), state_in)
+
+            assert state_out.get_container("amf").layers["amf"] == Layer(
+                {
+                    "services": {
+                        "amf": {
+                            "startup": "enabled",
+                            "override": "replace",
+                            "command": "/bin/amf --cfg /free5gc/config/amfcfg.conf",
+                            "environment": {
+                                "GOTRACEBACK": "crash",
+                                "POD_IP": "192.0.2.1",
+                                "MANAGED_BY_CONFIG_POD": "true",
+                            },
+                        }
+                    },
+                    "checks": {
+                        "service-readiness": {
+                            "override": "replace",
+                            "level": "ready",
+                            "tcp": {
+                                "host": "0.0.0.0",
+                                "port": 29518,
+                            }
+                        }
+                    }
+                }
+            )

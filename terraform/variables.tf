@@ -14,7 +14,7 @@ variable "channel" {
 }
 
 variable "config" {
-  description = "Application config. Details about available options can be found at https://charmhub.io/sdcore-amf-k8s-operator/configure."
+  description = "Application config. Details about available options can be found at https://charmhub.io/sdcore-amf-k8s/configurations."
   type        = map(string)
   default     = {}
 }
@@ -32,7 +32,7 @@ variable "model" {
 }
 
 variable "resources" {
-  description = "Resources to use with the application. Details about available options can be found at https://charmhub.io/sdcore-amf-k8s-operator/configure."
+  description = "Resources to use with the application. Details about available options can be found at https://charmhub.io/sdcore-amf-k8s/resources."
   type        = map(string)
   default     = {}
 }
