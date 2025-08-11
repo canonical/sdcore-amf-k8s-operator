@@ -1,6 +1,10 @@
 # Aether SD-Core AMF Operator (k8s)
 [![CharmHub Badge](https://charmhub.io/sdcore-amf-k8s/badge.svg)](https://charmhub.io/sdcore-amf-k8s)
 
+> **:warning: Deprecation Notice!**
+>
+> This project is deprecated and will not receive further updates. Please refer to the upstream [Aether](https://aetherproject.org/) project to continue using Aether.
+
 Charmed Operator for Aether SD-Core's Access and Mobility Management Function (AMF) for K8s.
 
 
